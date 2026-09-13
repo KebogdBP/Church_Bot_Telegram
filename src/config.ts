@@ -27,6 +27,8 @@ const envSchema = z.object({
   OPENAI_API_BASE_URL: z.url().default('https://api.openai.com/v1'),
   OPENAI_TRANSCRIPTION_MODEL: z.string().min(1).default('gpt-4o-mini-transcribe'),
   OPENAI_TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
+  OPENAI_TEXT_MODEL: z.string().min(1).default('gpt-5-mini'),
+  CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -67,6 +69,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       transcriptionModel: parsed.OPENAI_TRANSCRIPTION_MODEL,
       transcriptionLanguage: parsed.OPENAI_TRANSCRIPTION_LANGUAGE,
       transcriptionPollIntervalMs: parsed.TRANSCRIPTION_POLL_INTERVAL_MS,
+      textModel: parsed.OPENAI_TEXT_MODEL,
+      contentGenerationPollIntervalMs: parsed.CONTENT_GENERATION_POLL_INTERVAL_MS,
     },
   };
 }

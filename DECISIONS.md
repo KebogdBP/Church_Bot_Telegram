@@ -148,3 +148,17 @@ Consequences:
 - Unit tests use the provider interface and never make paid API calls.
 - Failed jobs retry independently of Telegram downloads.
 - Changing providers or transcription models does not alter the worker contract.
+
+## ADR-0009: Structured Sermon Materials Remain Drafts
+
+Status: Accepted
+
+Decision:
+
+Generate sermon materials through the OpenAI Responses API with a strict JSON schema and `store: false`. Save the summary, key thoughts, questions, and follow-up posts in PostgreSQL, but never publish them before explicit administrator approval.
+
+Consequences:
+
+- Downstream review and scheduling receive predictable data.
+- Invalid or incomplete model output fails the job and is retried.
+- AI-generated church communication always remains accountable to a human reviewer.

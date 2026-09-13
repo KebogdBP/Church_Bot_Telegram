@@ -22,6 +22,9 @@ import { OpenAITranscriptionProvider } from './ai/openai-transcription-provider.
 import { PrismaTranscriptionRepository } from './sermons/prisma-transcription-repository.js';
 import { SermonTranscriptionWorker } from './sermons/sermon-transcription-worker.js';
 import { TelegramPollingWorker } from './telegram/telegram-polling-worker.js';
+import { OpenAISermonContentProvider } from './ai/openai-sermon-content-provider.js';
+import { PrismaContentGenerationRepository } from './sermons/prisma-content-generation-repository.js';
+import { SermonContentWorker } from './sermons/sermon-content-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -106,6 +109,18 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         },
       })
     : null;
+  const sermonContentWorker = prisma && config.openai.apiKey
+    ? new SermonContentWorker({
+        repository: new PrismaContentGenerationRepository(prisma),
+        provider: new OpenAISermonContentProvider(
+          config.openai.apiKey,
+          config.openai.textModel,
+          config.openai.apiBaseUrl,
+        ),
+        logger: app.log,
+        intervalMs: config.openai.contentGenerationPollIntervalMs,
+      })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -121,12 +136,14 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         app.log.warn('Transcription worker is disabled because OPENAI_API_KEY is not configured');
       }
       await telegramPollingWorker?.start();
+      sermonContentWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
       sermonDownloadWorker?.stop();
       sermonTranscriptionWorker?.stop();
       telegramPollingWorker?.stop();
+      sermonContentWorker?.stop();
       await prisma.$disconnect();
     });
   }

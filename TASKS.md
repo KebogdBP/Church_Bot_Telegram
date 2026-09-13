@@ -6,7 +6,7 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 3 - Sermon Audio Pipeline
 
-Current focus: generate a sermon summary, key thoughts, and reflection questions from the transcript.
+Current focus: add administrator review and scheduling for generated sermon posts.
 
 ## Active Tasks
 
@@ -16,8 +16,8 @@ Current focus: generate a sermon summary, key thoughts, and reflection questions
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [x] Verify private bot messaging end to end through local polling.
 - [ ] Verify the bot in a Telegram test channel and discussion group.
-- [ ] Generate a structured sermon summary from the saved transcript.
-- [ ] Generate key thoughts and reflection questions.
+- [ ] Add commands for reviewing and approving generated sermon posts.
+- [ ] Schedule approved follow-up posts.
 
 ## Done
 
@@ -57,6 +57,8 @@ Current focus: generate a sermon summary, key thoughts, and reflection questions
 - [x] Add bounded transcription retries and stale-job recovery.
 - [x] Add a local Telegram polling mode that does not require public HTTPS.
 - [x] Connect `@pastorHelperBot` and configure the first administrator.
+- [x] Generate structured summaries, key thoughts, reflection questions, and post drafts.
+- [x] Persist generated sermon materials and retry state in PostgreSQL.
 
 ## Decisions Needed
 

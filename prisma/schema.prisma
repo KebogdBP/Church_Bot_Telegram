@@ -40,6 +40,13 @@ enum TranscriptionStatus {
   FAILED
 }
 
+enum ContentGenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -79,12 +86,23 @@ model Sermon {
   transcript          String?
   transcriptionError String?
   transcribedAt       DateTime?
+  contentStatus       ContentGenerationStatus @default(PENDING)
+  contentAttempts     Int                     @default(0)
+  contentAvailableAt  DateTime                @default(now())
+  contentModel        String?
+  summary             String?
+  keyThoughts         Json?
+  reflectionQuestions Json?
+  followUpPosts       Json?
+  contentError        String?
+  contentGeneratedAt  DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   @@unique([churchGroupId, sourceMessageId])
   @@index([status, availableAt])
   @@index([status, transcriptionStatus, transcriptionAvailableAt])
+  @@index([transcriptionStatus, contentStatus, contentAvailableAt])
 }
 
 model Event {
