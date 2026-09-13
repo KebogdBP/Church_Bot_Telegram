@@ -21,6 +21,7 @@ import { SermonDownloadWorker } from './sermons/sermon-download-worker.js';
 import { OpenAITranscriptionProvider } from './ai/openai-transcription-provider.js';
 import { PrismaTranscriptionRepository } from './sermons/prisma-transcription-repository.js';
 import { SermonTranscriptionWorker } from './sermons/sermon-transcription-worker.js';
+import { TelegramPollingWorker } from './telegram/telegram-polling-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -85,6 +86,26 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         intervalMs: config.openai.transcriptionPollIntervalMs,
       })
     : null;
+  const telegramPollingWorker = config.telegram.updateMode === 'polling' && config.telegram.botToken
+    ? new TelegramPollingWorker({
+        client: telegramClient,
+        logger: app.log,
+        intervalMs: config.telegram.pollIntervalMs,
+        handleUpdate: async (update) => {
+          const response = await app.inject({
+            method: 'POST',
+            url: '/webhooks/telegram',
+            headers: config.telegram.webhookSecret
+              ? { 'x-telegram-bot-api-secret-token': config.telegram.webhookSecret }
+              : {},
+            payload: update,
+          });
+          if (response.statusCode >= 400) {
+            throw new Error(`Local Telegram update handling returned ${response.statusCode}`);
+          }
+        },
+      })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -99,11 +120,13 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       } else {
         app.log.warn('Transcription worker is disabled because OPENAI_API_KEY is not configured');
       }
+      await telegramPollingWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
       sermonDownloadWorker?.stop();
       sermonTranscriptionWorker?.stop();
+      telegramPollingWorker?.stop();
       await prisma.$disconnect();
     });
   }

@@ -12,6 +12,7 @@ Official sources:
 ## Decisions For This Project
 
 - Use `https://api.telegram.org` as the Bot API base URL.
+- Use polling for local development and webhooks for production.
 - Receive production updates at `POST /webhooks/telegram`.
 - Register the webhook with `message` and `channel_post` updates.
 - Set `secret_token` and validate `X-Telegram-Bot-Api-Secret-Token` on every webhook request.
@@ -36,6 +37,7 @@ Official sources:
 
 - Telegram's hosted Bot API requires an HTTPS webhook and supports ports 443, 80, 88, and 8443.
 - `getUpdates` and webhook delivery cannot be active at the same time.
+- Local polling calls `deleteWebhook` before reading updates so mode switches are explicit.
 - Telegram retries webhook requests that do not return a successful HTTP status.
 - Bots cannot initiate private conversations; a user must start the bot first.
 - Channel subscribers cannot send ordinary messages into the channel. Interactive Q&A belongs in the linked discussion group or a private bot chat.

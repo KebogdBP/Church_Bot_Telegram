@@ -15,6 +15,8 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: optionalString(z.string().min(1)),
   TELEGRAM_WEBHOOK_SECRET: optionalString(z.string().regex(/^[a-zA-Z0-9_-]{1,256}$/)),
   TELEGRAM_ADMIN_USER_IDS: z.string().default(''),
+  TELEGRAM_UPDATE_MODE: z.enum(['webhook', 'polling']).default('webhook'),
+  TELEGRAM_POLL_INTERVAL_MS: z.coerce.number().int().min(500).max(30_000).default(1_000),
   DATABASE_URL: optionalString(z.string().min(1)),
   REMINDER_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_DOWNLOAD_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
@@ -49,6 +51,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
           .map((id) => id.trim())
           .filter(Boolean),
       ),
+      updateMode: parsed.TELEGRAM_UPDATE_MODE,
+      pollIntervalMs: parsed.TELEGRAM_POLL_INTERVAL_MS,
     },
     databaseUrl: parsed.DATABASE_URL,
     reminderPollIntervalMs: parsed.REMINDER_POLL_INTERVAL_MS,

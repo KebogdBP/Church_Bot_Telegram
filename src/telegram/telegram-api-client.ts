@@ -1,4 +1,5 @@
 import type { MessageSender, SendMessageInput } from '../messaging/message-sender.js';
+import type { TelegramUpdate } from './types.js';
 
 interface TelegramApiResponse<T> {
   ok: boolean;
@@ -53,6 +54,18 @@ export class TelegramApiClient implements MessageSender {
     return new Uint8Array(await response.arrayBuffer());
   }
 
+  public async deleteWebhook(): Promise<void> {
+    await this.call<true>('deleteWebhook', { drop_pending_updates: false });
+  }
+
+  public async getUpdates(offset: number | undefined): Promise<TelegramUpdate[]> {
+    return this.call<TelegramUpdate[]>('getUpdates', {
+      timeout: 0,
+      allowed_updates: ['message', 'channel_post'],
+      ...(offset === undefined ? {} : { offset }),
+    });
+  }
+
   private async call<T>(method: string, payload: unknown): Promise<T> {
     if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to call Telegram');
     const response = await this.request(`${this.baseUrl}/bot${this.token}/${method}`, {
@@ -71,6 +84,11 @@ export class TelegramApiClient implements MessageSender {
 export interface TelegramFileClient {
   getFile(fileId: string): Promise<{ filePath: string; fileSize?: number }>;
   downloadFile(filePath: string): Promise<Uint8Array>;
+}
+
+export interface TelegramPollingClient {
+  deleteWebhook(): Promise<void>;
+  getUpdates(offset: number | undefined): Promise<TelegramUpdate[]>;
 }
 
 async function readTelegramResponse(response: Response): Promise<TelegramApiResponse<unknown>> {

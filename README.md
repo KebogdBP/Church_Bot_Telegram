@@ -42,6 +42,8 @@ Requirements: Node.js 20.19 or newer.
 
 Telegram sends production updates to `POST /webhooks/telegram`. Set the complete public HTTPS endpoint in `TELEGRAM_WEBHOOK_URL`, then run `npm run telegram:setup`.
 
+For local testing without a public HTTPS endpoint, set `TELEGRAM_UPDATE_MODE=polling`. The application removes any active webhook and polls Telegram while the local process is running. Production should keep `TELEGRAM_UPDATE_MODE=webhook`.
+
 Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.
 
 ## Schedule Commands

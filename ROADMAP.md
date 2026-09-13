@@ -22,8 +22,9 @@ Goal: connect to Telegram and establish the core runtime.
 - [x] Add initial admin authorization.
 - [x] Add structured logging.
 - [x] Add initial error handling for failed API calls.
-- [ ] Create a real Telegram bot with BotFather and register its webhook.
-- [ ] Verify end-to-end messaging in a Telegram test channel and discussion group.
+- [x] Create a real Telegram bot with BotFather and connect it through local polling.
+- [x] Verify end-to-end private messaging with the Telegram bot.
+- [ ] Register a production webhook and verify a test channel and discussion group.
 
 Deliverable: bot can receive a message, recognize admins, and send a reply. Local implementation is complete; a Telegram token and public HTTPS endpoint are needed for end-to-end verification.
 

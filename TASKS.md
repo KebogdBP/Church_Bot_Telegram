@@ -10,11 +10,12 @@ Current focus: generate a sermon summary, key thoughts, and reflection questions
 
 ## Active Tasks
 
-- [ ] Create a bot with Telegram BotFather and obtain its token.
+- [x] Create a bot with Telegram BotFather and obtain its token.
 - [ ] Choose a deployment target with HTTPS on port 443.
 - [ ] Register the Telegram webhook.
 - [ ] Add the bot to a Telegram test channel and discussion group.
-- [ ] Verify `/whoami`, `/help`, and admin-only `/status` end to end.
+- [x] Verify private bot messaging end to end through local polling.
+- [ ] Verify the bot in a Telegram test channel and discussion group.
 - [ ] Generate a structured sermon summary from the saved transcript.
 - [ ] Generate key thoughts and reflection questions.
 
@@ -54,6 +55,8 @@ Current focus: generate a sermon summary, key thoughts, and reflection questions
 - [x] Integrate OpenAI audio transcription with Russian language guidance.
 - [x] Persist transcripts, model metadata, attempts, and errors in PostgreSQL.
 - [x] Add bounded transcription retries and stale-job recovery.
+- [x] Add a local Telegram polling mode that does not require public HTTPS.
+- [x] Connect `@pastorHelperBot` and configure the first administrator.
 
 ## Decisions Needed
 
