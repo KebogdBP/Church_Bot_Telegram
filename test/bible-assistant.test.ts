@@ -52,4 +52,10 @@ describe('OpenAIBibleAnswerProvider', () => {
     expect(body.store).toBe(false);
     expect(body.text.format.strict).toBe(true);
   });
+
+  it('rejects an answer too long for one Telegram message', async () => {
+    const answer = { answer: 'A'.repeat(3201), bibleReferences: [], needsPastor: false, category: 'bible' };
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ output_text: JSON.stringify(answer) }), { status: 200 }));
+    await expect(new OpenAIBibleAnswerProvider('key', 'model', 'https://api.openai.com/v1', request).answer('Вопрос')).rejects.toThrow();
+  });
 });

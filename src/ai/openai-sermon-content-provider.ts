@@ -2,10 +2,10 @@ import { z } from 'zod';
 import type { SermonContentProvider } from './sermon-content-provider.js';
 
 const contentSchema = z.object({
-  summary: z.string().min(1),
-  keyThoughts: z.array(z.string().min(1)).min(3).max(7),
-  reflectionQuestions: z.array(z.string().min(1)).min(2).max(5),
-  followUpPosts: z.array(z.string().min(1)).min(2).max(4),
+  summary: z.string().min(1).max(4_000),
+  keyThoughts: z.array(z.string().min(1).max(1_000)).min(3).max(7),
+  reflectionQuestions: z.array(z.string().min(1).max(1_000)).min(2).max(5),
+  followUpPosts: z.array(z.string().min(1).max(3_500)).min(2).max(4),
 });
 
 export class OpenAISermonContentProvider implements SermonContentProvider {
@@ -38,10 +38,10 @@ export class OpenAISermonContentProvider implements SermonContentProvider {
               type: 'object',
               additionalProperties: false,
               properties: {
-                summary: { type: 'string' },
-                keyThoughts: { type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 7 },
-                reflectionQuestions: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 5 },
-                followUpPosts: { type: 'array', items: { type: 'string' }, minItems: 2, maxItems: 4 },
+                summary: { type: 'string', maxLength: 4000 },
+                keyThoughts: { type: 'array', items: { type: 'string', maxLength: 1000 }, minItems: 3, maxItems: 7 },
+                reflectionQuestions: { type: 'array', items: { type: 'string', maxLength: 1000 }, minItems: 2, maxItems: 5 },
+                followUpPosts: { type: 'array', items: { type: 'string', maxLength: 3500 }, minItems: 2, maxItems: 4 },
               },
               required: ['summary', 'keyThoughts', 'reflectionQuestions', 'followUpPosts'],
             },
