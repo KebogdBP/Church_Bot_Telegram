@@ -57,13 +57,15 @@ describe('Telegram webhook', () => {
     const config = loadConfig({
       TELEGRAM_BOT_TOKEN: '',
       TELEGRAM_WEBHOOK_SECRET: '',
-      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GROQ_API_KEY: '',
       DATABASE_URL: '',
     });
 
     expect(config.telegram.botToken).toBeUndefined();
     expect(config.telegram.webhookSecret).toBeUndefined();
-    expect(config.openai.apiKey).toBeUndefined();
+    expect(config.ai.geminiApiKey).toBeUndefined();
+    expect(config.ai.groqApiKey).toBeUndefined();
     expect(config.databaseUrl).toBeUndefined();
   });
 

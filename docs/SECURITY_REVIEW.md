@@ -7,7 +7,7 @@
 - Secrets stay in ignored environment files and are never written to logs.
 - AI interaction logs contain a keyed user hash and metadata, not questions or answers.
 - Urgent safety categories are handled before an AI request and direct people to human help.
-- Telegram/AI calls and durable jobs have bounded retries; stale claims are recovered.
+- Telegram, Gemini, and Groq calls and durable jobs have bounded retries; stale claims are recovered.
 - Audio size is limited and generated text is escaped before Telegram HTML rendering.
 - Linked audio requires HTTPS, refuses redirects and credentials, resolves DNS before download, and blocks private/reserved networks.
 - The container runs as a non-root user and readiness checks include PostgreSQL.
@@ -19,4 +19,4 @@
 - Group administrators must periodically review role membership and generated drafts.
 - A production host still needs TLS, firewalling, patching, log retention, and uptime alerts.
 
-Rotate a leaked Telegram/OpenAI/database secret immediately. Revoke the bot token through BotFather when applicable.
+Rotate a leaked Telegram, Gemini, Groq, or database secret immediately. Revoke the bot token through BotFather when applicable.

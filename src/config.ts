@@ -24,16 +24,18 @@ const envSchema = z.object({
   SERMON_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   SERMON_STORAGE_DIR: z.string().min(1).default('data/sermons'),
   TRANSCRIPTION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
-  OPENAI_API_KEY: optionalString(z.string().min(1)),
-  OPENAI_API_BASE_URL: z.url().default('https://api.openai.com/v1'),
-  OPENAI_TRANSCRIPTION_MODEL: z.string().min(1).default('gpt-4o-mini-transcribe'),
-  OPENAI_TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
-  OPENAI_TEXT_MODEL: z.string().min(1).default('gpt-5-mini'),
+  GEMINI_API_KEY: optionalString(z.string().min(1)),
+  GEMINI_API_BASE_URL: z.url().default('https://generativelanguage.googleapis.com/v1beta'),
+  GEMINI_TEXT_MODEL: z.string().min(1).default('gemini-3.6-flash'),
+  GROQ_API_KEY: optionalString(z.string().min(1)),
+  GROQ_API_BASE_URL: z.url().default('https://api.groq.com/openai/v1'),
+  GROQ_TRANSCRIPTION_MODEL: z.string().min(1).default('whisper-large-v3-turbo'),
+  TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
   CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_POST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
 }).superRefine((env, context) => {
   if (env.APP_ENV !== 'production') return;
-  const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'APP_PRIVACY_SECRET', 'OPENAI_API_KEY'] as const;
+  const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'APP_PRIVACY_SECRET', 'GEMINI_API_KEY', 'GROQ_API_KEY'] as const;
   for (const key of required) {
     if (!env[key]) context.addIssue({ code: 'custom', path: [key], message: `${key} is required in production` });
   }
@@ -74,13 +76,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       maxFileSizeBytes: parsed.SERMON_MAX_FILE_SIZE_BYTES,
       storageDirectory: parsed.SERMON_STORAGE_DIR,
     },
-    openai: {
-      apiKey: parsed.OPENAI_API_KEY,
-      apiBaseUrl: parsed.OPENAI_API_BASE_URL.replace(/\/$/, ''),
-      transcriptionModel: parsed.OPENAI_TRANSCRIPTION_MODEL,
-      transcriptionLanguage: parsed.OPENAI_TRANSCRIPTION_LANGUAGE,
+    ai: {
+      geminiApiKey: parsed.GEMINI_API_KEY,
+      geminiApiBaseUrl: parsed.GEMINI_API_BASE_URL.replace(/\/$/, ''),
+      textModel: parsed.GEMINI_TEXT_MODEL,
+      groqApiKey: parsed.GROQ_API_KEY,
+      groqApiBaseUrl: parsed.GROQ_API_BASE_URL.replace(/\/$/, ''),
+      transcriptionModel: parsed.GROQ_TRANSCRIPTION_MODEL,
+      transcriptionLanguage: parsed.TRANSCRIPTION_LANGUAGE,
       transcriptionPollIntervalMs: parsed.TRANSCRIPTION_POLL_INTERVAL_MS,
-      textModel: parsed.OPENAI_TEXT_MODEL,
       contentGenerationPollIntervalMs: parsed.CONTENT_GENERATION_POLL_INTERVAL_MS,
       sermonPostPollIntervalMs: parsed.SERMON_POST_POLL_INTERVAL_MS,
     },

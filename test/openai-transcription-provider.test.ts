@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { OpenAITranscriptionProvider } from '../src/ai/openai-transcription-provider.js';
+import { GroqTranscriptionProvider } from '../src/ai/groq-transcription-provider.js';
 
-describe('OpenAITranscriptionProvider', () => {
+describe('GroqTranscriptionProvider', () => {
   it('sends audio as multipart form data and returns trimmed text', async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(
       JSON.stringify({ text: '  Текст проповеди.  ' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     ));
-    const provider = new OpenAITranscriptionProvider(
+    const provider = new GroqTranscriptionProvider(
       'test-key',
-      'gpt-4o-mini-transcribe',
+      'whisper-large-v3-turbo',
       'ru',
-      'https://api.openai.com/v1',
+      'https://api.groq.com/openai/v1',
       request,
     );
 
@@ -21,12 +21,12 @@ describe('OpenAITranscriptionProvider', () => {
       mimeType: 'audio/mpeg',
     });
 
-    expect(result).toEqual({ text: 'Текст проповеди.', model: 'gpt-4o-mini-transcribe' });
+    expect(result).toEqual({ text: 'Текст проповеди.', model: 'whisper-large-v3-turbo' });
     const [url, options] = request.mock.calls[0] ?? [];
-    expect(url).toBe('https://api.openai.com/v1/audio/transcriptions');
+    expect(url).toBe('https://api.groq.com/openai/v1/audio/transcriptions');
     expect(options?.headers).toEqual({ Authorization: 'Bearer test-key' });
     const form = options?.body as FormData;
-    expect(form.get('model')).toBe('gpt-4o-mini-transcribe');
+    expect(form.get('model')).toBe('whisper-large-v3-turbo');
     expect(form.get('language')).toBe('ru');
     expect(form.get('response_format')).toBe('json');
     expect((form.get('file') as File).name).toBe('sermon.mp3');
@@ -37,11 +37,11 @@ describe('OpenAITranscriptionProvider', () => {
       JSON.stringify({ error: { message: 'invalid audio' } }),
       { status: 400 },
     ));
-    const provider = new OpenAITranscriptionProvider(
-      'private-key', 'gpt-4o-mini-transcribe', 'ru', 'https://api.openai.com/v1', request,
+    const provider = new GroqTranscriptionProvider(
+      'private-key', 'whisper-large-v3-turbo', 'ru', 'https://api.groq.com/openai/v1', request,
     );
 
     await expect(provider.transcribe({ bytes: new Uint8Array([1]), fileName: 'bad.mp3' }))
-      .rejects.toThrow('OpenAI transcription returned 400: invalid audio');
+      .rejects.toThrow('Groq transcription returned 400: invalid audio');
   });
 });

@@ -18,18 +18,18 @@ import { PrismaSermonRepository } from './sermons/prisma-sermon-repository.js';
 import { SermonIntakeService } from './sermons/sermon-intake-service.js';
 import { LocalAudioStorage } from './sermons/audio-storage.js';
 import { SermonDownloadWorker } from './sermons/sermon-download-worker.js';
-import { OpenAITranscriptionProvider } from './ai/openai-transcription-provider.js';
+import { GroqTranscriptionProvider } from './ai/groq-transcription-provider.js';
 import { PrismaTranscriptionRepository } from './sermons/prisma-transcription-repository.js';
 import { SermonTranscriptionWorker } from './sermons/sermon-transcription-worker.js';
 import { TelegramPollingWorker } from './telegram/telegram-polling-worker.js';
-import { OpenAISermonContentProvider } from './ai/openai-sermon-content-provider.js';
+import { GeminiSermonContentProvider } from './ai/gemini-sermon-content-provider.js';
 import { PrismaContentGenerationRepository } from './sermons/prisma-content-generation-repository.js';
 import { SermonContentWorker } from './sermons/sermon-content-worker.js';
 import { PrismaSermonPostRepository } from './sermons/prisma-sermon-post-repository.js';
 import { SermonPostService } from './sermons/sermon-post-service.js';
 import { SermonPostWorker } from './sermons/sermon-post-worker.js';
 import { PrismaAssistantRepository } from './assistant/prisma-assistant-repository.js';
-import { OpenAIBibleAnswerProvider } from './assistant/openai-bible-answer-provider.js';
+import { GeminiBibleAnswerProvider } from './assistant/gemini-bible-answer-provider.js';
 import { BibleAssistantService } from './assistant/bible-assistant-service.js';
 import { AdminService } from './admin/admin-service.js';
 import { PrismaAdminRepository } from './admin/prisma-admin-repository.js';
@@ -66,10 +66,10 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   );
   const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
   const sermonPostService = options.sermonPostService ?? (sermonPostRepository ? new SermonPostService(sermonPostRepository) : undefined);
-  const bibleAssistant = options.bibleAssistant ?? (prisma && config.openai.apiKey
+  const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
-        new OpenAIBibleAnswerProvider(config.openai.apiKey, config.openai.textModel, config.openai.apiBaseUrl),
+        new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl }),
         config.privacySecret,
         config.app.timezone,
       )
@@ -102,17 +102,17 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         publicAudio: new SafePublicAudioClient(),
       })
     : null;
-  const sermonTranscriptionWorker = prisma && config.openai.apiKey
+  const sermonTranscriptionWorker = prisma && config.ai.groqApiKey
     ? new SermonTranscriptionWorker({
         repository: new PrismaTranscriptionRepository(prisma),
-        provider: new OpenAITranscriptionProvider(
-          config.openai.apiKey,
-          config.openai.transcriptionModel,
-          config.openai.transcriptionLanguage,
-          config.openai.apiBaseUrl,
+        provider: new GroqTranscriptionProvider(
+          config.ai.groqApiKey,
+          config.ai.transcriptionModel,
+          config.ai.transcriptionLanguage,
+          config.ai.groqApiBaseUrl,
         ),
         logger: app.log,
-        intervalMs: config.openai.transcriptionPollIntervalMs,
+        intervalMs: config.ai.transcriptionPollIntervalMs,
       })
     : null;
   const telegramPollingWorker = config.telegram.updateMode === 'polling' && config.telegram.botToken
@@ -135,20 +135,16 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         },
       })
     : null;
-  const sermonContentWorker = prisma && config.openai.apiKey
+  const sermonContentWorker = prisma && config.ai.geminiApiKey
     ? new SermonContentWorker({
         repository: new PrismaContentGenerationRepository(prisma),
-        provider: new OpenAISermonContentProvider(
-          config.openai.apiKey,
-          config.openai.textModel,
-          config.openai.apiBaseUrl,
-        ),
+        provider: new GeminiSermonContentProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl }),
         logger: app.log,
-        intervalMs: config.openai.contentGenerationPollIntervalMs,
+        intervalMs: config.ai.contentGenerationPollIntervalMs,
       })
     : null;
   const sermonPostWorker = sermonPostRepository && config.telegram.botToken
-    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.openai.sermonPostPollIntervalMs })
+    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs })
     : null;
 
   if (prisma) {
@@ -162,7 +158,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       if (sermonTranscriptionWorker) {
         sermonTranscriptionWorker.start();
       } else {
-        app.log.warn('Transcription worker is disabled because OPENAI_API_KEY is not configured');
+        app.log.warn('Transcription worker is disabled because GROQ_API_KEY is not configured');
       }
       await telegramPollingWorker?.start();
       sermonContentWorker?.start();

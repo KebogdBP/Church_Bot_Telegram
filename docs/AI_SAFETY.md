@@ -12,6 +12,7 @@ The assistant is an informational Bible-study helper, not a pastor, prophet, the
 - Redirect medical, legal, and financial decisions to qualified professionals.
 - Never store question or answer text in interaction logs.
 - Store only a keyed user hash, technical category, outcome, model, group, and timestamp.
-- Request OpenAI responses with `store: false`.
+- Send only the current question and configured church context to Gemini; do not send stored interaction history.
+- Use Groq only for audio transcription, not pastoral or biblical advice.
 
 Admins configure local church identity and doctrinal context with `/context_set`, up to 2,000 characters.

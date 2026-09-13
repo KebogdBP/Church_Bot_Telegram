@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AssistantRepository } from '../src/assistant/assistant-repository.js';
 import type { BibleAnswerProvider } from '../src/assistant/bible-answer-provider.js';
 import { BibleAssistantService } from '../src/assistant/bible-assistant-service.js';
-import { OpenAIBibleAnswerProvider } from '../src/assistant/openai-bible-answer-provider.js';
+import { GeminiBibleAnswerProvider } from '../src/assistant/gemini-bible-answer-provider.js';
 
 function setup() {
   const repository = {
@@ -42,20 +42,20 @@ describe('BibleAssistantService', () => {
   });
 });
 
-describe('OpenAIBibleAnswerProvider', () => {
+describe('GeminiBibleAnswerProvider', () => {
   it('uses strict structured output and disables response storage', async () => {
     const answer = { answer: 'Ответ', bibleReferences: [], needsPastor: true, category: 'pastoral' };
-    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ output_text: JSON.stringify(answer) }), { status: 200 }));
-    const provider = new OpenAIBibleAnswerProvider('key', 'model', 'https://api.openai.com/v1', request);
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }), { status: 200 }));
+    const provider = new GeminiBibleAnswerProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request });
     await expect(provider.answer('Вопрос')).resolves.toEqual({ ...answer, model: 'model' });
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
-    expect(body.store).toBe(false);
-    expect(body.text.format.strict).toBe(true);
+    expect(body.generationConfig.responseMimeType).toBe('application/json');
+    expect(body.generationConfig.responseSchema.type).toBe('OBJECT');
   });
 
   it('rejects an answer too long for one Telegram message', async () => {
     const answer = { answer: 'A'.repeat(3201), bibleReferences: [], needsPastor: false, category: 'bible' };
-    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ output_text: JSON.stringify(answer) }), { status: 200 }));
-    await expect(new OpenAIBibleAnswerProvider('key', 'model', 'https://api.openai.com/v1', request).answer('Вопрос')).rejects.toThrow();
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }), { status: 200 }));
+    await expect(new GeminiBibleAnswerProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request }).answer('Вопрос')).rejects.toThrow();
   });
 });
