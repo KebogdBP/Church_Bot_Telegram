@@ -1,0 +1,39 @@
+import { z } from 'zod';
+
+const envSchema = z.object({
+  APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  APP_HOST: z.string().default('0.0.0.0'),
+  APP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+  APP_TIMEZONE: z.string().default('Europe/Moscow'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  MAX_API_BASE_URL: z.url().default('https://platform-api2.max.ru'),
+  MAX_BOT_TOKEN: z.string().min(1).optional(),
+  MAX_WEBHOOK_SECRET: z.string().regex(/^[a-zA-Z0-9_-]{5,256}$/).optional(),
+  MAX_ADMIN_USER_IDS: z.string().default(''),
+});
+
+export type AppConfig = ReturnType<typeof loadConfig>;
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
+  const parsed = envSchema.parse(env);
+
+  return {
+    app: {
+      env: parsed.APP_ENV,
+      host: parsed.APP_HOST,
+      port: parsed.APP_PORT,
+      timezone: parsed.APP_TIMEZONE,
+      logLevel: parsed.LOG_LEVEL,
+    },
+    max: {
+      apiBaseUrl: parsed.MAX_API_BASE_URL,
+      botToken: parsed.MAX_BOT_TOKEN,
+      webhookSecret: parsed.MAX_WEBHOOK_SECRET,
+      adminUserIds: new Set(
+        parsed.MAX_ADMIN_USER_IDS.split(',')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    },
+  };
+}

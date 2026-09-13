@@ -5,25 +5,27 @@
 Goal: prepare the repository and shared understanding.
 
 - [x] Create initial documentation.
-- [ ] Create GitHub repository.
-- [ ] Choose implementation stack.
-- [ ] Add initial app skeleton.
-- [ ] Configure environment variables template.
-- [ ] Add local development instructions.
+- [x] Create GitHub repository.
+- [x] Choose implementation stack.
+- [x] Add initial app skeleton.
+- [x] Configure environment variables template.
+- [x] Add local development instructions.
 
 ## Phase 1: Bot Foundation
 
 Goal: connect to MAX and establish the core runtime.
 
-- [ ] Research MAX Bot API capabilities and limitations.
-- [ ] Implement webhook or polling receiver.
-- [ ] Add message sending service.
-- [ ] Add command routing.
-- [ ] Add admin authorization.
-- [ ] Add structured logging.
-- [ ] Add error handling for failed API calls.
+- [x] Research MAX Bot API capabilities and limitations.
+- [x] Implement webhook receiver.
+- [x] Add message sending service.
+- [x] Add command routing.
+- [x] Add initial admin authorization.
+- [x] Add structured logging.
+- [x] Add initial error handling for failed API calls.
+- [ ] Register a real MAX bot and webhook subscription.
+- [ ] Verify end-to-end messaging in a MAX test group.
 
-Deliverable: bot can receive a message, recognize admins, and send a reply.
+Deliverable: bot can receive a message, recognize admins, and send a reply. Local implementation is complete; real MAX credentials and a public HTTPS endpoint are needed for end-to-end verification.
 
 ## Phase 2: Schedule And Reminders
 
@@ -94,4 +96,3 @@ Goal: make the bot dependable enough for real church use.
 - [ ] Run pilot in a test group.
 
 Deliverable: MVP is ready for a real group pilot.
-

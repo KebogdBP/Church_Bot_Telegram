@@ -4,7 +4,7 @@ MVP bot for a church group in MAX: event reminders, sermon audio processing, AI-
 
 ## Project Status
 
-Current phase: documentation and project setup.
+Current phase: bot foundation.
 
 See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md) for the live checklist.
 
@@ -26,4 +26,18 @@ See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md
 - [ARCHITECTURE.md](ARCHITECTURE.md): proposed technical architecture.
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow for future contributors.
 - [DECISIONS.md](DECISIONS.md): architecture decision log.
+- [docs/MAX_API.md](docs/MAX_API.md): verified MAX API behavior and constraints.
 
+## Local Development
+
+Requirements: Node.js 20.19 or newer.
+
+1. Install dependencies: `npm install`.
+2. Create a local environment file: `cp .env.example .env`.
+3. Add `MAX_BOT_TOKEN`, `MAX_WEBHOOK_SECRET`, and admin user IDs.
+4. Start development mode: `npm run dev`.
+5. Check the service at `http://localhost:3000/health`.
+
+MAX sends production updates to `POST /webhooks/max`. The public endpoint must use HTTPS on port 443 and the subscription secret must match `MAX_WEBHOOK_SECRET`.
+
+Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.

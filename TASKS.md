@@ -4,18 +4,17 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: 0 - Project Setup
+Phase: 1 - Bot Foundation
 
-Current focus: create repository, decide stack, and scaffold the app.
+Current focus: connect the working local foundation to a real MAX test bot.
 
 ## Active Tasks
 
-- [ ] Confirm GitHub repository name and visibility.
-- [ ] Create remote repository.
-- [ ] Decide backend stack.
-- [ ] Create initial app skeleton.
-- [ ] Add `.env.example`.
-- [ ] Add first local run command.
+- [ ] Create a bot in MAX and obtain its token.
+- [ ] Choose a deployment target with HTTPS on port 443.
+- [ ] Register the MAX webhook subscription.
+- [ ] Add the bot to a MAX test group.
+- [ ] Verify `/help` and admin-only `/status` end to end.
 
 ## Done
 
@@ -24,15 +23,22 @@ Current focus: create repository, decide stack, and scaffold the app.
 - [x] Draft architecture outline.
 - [x] Draft contribution workflow.
 - [x] Draft decision log.
+- [x] Create private GitHub repository.
+- [x] Choose TypeScript, Node.js, and Fastify.
+- [x] Add application skeleton and local run command.
+- [x] Add typed configuration and `.env.example`.
+- [x] Add health endpoint and structured logging.
+- [x] Add MAX webhook validation and update normalization.
+- [x] Add MAX message sender and command router.
+- [x] Add initial admin authorization.
+- [x] Add automated tests for the foundation.
+- [x] Record verified MAX API constraints and source links.
 
 ## Decisions Needed
 
-- Repository name.
-- Public or private repository.
-- Backend language and framework.
-- Database choice for MVP.
 - Hosting target.
-- AI providers for transcription and text generation.
+- Confirm PostgreSQL and Redis hosting approach before Phase 2.
+- Confirm OpenAI as transcription and text generation provider before Phase 3.
 - Whether admin UX starts as commands only or includes a web panel.
 
 ## Recommended MVP Stack
@@ -56,3 +62,6 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
+Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
+
+Implementation note: MAX production delivery uses webhook at `POST /webhooks/max`; requests are checked against `X-Max-Bot-Api-Secret` when `MAX_WEBHOOK_SECRET` is configured.

@@ -4,7 +4,7 @@ Use this file to record meaningful technical and product decisions.
 
 ## ADR-0001: Build MVP With Large-System Architecture
 
-Status: Proposed
+Status: Accepted
 
 Context:
 
@@ -22,7 +22,7 @@ Consequences:
 
 ## ADR-0002: Prefer Admin Review For AI-Generated Group Posts
 
-Status: Proposed
+Status: Accepted
 
 Context:
 
@@ -38,3 +38,20 @@ Consequences:
 - Slightly more admin work.
 - Review can later become optional per church setting.
 
+## ADR-0003: TypeScript Service With A Thin MAX Adapter
+
+Status: Accepted
+
+Context:
+
+MAX recommends webhook delivery for production. The application needs to own its HTTPS endpoint, secret validation, persistence, and domain boundaries.
+
+Decision:
+
+Use Node.js with TypeScript and Fastify. Keep MAX HTTP calls and update normalization in a thin adapter so domain services remain independent of messenger-specific payloads. Use PostgreSQL with Prisma and Redis-backed jobs as later phases require them.
+
+Consequences:
+
+- Webhook behavior is explicit and straightforward to test.
+- MAX API changes are isolated to one module.
+- We own retry and rate-limit behavior and must implement it before production launch.
