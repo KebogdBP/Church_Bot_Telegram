@@ -1,8 +1,9 @@
-import { PrismaClient, ReminderDeliveryStatus } from '@prisma/client';
+import { PrismaClient, ReminderDeliveryStatus, TranscriptionStatus } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repository.js';
 import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
 import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
+import { PrismaTranscriptionRepository } from '../src/sermons/prisma-transcription-repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -97,5 +98,31 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     expect(duplicate.created).toBe(false);
     expect(duplicate.sermon.id).toBe(first.sermon.id);
     expect(duplicate.sermon.fileSize).toBe(4_096);
+  });
+
+  it('claims stored audio and persists its transcript', async () => {
+    const sermons = new PrismaSermonRepository(prisma);
+    const transcription = new PrismaTranscriptionRepository(prisma);
+    const created = await sermons.createIfNew({
+      chatId: 'transcription-integration-chat',
+      sourceMessageId: '200',
+      kind: 'audio',
+      telegramFileId: 'transcription-file-id',
+      telegramFileUniqueId: 'transcription-unique-id',
+      fileName: 'sunday.mp3',
+      mimeType: 'audio/mpeg',
+    }, 'Europe/Moscow');
+    await sermons.markStored(created.sermon.id, 'audio/sunday.mp3', '/data/sunday.mp3');
+
+    const claimed = await transcription.claimNext(new Date('2100-01-01T00:00:00Z'));
+    expect(claimed).toMatchObject({ id: created.sermon.id, storedPath: '/data/sunday.mp3', attempts: 1 });
+
+    const completedAt = new Date('2026-09-13T12:00:00Z');
+    await transcription.markCompleted(created.sermon.id, 'Текст проповеди', 'test-model', completedAt);
+    const stored = await prisma.sermon.findUniqueOrThrow({ where: { id: created.sermon.id } });
+    expect(stored.transcriptionStatus).toBe(TranscriptionStatus.COMPLETED);
+    expect(stored.transcript).toBe('Текст проповеди');
+    expect(stored.transcriptionModel).toBe('test-model');
+    expect(stored.transcribedAt).toEqual(completedAt);
   });
 });

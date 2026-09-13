@@ -6,7 +6,7 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 3 - Sermon Audio Pipeline
 
-Current focus: integrate transcription for stored sermon audio.
+Current focus: generate a sermon summary, key thoughts, and reflection questions from the transcript.
 
 ## Active Tasks
 
@@ -15,8 +15,8 @@ Current focus: integrate transcription for stored sermon audio.
 - [ ] Register the Telegram webhook.
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [ ] Verify `/whoami`, `/help`, and admin-only `/status` end to end.
-- [ ] Choose and integrate the sermon transcription provider.
-- [ ] Save sermon transcripts in PostgreSQL.
+- [ ] Generate a structured sermon summary from the saved transcript.
+- [ ] Generate key thoughts and reflection questions.
 
 ## Done
 
@@ -51,6 +51,9 @@ Current focus: integrate transcription for stored sermon audio.
 - [x] Persist sermon metadata idempotently in PostgreSQL.
 - [x] Download accepted sermon audio to local storage with bounded retries.
 - [x] Enforce the hosted Telegram Bot API 20 MB download limit.
+- [x] Integrate OpenAI audio transcription with Russian language guidance.
+- [x] Persist transcripts, model metadata, attempts, and errors in PostgreSQL.
+- [x] Add bounded transcription retries and stale-job recovery.
 
 ## Decisions Needed
 
@@ -85,5 +88,7 @@ Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 
 Worker note: reminder and sermon-download workers run only when both `DATABASE_URL` and `TELEGRAM_BOT_TOKEN` are configured. Their polling intervals are configured separately, and sermon files are stored under `SERMON_STORAGE_DIR`.
+
+Transcription note: the transcription worker runs when `DATABASE_URL` and `OPENAI_API_KEY` are configured. It processes stored audio with `OPENAI_TRANSCRIPTION_MODEL` and persists the full transcript before later content-generation steps.
 
 Event editing note: `/event_edit ID YYYY-MM-DD HH:MM | Title | Location | ReminderMinutes` edits one-time events. For weekly events, replace the date with an ISO weekday from 1 to 7.

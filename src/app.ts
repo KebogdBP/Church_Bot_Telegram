@@ -18,6 +18,9 @@ import { PrismaSermonRepository } from './sermons/prisma-sermon-repository.js';
 import { SermonIntakeService } from './sermons/sermon-intake-service.js';
 import { LocalAudioStorage } from './sermons/audio-storage.js';
 import { SermonDownloadWorker } from './sermons/sermon-download-worker.js';
+import { OpenAITranscriptionProvider } from './ai/openai-transcription-provider.js';
+import { PrismaTranscriptionRepository } from './sermons/prisma-transcription-repository.js';
+import { SermonTranscriptionWorker } from './sermons/sermon-transcription-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -69,6 +72,19 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         maxFileSizeBytes: config.sermon.maxFileSizeBytes,
       })
     : null;
+  const sermonTranscriptionWorker = prisma && config.openai.apiKey
+    ? new SermonTranscriptionWorker({
+        repository: new PrismaTranscriptionRepository(prisma),
+        provider: new OpenAITranscriptionProvider(
+          config.openai.apiKey,
+          config.openai.transcriptionModel,
+          config.openai.transcriptionLanguage,
+          config.openai.apiBaseUrl,
+        ),
+        logger: app.log,
+        intervalMs: config.openai.transcriptionPollIntervalMs,
+      })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -78,10 +94,16 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       } else {
         app.log.warn('Reminder worker is disabled because TELEGRAM_BOT_TOKEN is not configured');
       }
+      if (sermonTranscriptionWorker) {
+        sermonTranscriptionWorker.start();
+      } else {
+        app.log.warn('Transcription worker is disabled because OPENAI_API_KEY is not configured');
+      }
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
       sermonDownloadWorker?.stop();
+      sermonTranscriptionWorker?.stop();
       await prisma.$disconnect();
     });
   }

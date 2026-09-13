@@ -15,6 +15,11 @@ const envSchema = z.object({
   SERMON_DOWNLOAD_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   SERMON_STORAGE_DIR: z.string().min(1).default('data/sermons'),
+  TRANSCRIPTION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_BASE_URL: z.url().default('https://api.openai.com/v1'),
+  OPENAI_TRANSCRIPTION_MODEL: z.string().min(1).default('gpt-4o-mini-transcribe'),
+  OPENAI_TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -46,6 +51,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       downloadIntervalMs: parsed.SERMON_DOWNLOAD_INTERVAL_MS,
       maxFileSizeBytes: parsed.SERMON_MAX_FILE_SIZE_BYTES,
       storageDirectory: parsed.SERMON_STORAGE_DIR,
+    },
+    openai: {
+      apiKey: parsed.OPENAI_API_KEY,
+      apiBaseUrl: parsed.OPENAI_API_BASE_URL.replace(/\/$/, ''),
+      transcriptionModel: parsed.OPENAI_TRANSCRIPTION_MODEL,
+      transcriptionLanguage: parsed.OPENAI_TRANSCRIPTION_LANGUAGE,
+      transcriptionPollIntervalMs: parsed.TRANSCRIPTION_POLL_INTERVAL_MS,
     },
   };
 }

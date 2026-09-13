@@ -129,3 +129,22 @@ Consequences:
 - Stored audio can be transcribed or reprocessed independently of Telegram.
 - Production deployment needs persistent storage or a later object-storage adapter.
 - Larger sermons require compression, an external link workflow, or a self-hosted local Bot API server.
+
+## ADR-0008: OpenAI As The Initial Transcription Provider
+
+Status: Accepted
+
+Context:
+
+The MVP needs accurate Russian sermon transcription, durable retries, and a provider boundary that can be replaced without changing the sermon workflow.
+
+Decision:
+
+Use OpenAI's `/v1/audio/transcriptions` endpoint through a small `TranscriptionProvider` interface. Default to `gpt-4o-mini-transcribe`, send `ru` as the language hint, and store the transcript together with its model and processing state in PostgreSQL.
+
+Consequences:
+
+- Transcription starts automatically when `OPENAI_API_KEY` is configured.
+- Unit tests use the provider interface and never make paid API calls.
+- Failed jobs retry independently of Telegram downloads.
+- Changing providers or transcription models does not alter the worker contract.

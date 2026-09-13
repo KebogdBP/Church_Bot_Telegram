@@ -68,3 +68,7 @@ Run the PostgreSQL integration test with:
 The bot accepts Telegram audio, voice messages, and documents with an `audio/*` MIME type. Channel posts are accepted automatically; uploads in groups and private chats require a user ID listed in `TELEGRAM_ADMIN_USER_IDS`. Metadata is stored idempotently in PostgreSQL, then a background worker downloads the file into `SERMON_STORAGE_DIR`.
 
 The hosted Telegram Bot API allows bots to download files up to 20 MB. `SERMON_MAX_FILE_SIZE_BYTES` defaults to that limit, and oversized files are recorded without repeatedly attempting a download. Temporary failures retry with exponential backoff, up to five attempts.
+
+## Sermon Transcription
+
+When `OPENAI_API_KEY` is configured, a second background worker sends stored sermon audio to the OpenAI transcription API. The default model is `gpt-4o-mini-transcribe` with Russian language guidance. The full transcript, model name, processing status, attempt count, and errors are persisted in PostgreSQL. Configure the worker with `OPENAI_TRANSCRIPTION_MODEL`, `OPENAI_TRANSCRIPTION_LANGUAGE`, and `TRANSCRIPTION_POLL_INTERVAL_MS`.

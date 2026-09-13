@@ -49,8 +49,8 @@ Goal: turn sermon audio into reusable text and weekly content.
 - [x] Store original audio metadata.
 - [x] Download accepted audio with bounded retries.
 - [ ] Accept sermon links from Telegram.
-- [ ] Integrate transcription provider.
-- [ ] Save transcript.
+- [x] Integrate transcription provider.
+- [x] Save transcript.
 - [ ] Generate sermon summary.
 - [ ] Generate key thoughts and reflection questions.
 - [ ] Generate scheduled follow-up posts.
