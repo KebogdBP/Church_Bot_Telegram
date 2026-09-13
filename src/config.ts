@@ -12,6 +12,9 @@ const envSchema = z.object({
   TELEGRAM_ADMIN_USER_IDS: z.string().default(''),
   DATABASE_URL: z.string().min(1).optional(),
   REMINDER_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
+  SERMON_DOWNLOAD_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
+  SERMON_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+  SERMON_STORAGE_DIR: z.string().min(1).default('data/sermons'),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -39,5 +42,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     },
     databaseUrl: parsed.DATABASE_URL,
     reminderPollIntervalMs: parsed.REMINDER_POLL_INTERVAL_MS,
+    sermon: {
+      downloadIntervalMs: parsed.SERMON_DOWNLOAD_INTERVAL_MS,
+      maxFileSizeBytes: parsed.SERMON_MAX_FILE_SIZE_BYTES,
+      storageDirectory: parsed.SERMON_STORAGE_DIR,
+    },
   };
 }

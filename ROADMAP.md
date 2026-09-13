@@ -45,8 +45,10 @@ Deliverable: admins can create, edit, list, and delete a Sunday service, and the
 
 Goal: turn sermon audio into reusable text and weekly content.
 
-- [ ] Accept audio files or links from Telegram.
-- [ ] Store original audio metadata.
+- [x] Accept audio files from Telegram.
+- [x] Store original audio metadata.
+- [x] Download accepted audio with bounded retries.
+- [ ] Accept sermon links from Telegram.
 - [ ] Integrate transcription provider.
 - [ ] Save transcript.
 - [ ] Generate sermon summary.

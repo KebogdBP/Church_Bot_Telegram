@@ -31,6 +31,27 @@ function messageUpdate(text: string, userId = 42) {
   };
 }
 
+function audioUpdate(userId = 42) {
+  return {
+    update_id: 2,
+    message: {
+      message_id: 11,
+      date: Math.floor(Date.now() / 1_000),
+      from: { id: userId, is_bot: false, first_name: 'Test User' },
+      chat: { id: 100, type: 'group' },
+      caption: 'Проповедь',
+      audio: {
+        file_id: 'file-id',
+        file_unique_id: 'unique-id',
+        duration: 1_800,
+        file_name: 'sermon.mp3',
+        mime_type: 'audio/mpeg',
+        file_size: 1_024,
+      },
+    },
+  };
+}
+
 describe('Telegram webhook', () => {
   it('reports service health', async () => {
     const { app } = createTestApp();
@@ -126,6 +147,37 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenLastCalledWith({
       chatId: '100',
       text: expect.stringContaining('Новое название'),
+    });
+  });
+
+  it('accepts sermon audio from an administrator', async () => {
+    const { app, sendMessage } = createTestApp('42');
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/telegram',
+      headers: { 'x-telegram-bot-api-secret-token': 'test-secret' },
+      payload: audioUpdate(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(sendMessage).toHaveBeenCalledWith({
+      chatId: '100',
+      text: expect.stringContaining('Аудио проповеди принято'),
+    });
+  });
+
+  it('rejects sermon audio from a regular group member', async () => {
+    const { app, sendMessage } = createTestApp('99');
+    await app.inject({
+      method: 'POST',
+      url: '/webhooks/telegram',
+      headers: { 'x-telegram-bot-api-secret-token': 'test-secret' },
+      payload: audioUpdate(),
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      chatId: '100',
+      text: 'Добавлять проповеди могут только администраторы.',
     });
   });
 });

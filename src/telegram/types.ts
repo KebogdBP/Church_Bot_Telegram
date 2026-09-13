@@ -14,6 +14,33 @@ const telegramChatSchema = z.object({
   username: z.string().optional(),
 }).passthrough();
 
+const telegramAudioSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  duration: z.number().int().nonnegative(),
+  performer: z.string().optional(),
+  title: z.string().optional(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+  file_size: z.number().int().nonnegative().optional(),
+}).passthrough();
+
+const telegramVoiceSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  duration: z.number().int().nonnegative(),
+  mime_type: z.string().optional(),
+  file_size: z.number().int().nonnegative().optional(),
+}).passthrough();
+
+const telegramDocumentSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+  file_size: z.number().int().nonnegative().optional(),
+}).passthrough();
+
 const telegramMessageSchema = z.object({
   message_id: z.number(),
   date: z.number(),
@@ -21,9 +48,9 @@ const telegramMessageSchema = z.object({
   from: telegramUserSchema.optional(),
   text: z.string().optional(),
   caption: z.string().optional(),
-  audio: z.unknown().optional(),
-  voice: z.unknown().optional(),
-  document: z.unknown().optional(),
+  audio: telegramAudioSchema.optional(),
+  voice: telegramVoiceSchema.optional(),
+  document: telegramDocumentSchema.optional(),
 }).passthrough();
 
 export const telegramUpdateSchema = z.object({
@@ -40,4 +67,21 @@ export interface IncomingMessage {
   text: string;
   messageId: string;
   chatType: 'private' | 'group' | 'supergroup' | 'channel';
+}
+
+export interface IncomingSermonAudio {
+  chatId: string;
+  chatType: 'private' | 'group' | 'supergroup' | 'channel';
+  messageId: string;
+  userId?: string;
+  kind: 'audio' | 'voice' | 'document';
+  fileId: string;
+  fileUniqueId: string;
+  fileName?: string;
+  mimeType?: string;
+  fileSize?: number;
+  durationSeconds?: number;
+  title?: string;
+  performer?: string;
+  caption?: string;
 }

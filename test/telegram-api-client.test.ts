@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { normalizeMessage } from '../src/telegram/normalize-update.js';
+import { normalizeMessage, normalizeSermonAudio } from '../src/telegram/normalize-update.js';
 import { TelegramApiClient } from '../src/telegram/telegram-api-client.js';
 
 describe('TelegramApiClient', () => {
@@ -57,6 +57,38 @@ describe('normalizeMessage', () => {
       text: '/events',
       messageId: '5',
       chatType: 'supergroup',
+    });
+  });
+
+  it('recognizes an audio document in a channel post', () => {
+    const audio = normalizeSermonAudio({
+      update_id: 101,
+      channel_post: {
+        message_id: 6,
+        date: 1_700_000_001,
+        chat: { id: -100900, type: 'channel' },
+        caption: 'Воскресная проповедь',
+        document: {
+          file_id: 'file-id',
+          file_unique_id: 'unique-id',
+          file_name: 'sermon.m4a',
+          mime_type: 'audio/mp4',
+          file_size: 2_048,
+        },
+      },
+    });
+
+    expect(audio).toEqual({
+      chatId: '-100900',
+      chatType: 'channel',
+      messageId: '6',
+      kind: 'document',
+      fileId: 'file-id',
+      fileUniqueId: 'unique-id',
+      fileName: 'sermon.m4a',
+      mimeType: 'audio/mp4',
+      fileSize: 2_048,
+      caption: 'Воскресная проповедь',
     });
   });
 });

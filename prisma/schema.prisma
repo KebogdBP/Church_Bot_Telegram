@@ -19,6 +19,20 @@ enum ReminderDeliveryStatus {
   FAILED
 }
 
+enum SermonAudioKind {
+  AUDIO
+  VOICE
+  DOCUMENT
+}
+
+enum SermonStatus {
+  RECEIVED
+  DOWNLOADING
+  STORED
+  TOO_LARGE
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -26,6 +40,36 @@ model ChurchGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   events    Event[]
+  sermons   Sermon[]
+}
+
+model Sermon {
+  id                 String          @id @default(cuid())
+  churchGroupId      String
+  churchGroup        ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  sourceMessageId    String
+  submittedByUserId  String?
+  audioKind          SermonAudioKind
+  telegramFileId     String
+  telegramFileUniqueId String
+  fileName           String?
+  mimeType           String?
+  fileSize           BigInt?
+  durationSeconds    Int?
+  title              String?
+  performer          String?
+  caption            String?
+  status             SermonStatus    @default(RECEIVED)
+  attempts           Int             @default(0)
+  availableAt        DateTime        @default(now())
+  telegramFilePath   String?
+  storedPath         String?
+  lastError          String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([churchGroupId, sourceMessageId])
+  @@index([status, availableAt])
 }
 
 model Event {

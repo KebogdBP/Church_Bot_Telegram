@@ -18,6 +18,8 @@ Official sources:
 - Use a channel for announcements and reminders.
 - Use a linked discussion group or private bot chat for member questions and administrative commands.
 - Store chat and user IDs as strings because group and channel IDs are signed 64-bit integers.
+- Resolve accepted audio through `getFile` and persist the original message metadata before downloading.
+- Keep the hosted Bot API's 20 MB download ceiling as the default sermon file limit.
 
 ## Telegram Setup
 
@@ -38,3 +40,6 @@ Official sources:
 - Bots cannot initiate private conversations; a user must start the bot first.
 - Channel subscribers cannot send ordinary messages into the channel. Interactive Q&A belongs in the linked discussion group or a private bot chat.
 - Bots receive all channel posts where they are members. In groups, Privacy Mode limits which messages they receive unless they are administrators or privacy is disabled.
+- Hosted Bot API file downloads use `/file/bot<token>/<file_path>` and are limited to 20 MB. The returned URL remains valid for at least one hour.
+- `getFile` may not preserve the original filename or MIME type, so those values are captured from the incoming message.
+- A self-hosted local Bot API server can be evaluated later if full-length sermons regularly exceed 20 MB.

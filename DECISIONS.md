@@ -110,3 +110,22 @@ Consequences:
 - MAX-specific environment variables, webhook payloads, API client, and documentation are removed.
 - Database columns are renamed through a forward migration, preserving stored events.
 - Channel publishing and interactive conversations use different Telegram chat contexts.
+
+## ADR-0007: Store Sermon Audio Locally Before Transcription
+
+Status: Accepted
+
+Context:
+
+Transcription must survive transient Telegram or AI-provider failures. The hosted Telegram Bot API can download files up to 20 MB, and its generated file URL is temporary.
+
+Decision:
+
+Persist incoming sermon metadata in PostgreSQL first, then use a PostgreSQL-backed worker to download accepted audio into `SERMON_STORAGE_DIR`. Retry transient failures with exponential backoff up to five attempts and record oversized files without retrying them. Keep the 20 MB hosted API ceiling as the default configurable limit.
+
+Consequences:
+
+- Webhook handling stays fast and idempotent.
+- Stored audio can be transcribed or reprocessed independently of Telegram.
+- Production deployment needs persistent storage or a later object-storage adapter.
+- Larger sermons require compression, an external link workflow, or a self-hosted local Bot API server.

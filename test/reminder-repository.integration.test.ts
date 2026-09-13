@@ -2,6 +2,7 @@ import { PrismaClient, ReminderDeliveryStatus } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repository.js';
 import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
+import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -12,6 +13,7 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
   beforeAll(async () => {
     process.env.DATABASE_URL = databaseUrl;
     prisma = new PrismaClient();
+    await prisma.sermon.deleteMany();
     await prisma.reminderDelivery.deleteMany();
     await prisma.event.deleteMany();
     await prisma.churchGroup.deleteMany();
@@ -70,5 +72,30 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     expect(await prisma.reminderDelivery.count({
       where: { eventId: event.id, status: ReminderDeliveryStatus.SENT },
     })).toBe(1);
+  });
+
+  it('stores sermon metadata idempotently', async () => {
+    const repository = new PrismaSermonRepository(prisma);
+    const input = {
+      chatId: 'sermon-integration-chat',
+      sourceMessageId: '100',
+      submittedByUserId: '42',
+      kind: 'audio' as const,
+      telegramFileId: 'file-id',
+      telegramFileUniqueId: 'unique-id',
+      fileName: 'sermon.mp3',
+      mimeType: 'audio/mpeg',
+      fileSize: 4_096,
+      durationSeconds: 1_800,
+      title: 'О надежде',
+    };
+
+    const first = await repository.createIfNew(input, 'Europe/Moscow');
+    const duplicate = await repository.createIfNew(input, 'Europe/Moscow');
+
+    expect(first.created).toBe(true);
+    expect(duplicate.created).toBe(false);
+    expect(duplicate.sermon.id).toBe(first.sermon.id);
+    expect(duplicate.sermon.fileSize).toBe(4_096);
   });
 });
