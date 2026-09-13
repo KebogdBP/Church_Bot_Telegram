@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const optionalString = (schema: z.ZodString) => z.preprocess(
+  (value) => value === '' ? undefined : value,
+  schema.optional(),
+);
+
 const envSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_HOST: z.string().default('0.0.0.0'),
@@ -7,16 +12,16 @@ const envSchema = z.object({
   APP_TIMEZONE: z.string().default('Europe/Moscow'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TELEGRAM_API_BASE_URL: z.url().default('https://api.telegram.org'),
-  TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
-  TELEGRAM_WEBHOOK_SECRET: z.string().regex(/^[a-zA-Z0-9_-]{1,256}$/).optional(),
+  TELEGRAM_BOT_TOKEN: optionalString(z.string().min(1)),
+  TELEGRAM_WEBHOOK_SECRET: optionalString(z.string().regex(/^[a-zA-Z0-9_-]{1,256}$/)),
   TELEGRAM_ADMIN_USER_IDS: z.string().default(''),
-  DATABASE_URL: z.string().min(1).optional(),
+  DATABASE_URL: optionalString(z.string().min(1)),
   REMINDER_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_DOWNLOAD_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   SERMON_STORAGE_DIR: z.string().min(1).default('data/sermons'),
   TRANSCRIPTION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
-  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: optionalString(z.string().min(1)),
   OPENAI_API_BASE_URL: z.url().default('https://api.openai.com/v1'),
   OPENAI_TRANSCRIPTION_MODEL: z.string().min(1).default('gpt-4o-mini-transcribe'),
   OPENAI_TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),

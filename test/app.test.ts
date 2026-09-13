@@ -53,6 +53,20 @@ function audioUpdate(userId = 42) {
 }
 
 describe('Telegram webhook', () => {
+  it('accepts empty optional secrets from the environment template', () => {
+    const config = loadConfig({
+      TELEGRAM_BOT_TOKEN: '',
+      TELEGRAM_WEBHOOK_SECRET: '',
+      OPENAI_API_KEY: '',
+      DATABASE_URL: '',
+    });
+
+    expect(config.telegram.botToken).toBeUndefined();
+    expect(config.telegram.webhookSecret).toBeUndefined();
+    expect(config.openai.apiKey).toBeUndefined();
+    expect(config.databaseUrl).toBeUndefined();
+  });
+
   it('reports service health', async () => {
     const { app } = createTestApp();
     const response = await app.inject({ method: 'GET', url: '/health' });
