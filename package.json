@@ -1,8 +1,8 @@
 {
-  "name": "max-church-bot",
+  "name": "telegram-church-bot",
   "version": "0.1.0",
   "private": true,
-  "description": "Church community assistant for MAX",
+  "description": "Church community assistant for Telegram",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -19,7 +19,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "telegram:setup": "tsx scripts/setup-telegram.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",

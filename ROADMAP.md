@@ -13,19 +13,19 @@ Goal: prepare the repository and shared understanding.
 
 ## Phase 1: Bot Foundation
 
-Goal: connect to MAX and establish the core runtime.
+Goal: connect to Telegram and establish the core runtime.
 
-- [x] Research MAX Bot API capabilities and limitations.
+- [x] Research Telegram Bot API capabilities and limitations.
 - [x] Implement webhook receiver.
 - [x] Add message sending service.
 - [x] Add command routing.
 - [x] Add initial admin authorization.
 - [x] Add structured logging.
 - [x] Add initial error handling for failed API calls.
-- [ ] Register a real MAX bot and webhook subscription.
-- [ ] Verify end-to-end messaging in a MAX test group.
+- [ ] Create a real Telegram bot with BotFather and register its webhook.
+- [ ] Verify end-to-end messaging in a Telegram test channel and discussion group.
 
-Deliverable: bot can receive a message, recognize admins, and send a reply. Local implementation is complete; real MAX credentials and a public HTTPS endpoint are needed for end-to-end verification.
+Deliverable: bot can receive a message, recognize admins, and send a reply. Local implementation is complete; a Telegram token and public HTTPS endpoint are needed for end-to-end verification.
 
 ## Phase 2: Schedule And Reminders
 
@@ -45,7 +45,7 @@ Deliverable: admins can create a Sunday service and the bot reminds the group at
 
 Goal: turn sermon audio into reusable text and weekly content.
 
-- [ ] Accept audio files or links from MAX.
+- [ ] Accept audio files or links from Telegram.
 - [ ] Store original audio metadata.
 - [ ] Integrate transcription provider.
 - [ ] Save transcript.

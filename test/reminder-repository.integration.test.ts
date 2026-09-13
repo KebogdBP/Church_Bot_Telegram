@@ -22,7 +22,7 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
 
   it('plans, claims, and completes one durable delivery', async () => {
     const group = await prisma.churchGroup.create({
-      data: { maxChatId: 'integration-chat', timezone: 'Europe/Moscow' },
+      data: { telegramChatId: 'integration-chat', timezone: 'Europe/Moscow' },
     });
     const event = await prisma.event.create({
       data: {
@@ -31,7 +31,7 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
         startsAt: new Date('2099-09-20T07:00:00.000Z'),
         timezone: 'Europe/Moscow',
         reminderMinutesBefore: 60,
-        createdByMaxUserId: 'integration-admin',
+        createdByTelegramUserId: 'integration-admin',
       },
     });
     const repository = new PrismaReminderRepository(prisma);

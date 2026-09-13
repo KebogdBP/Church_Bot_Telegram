@@ -6,7 +6,7 @@ The MVP should be built as a modular bot service with a database, background job
 
 ```mermaid
 flowchart TD
-  A[MAX Group] --> B[MAX Bot Adapter]
+  A[Telegram Channel / Group] --> B[Telegram Bot Adapter]
   B --> C[Command Router]
   C --> D[Event Service]
   C --> E[Sermon Service]
@@ -25,15 +25,15 @@ flowchart TD
 
 ## Modules
 
-### MAX Bot Adapter
+### Telegram Bot Adapter
 
 Responsible for:
 
-- receiving MAX updates;
+- receiving Telegram updates;
 - normalizing messages;
 - downloading audio files;
 - sending group and private messages;
-- hiding MAX-specific API details from business logic.
+- hiding Telegram-specific API details from business logic.
 
 ### Command Router
 
@@ -114,4 +114,3 @@ Core tables:
 - Restrict admin commands by user ID.
 - Treat prayer requests and private messages as sensitive data.
 - Keep logs useful but avoid unnecessary personal content.
-

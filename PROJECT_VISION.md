@@ -2,7 +2,7 @@
 
 ## One-Line Vision
 
-Build a thoughtful MAX bot that helps a church community remember gatherings, revisit sermons during the week, and ask Bible-related questions in a safe and helpful way.
+Build a thoughtful Telegram bot that helps a church community remember gatherings, revisit sermons during the week, and ask Bible-related questions in a safe and helpful way.
 
 ## Product Goal
 
@@ -25,7 +25,7 @@ The bot should become a practical assistant for church life. It should reduce or
 
 ### Sermon Processing
 
-- Detect or receive sermon audio files in the MAX group.
+- Detect or receive sermon audio files in a Telegram channel, linked discussion group, or private admin chat.
 - Store sermon metadata: date, speaker, title, source message, transcript status.
 - Transcribe audio into text.
 - Generate:
@@ -71,4 +71,3 @@ The bot should become a practical assistant for church life. It should reduce or
 - Sermon audio becomes a useful transcript and several follow-up posts.
 - Members can ask simple Bible questions and receive helpful, bounded answers.
 - A new developer can read the docs and continue from the current checklist.
-

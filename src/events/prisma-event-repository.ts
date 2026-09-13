@@ -6,9 +6,9 @@ export class PrismaEventRepository implements EventRepository {
 
   public async create(input: CreateChurchEvent): Promise<ChurchEvent> {
     const group = await this.prisma.churchGroup.upsert({
-      where: { maxChatId: input.chatId },
+      where: { telegramChatId: input.chatId },
       update: { timezone: input.timezone },
-      create: { maxChatId: input.chatId, timezone: input.timezone },
+      create: { telegramChatId: input.chatId, timezone: input.timezone },
     });
     const event = await this.prisma.event.create({
       data: {
@@ -23,7 +23,7 @@ export class PrismaEventRepository implements EventRepository {
         location: input.location ?? null,
         topic: input.topic ?? null,
         biblePassage: input.biblePassage ?? null,
-        createdByMaxUserId: input.createdByUserId,
+        createdByTelegramUserId: input.createdByUserId,
       },
       include: { churchGroup: true },
     });
@@ -33,7 +33,7 @@ export class PrismaEventRepository implements EventRepository {
 
   public async listActive(chatId: string): Promise<ChurchEvent[]> {
     const events = await this.prisma.event.findMany({
-      where: { churchGroup: { maxChatId: chatId }, active: true },
+      where: { churchGroup: { telegramChatId: chatId }, active: true },
       orderBy: { startsAt: 'asc' },
     });
     return events.map((event) => toDomain(event, chatId));
@@ -41,7 +41,7 @@ export class PrismaEventRepository implements EventRepository {
 
   public async delete(chatId: string, eventId: string): Promise<boolean> {
     const result = await this.prisma.event.updateMany({
-      where: { id: eventId, churchGroup: { maxChatId: chatId }, active: true },
+      where: { id: eventId, churchGroup: { telegramChatId: chatId }, active: true },
       data: { active: false },
     });
     return result.count > 0;
@@ -62,6 +62,6 @@ function toDomain(event: PrismaEvent, chatId: string): ChurchEvent {
     ...(event.location === null ? {} : { location: event.location }),
     ...(event.topic === null ? {} : { topic: event.topic }),
     ...(event.biblePassage === null ? {} : { biblePassage: event.biblePassage }),
-    createdByUserId: event.createdByMaxUserId,
+    createdByUserId: event.createdByTelegramUserId,
   };
 }

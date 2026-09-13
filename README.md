@@ -1,6 +1,6 @@
-# MAX Church Bot
+# Telegram Church Bot
 
-MVP bot for a church group in MAX: event reminders, sermon audio processing, AI-assisted Bible Q&A, and reusable church communication workflows.
+MVP bot for a church community in Telegram: channel reminders, sermon audio processing, AI-assisted Bible Q&A, and reusable church communication workflows.
 
 ## Project Status
 
@@ -26,7 +26,7 @@ See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md
 - [ARCHITECTURE.md](ARCHITECTURE.md): proposed technical architecture.
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow for future contributors.
 - [DECISIONS.md](DECISIONS.md): architecture decision log.
-- [docs/MAX_API.md](docs/MAX_API.md): verified MAX API behavior and constraints.
+- [docs/TELEGRAM_API.md](docs/TELEGRAM_API.md): verified Telegram API behavior and setup.
 
 ## Local Development
 
@@ -36,11 +36,11 @@ Requirements: Node.js 20.19 or newer.
 2. Create a local environment file: `cp .env.example .env`.
 3. Start PostgreSQL: `docker compose up -d postgres`.
 4. Apply database migrations: `npm run db:deploy`.
-5. Add `MAX_BOT_TOKEN`, `MAX_WEBHOOK_SECRET`, and admin user IDs.
+5. Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and admin user IDs.
 6. Start development mode: `npm run dev`.
 7. Check the service at `http://localhost:3000/health`.
 
-MAX sends production updates to `POST /webhooks/max`. The public endpoint must use HTTPS on port 443 and the subscription secret must match `MAX_WEBHOOK_SECRET`.
+Telegram sends production updates to `POST /webhooks/telegram`. Set the complete public HTTPS endpoint in `TELEGRAM_WEBHOOK_URL`, then run `npm run telegram:setup`.
 
 Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.
 
@@ -51,12 +51,12 @@ Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run bui
 - `/event_weekly 7 10:00 | Воскресное собрание | Дом молитвы | 1020` creates a weekly Sunday event.
 - `/event_delete EVENT_ID` disables an event.
 
-Weekdays use ISO numbering: Monday is 1 and Sunday is 7. Administrative commands are restricted to IDs in `MAX_ADMIN_USER_IDS`.
+Weekdays use ISO numbering: Monday is 1 and Sunday is 7. Administrative commands are restricted to IDs in `TELEGRAM_ADMIN_USER_IDS`. Use `/whoami` to obtain your ID.
 
 ## Reminder Worker
 
-The reminder worker starts automatically when both `DATABASE_URL` and `MAX_BOT_TOKEN` are configured. It plans each occurrence in PostgreSQL, atomically claims due deliveries, and records successful or failed attempts. Failed sends retry with exponential backoff, up to five total attempts. `REMINDER_POLL_INTERVAL_MS` controls how often the worker checks the queue.
+The reminder worker starts automatically when both `DATABASE_URL` and `TELEGRAM_BOT_TOKEN` are configured. It plans each occurrence in PostgreSQL, atomically claims due deliveries, and records successful or failed attempts. Failed sends retry with exponential backoff, up to five total attempts. `REMINDER_POLL_INTERVAL_MS` controls how often the worker checks the queue.
 
 Run the PostgreSQL integration test with:
 
-`DATABASE_URL=postgresql://postgres:postgres@localhost:5433/max_church_bot TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/max_church_bot npm test`
+`DATABASE_URL=postgresql://postgres:postgres@localhost:5433/telegram_church_bot TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/telegram_church_bot npm test`

@@ -12,7 +12,7 @@ The product vision includes reminders, sermon processing, AI Q&A, admin controls
 
 Decision:
 
-Build the MVP as a modular service with clear boundaries: MAX adapter, command router, event service, sermon service, AI assistant service, scheduler, and database.
+Build the MVP as a modular service with clear boundaries: messenger adapter, command router, event service, sermon service, AI assistant service, scheduler, and database.
 
 Consequences:
 
@@ -40,7 +40,7 @@ Consequences:
 
 ## ADR-0003: TypeScript Service With A Thin MAX Adapter
 
-Status: Accepted
+Status: Superseded by ADR-0006
 
 Context:
 
@@ -91,3 +91,22 @@ Consequences:
 - Reminder state remains visible and recoverable in one database.
 - The MVP has fewer infrastructure dependencies.
 - Polling introduces up to `REMINDER_POLL_INTERVAL_MS` of delivery latency.
+
+## ADR-0006: Pivot The Messenger Integration To Telegram
+
+Status: Accepted
+
+Context:
+
+The project needs a bot that can be launched and piloted without organizational verification and platform moderation. Telegram provides immediate bot creation through BotFather and supports channels, discussion groups, private chats, webhook delivery, and audio attachments.
+
+Decision:
+
+Replace the MAX integration with Telegram Bot API. Use a Telegram channel for announcements and reminders, and a linked discussion group or private bot chat for interactive commands and future Bible Q&A. Preserve the messenger-independent event, reminder, and persistence services.
+
+Consequences:
+
+- Existing schedule and reminder logic remains intact.
+- MAX-specific environment variables, webhook payloads, API client, and documentation are removed.
+- Database columns are renamed through a forward migration, preserving stored events.
+- Channel publishing and interactive conversations use different Telegram chat contexts.

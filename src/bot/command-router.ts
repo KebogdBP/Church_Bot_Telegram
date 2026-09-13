@@ -1,5 +1,5 @@
-import type { MaxMessageSender } from '../max/max-api-client.js';
-import type { IncomingMessage } from '../max/types.js';
+import type { MessageSender } from '../messaging/message-sender.js';
+import type { IncomingMessage } from '../telegram/types.js';
 import {
   parseOneTimeEventCommand,
   parseWeeklyEventCommand,
@@ -7,20 +7,21 @@ import {
 import { EventService, EventValidationError, formatEvent } from '../events/event-service.js';
 
 export interface CommandRouterOptions {
-  sender: MaxMessageSender;
+  sender: MessageSender;
   adminUserIds: ReadonlySet<string>;
   eventService: EventService;
   timezone: string;
 }
 
 const HELP_TEXT = [
-  '**Помощник церковной группы**',
+  '<b>Помощник церковной группы</b>',
   '',
   '/help - показать доступные команды',
+  '/whoami - показать ваш Telegram ID',
   '/status - проверить состояние бота (для администраторов)',
   '/events - ближайшие события',
   '',
-  '**Команды администратора**',
+  '<b>Команды администратора</b>',
   '/event_add ГГГГ-ММ-ДД ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_weekly 1-7 ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_delete ID',
@@ -37,13 +38,18 @@ export class CommandRouter {
       return;
     }
 
+    if (command === '/whoami') {
+      await this.reply(message.chatId, `Ваш Telegram ID: <code>${message.userId}</code>`);
+      return;
+    }
+
     if (command === '/status') {
       if (!this.options.adminUserIds.has(message.userId)) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
       }
 
-      await this.reply(message.chatId, 'Бот работает. Подключение к MAX активно.');
+      await this.reply(message.chatId, 'Бот работает. Подключение к Telegram активно.');
       return;
     }
 
@@ -51,7 +57,7 @@ export class CommandRouter {
       const events = await this.options.eventService.list(message.chatId);
       const response = events.length === 0
         ? 'В расписании пока нет событий.'
-        : ['**Ближайшие события**', '', ...events.map(formatEvent)].join('\n\n');
+        : ['<b>Ближайшие события</b>', '', ...events.map(formatEvent)].join('\n\n');
       await this.reply(message.chatId, response);
       return;
     }

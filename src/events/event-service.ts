@@ -105,12 +105,16 @@ export function formatEvent(event: ChurchEvent): string {
   const reminder = formatReminderOffset(event.reminderMinutesBefore);
 
   return [
-    `**${event.title}**`,
+    `<b>${escapeHtml(event.title)}</b>`,
     `${start} (${recurrence})`,
-    event.location ? `Место: ${event.location}` : null,
+    event.location ? `Место: ${escapeHtml(event.location)}` : null,
     `Напоминание: за ${reminder}`,
-    `ID: \`${event.id}\``,
+    `ID: <code>${escapeHtml(event.id)}</code>`,
   ].filter(Boolean).join('\n');
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 function formatReminderOffset(minutes: number): string {

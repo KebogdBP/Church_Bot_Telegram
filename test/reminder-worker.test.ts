@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ChurchEvent } from '../src/events/event.js';
 import type { PlannedReminder } from '../src/events/reminder-time.js';
-import type { MaxMessageSender } from '../src/max/max-api-client.js';
+import type { MessageSender } from '../src/messaging/message-sender.js';
 import type { ClaimedReminder, ReminderRepository } from '../src/reminders/reminder.js';
 import { ReminderWorker } from '../src/reminders/reminder-worker.js';
 
@@ -59,7 +59,7 @@ class TestReminderRepository implements ReminderRepository {
   }
 }
 
-function createWorker(repository: TestReminderRepository, sender: MaxMessageSender, now: () => Date) {
+function createWorker(repository: TestReminderRepository, sender: MessageSender, now: () => Date) {
   return new ReminderWorker({
     repository,
     sender,
@@ -72,7 +72,7 @@ function createWorker(repository: TestReminderRepository, sender: MaxMessageSend
 describe('ReminderWorker', () => {
   it('sends a due reminder only once', async () => {
     const repository = new TestReminderRepository();
-    const sendMessage = vi.fn<MaxMessageSender['sendMessage']>().mockResolvedValue(undefined);
+    const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
     const worker = createWorker(repository, { sendMessage }, () => new Date('2026-09-13T09:00:00.000Z'));
 
     await worker.tick();
@@ -89,8 +89,8 @@ describe('ReminderWorker', () => {
   it('retries a failed delivery after backoff', async () => {
     let now = new Date('2026-09-13T09:00:00.000Z');
     const repository = new TestReminderRepository();
-    const sendMessage = vi.fn<MaxMessageSender['sendMessage']>()
-      .mockRejectedValueOnce(new Error('MAX unavailable'))
+    const sendMessage = vi.fn<MessageSender['sendMessage']>()
+      .mockRejectedValueOnce(new Error('Telegram unavailable'))
       .mockResolvedValueOnce(undefined);
     const worker = createWorker(repository, { sendMessage }, () => now);
 

@@ -6,15 +6,15 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 2 - Schedule And Reminders
 
-Current focus: finish event editing while MAX credentials and hosting are pending.
+Current focus: connect the Telegram bot and finish event editing.
 
 ## Active Tasks
 
-- [ ] Create a bot in MAX and obtain its token.
+- [ ] Create a bot with Telegram BotFather and obtain its token.
 - [ ] Choose a deployment target with HTTPS on port 443.
-- [ ] Register the MAX webhook subscription.
-- [ ] Add the bot to a MAX test group.
-- [ ] Verify `/help` and admin-only `/status` end to end.
+- [ ] Register the Telegram webhook.
+- [ ] Add the bot to a Telegram test channel and discussion group.
+- [ ] Verify `/whoami`, `/help`, and admin-only `/status` end to end.
 - [ ] Add event editing command.
 
 ## Done
@@ -29,11 +29,11 @@ Current focus: finish event editing while MAX credentials and hosting are pendin
 - [x] Add application skeleton and local run command.
 - [x] Add typed configuration and `.env.example`.
 - [x] Add health endpoint and structured logging.
-- [x] Add MAX webhook validation and update normalization.
-- [x] Add MAX message sender and command router.
+- [x] Add Telegram webhook validation and update normalization.
+- [x] Add Telegram message sender and command router.
 - [x] Add initial admin authorization.
 - [x] Add automated tests for the foundation.
-- [x] Record verified MAX API constraints and source links.
+- [x] Record verified Telegram API constraints and source links.
 - [x] Add PostgreSQL and Prisma event schema with an initial migration.
 - [x] Add one-time and weekly event creation.
 - [x] Add `/events`, `/event_add`, `/event_weekly`, and `/event_delete`.
@@ -55,7 +55,7 @@ Current focus: finish event editing while MAX credentials and hosting are pendin
 ## Recommended MVP Stack
 
 - Backend: TypeScript with Node.js.
-- Bot runtime: webhook-first if MAX supports it, polling fallback if needed.
+- Bot runtime: Telegram webhook for production.
 - Database: PostgreSQL.
 - ORM: Prisma.
 - Job queue: BullMQ with Redis, or a simpler scheduler first if deployment constraints require it.
@@ -75,6 +75,6 @@ When handing off work, update:
 
 Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy`.
 
-Implementation note: MAX production delivery uses webhook at `POST /webhooks/max`; requests are checked against `X-Max-Bot-Api-Secret` when `MAX_WEBHOOK_SECRET` is configured.
+Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 
-Reminder note: the worker runs only when both `DATABASE_URL` and `MAX_BOT_TOKEN` are configured. It polls every `REMINDER_POLL_INTERVAL_MS` and persists every delivery attempt.
+Reminder note: the worker runs only when both `DATABASE_URL` and `TELEGRAM_BOT_TOKEN` are configured. It polls every `REMINDER_POLL_INTERVAL_MS` and persists every delivery attempt.

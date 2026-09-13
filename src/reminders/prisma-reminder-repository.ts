@@ -129,7 +129,7 @@ export class PrismaReminderRepository implements ReminderRepository {
 function toDomain(event: EventWithGroup): ChurchEvent {
   return {
     id: event.id,
-    chatId: event.churchGroup.maxChatId,
+    chatId: event.churchGroup.telegramChatId,
     title: event.title,
     startsAt: event.startsAt,
     timezone: event.timezone,
@@ -140,6 +140,6 @@ function toDomain(event: EventWithGroup): ChurchEvent {
     ...(event.location === null ? {} : { location: event.location }),
     ...(event.topic === null ? {} : { topic: event.topic }),
     ...(event.biblePassage === null ? {} : { biblePassage: event.biblePassage }),
-    createdByUserId: event.createdByMaxUserId,
+    createdByUserId: event.createdByTelegramUserId,
   };
 }

@@ -1,6 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { nextReminder } from '../events/reminder-time.js';
-import type { MaxMessageSender } from '../max/max-api-client.js';
+import type { MessageSender } from '../messaging/message-sender.js';
 import type { ReminderRepository } from './reminder.js';
 import { renderReminderMessage } from './reminder-message.js';
 
@@ -9,7 +9,7 @@ const STALE_AFTER_MS = 10 * 60_000;
 
 export interface ReminderWorkerOptions {
   repository: ReminderRepository;
-  sender: MaxMessageSender;
+  sender: MessageSender;
   logger: Pick<FastifyBaseLogger, 'info' | 'error' | 'warn'>;
   intervalMs: number;
   now?: () => Date;

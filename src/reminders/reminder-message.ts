@@ -13,11 +13,15 @@ export function renderReminderMessage(event: ChurchEvent, occurrenceAt: Date, no
       : occurrence.toFormat("cccc, d LLLL 'в' HH:mm");
 
   return [
-    '**Напоминание**',
+    '<b>Напоминание</b>',
     '',
-    `Друзья, ${when.toLowerCase()} состоится «${event.title}». Будем рады видеть каждого!`,
-    event.location ? `Место: ${event.location}` : null,
-    event.topic ? `Тема: ${event.topic}` : null,
-    event.biblePassage ? `Место Писания: ${event.biblePassage}` : null,
+    `Друзья, ${when.toLowerCase()} состоится «${escapeHtml(event.title)}». Будем рады видеть каждого!`,
+    event.location ? `Место: ${escapeHtml(event.location)}` : null,
+    event.topic ? `Тема: ${escapeHtml(event.topic)}` : null,
+    event.biblePassage ? `Место Писания: ${escapeHtml(event.biblePassage)}` : null,
   ].filter((line) => line !== null).join('\n');
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }

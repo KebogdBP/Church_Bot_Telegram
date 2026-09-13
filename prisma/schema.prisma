@@ -21,7 +21,7 @@ enum ReminderDeliveryStatus {
 
 model ChurchGroup {
   id        String   @id @default(cuid())
-  maxChatId String   @unique
+  telegramChatId String   @unique
   timezone  String   @default("Europe/Moscow")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,7 +44,7 @@ model Event {
   localTime             String?
   reminderMinutesBefore Int
   active                 Boolean         @default(true)
-  createdByMaxUserId    String
+  createdByTelegramUserId String
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
   reminderDeliveries     ReminderDelivery[]
