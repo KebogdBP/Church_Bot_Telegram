@@ -31,6 +31,15 @@ const envSchema = z.object({
   OPENAI_TEXT_MODEL: z.string().min(1).default('gpt-5-mini'),
   CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_POST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
+}).superRefine((env, context) => {
+  if (env.APP_ENV !== 'production') return;
+  const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'APP_PRIVACY_SECRET', 'OPENAI_API_KEY'] as const;
+  for (const key of required) {
+    if (!env[key]) context.addIssue({ code: 'custom', path: [key], message: `${key} is required in production` });
+  }
+  if (env.TELEGRAM_UPDATE_MODE !== 'webhook') {
+    context.addIssue({ code: 'custom', path: ['TELEGRAM_UPDATE_MODE'], message: 'Production must use webhook mode' });
+  }
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;

@@ -5,6 +5,13 @@ import { loadConfig } from './config.js';
 const config = loadConfig();
 const app = buildApp({ config });
 
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    app.log.info({ signal }, 'Shutting down');
+    void app.close().finally(() => { process.exitCode = 0; });
+  });
+}
+
 try {
   await app.listen({ host: config.app.host, port: config.app.port });
 } catch (error) {

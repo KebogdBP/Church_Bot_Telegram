@@ -20,13 +20,16 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "telegram:setup": "tsx scripts/setup-telegram.ts"
+    "telegram:setup": "tsx scripts/setup-telegram.ts",
+    "db:backup": "sh scripts/backup-postgres.sh",
+    "db:restore": "sh scripts/restore-postgres.sh"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
     "dotenv": "^17.4.2",
     "fastify": "^5.6.0",
     "luxon": "^3.7.2",
+    "prisma": "^6.12.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -34,7 +37,6 @@
     "@types/luxon": "^3.7.5",
     "@types/node": "^24.3.1",
     "eslint": "^9.35.0",
-    "prisma": "^6.12.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0",

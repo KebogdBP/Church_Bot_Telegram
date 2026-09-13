@@ -177,6 +177,15 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   }
 
   app.get('/health', async () => ({ status: 'ok' }));
+  app.get('/ready', async (_request, reply) => {
+    if (!prisma) return reply.code(503).send({ status: 'not_ready', database: 'not_configured' });
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return { status: 'ready', database: 'ok' };
+    } catch {
+      return reply.code(503).send({ status: 'not_ready', database: 'unavailable' });
+    }
+  });
 
   app.post('/webhooks/telegram', async (request, reply) => {
     if (config.telegram.webhookSecret) {

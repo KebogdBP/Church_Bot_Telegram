@@ -90,12 +90,12 @@ Deliverable: church leaders can operate the bot without editing code.
 
 Goal: make the bot dependable enough for real church use.
 
-- [ ] Add deployment configuration.
-- [ ] Add database backups.
-- [ ] Add monitoring and health checks.
-- [ ] Add retry strategy for scheduled jobs.
-- [ ] Add security review.
-- [ ] Add onboarding guide.
+- [x] Add deployment configuration.
+- [x] Add database backups.
+- [x] Add monitoring and health checks.
+- [x] Add retry strategy for scheduled jobs.
+- [x] Add security review.
+- [x] Add onboarding guide.
 - [ ] Run pilot in a test group.
 
 Deliverable: MVP is ready for a real group pilot.

@@ -75,6 +75,17 @@ describe('Telegram webhook', () => {
     expect(response.json()).toEqual({ status: 'ok' });
   });
 
+  it('reports not ready when the database is not configured', async () => {
+    const { app } = createTestApp();
+    const response = await app.inject({ method: 'GET', url: '/ready' });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({ status: 'not_ready', database: 'not_configured' });
+  });
+
+  it('requires production secrets and webhook mode', () => {
+    expect(() => loadConfig({ APP_ENV: 'production', TELEGRAM_UPDATE_MODE: 'polling' })).toThrow();
+  });
+
   it('rejects a request with an invalid webhook secret', async () => {
     const { app } = createTestApp();
     const response = await app.inject({
