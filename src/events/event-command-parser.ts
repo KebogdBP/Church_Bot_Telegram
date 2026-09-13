@@ -24,6 +24,15 @@ export interface ParsedWeeklyEventCommand extends Omit<ParsedOneTimeEventCommand
   weekday: number;
 }
 
+export interface ParsedEditEventCommand {
+  eventId: string;
+  schedule: string;
+  time: string;
+  title: string;
+  location?: string;
+  reminderMinutesBefore: number;
+}
+
 export function parseOneTimeEventCommand(text: string): ParsedOneTimeEventCommand | null {
   const sections = splitSections(text);
   const head = oneTimeHeadSchema.safeParse(sections[0]?.split(/\s+/));
@@ -41,6 +50,18 @@ export function parseWeeklyEventCommand(text: string): ParsedWeeklyEventCommand 
     time: head.data[2],
     ...common,
   };
+}
+
+export function parseEditEventCommand(text: string): ParsedEditEventCommand | null {
+  const sections = splitSections(text);
+  const head = sections[0]?.split(/\s+/);
+  const common = parseCommonSections(sections);
+  const eventId = head?.[1];
+  const schedule = head?.[2];
+  const time = head?.[3];
+  if (!common || !eventId || !schedule || !time || !/^\d{2}:\d{2}$/.test(time)) return null;
+
+  return { eventId, schedule, time, ...common };
 }
 
 function splitSections(text: string): string[] {

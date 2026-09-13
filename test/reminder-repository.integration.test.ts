@@ -1,6 +1,7 @@
 import { PrismaClient, ReminderDeliveryStatus } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repository.js';
+import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -53,5 +54,21 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     });
     expect(delivery.status).toBe(ReminderDeliveryStatus.SENT);
     expect(delivery.attempts).toBe(1);
+
+    await repository.plan(event.id, {
+      occurrenceAt: new Date('2099-09-27T07:00:00.000Z'),
+      scheduledFor: new Date('2099-09-27T06:00:00.000Z'),
+    });
+    const eventRepository = new PrismaEventRepository(prisma);
+    await eventRepository.update('integration-chat', event.id, {
+      title: 'Обновлённое событие',
+      startsAt: new Date('2099-09-20T08:00:00.000Z'),
+      reminderMinutesBefore: 120,
+    });
+
+    expect(await prisma.reminderDelivery.count({ where: { eventId: event.id } })).toBe(1);
+    expect(await prisma.reminderDelivery.count({
+      where: { eventId: event.id, status: ReminderDeliveryStatus.SENT },
+    })).toBe(1);
   });
 });

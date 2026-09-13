@@ -1,6 +1,7 @@
 import type { MessageSender } from '../messaging/message-sender.js';
 import type { IncomingMessage } from '../telegram/types.js';
 import {
+  parseEditEventCommand,
   parseOneTimeEventCommand,
   parseWeeklyEventCommand,
 } from '../events/event-command-parser.js';
@@ -24,6 +25,7 @@ const HELP_TEXT = [
   '<b>Команды администратора</b>',
   '/event_add ГГГГ-ММ-ДД ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_weekly 1-7 ЧЧ:ММ | Название | Место | Минут до напоминания',
+  '/event_edit ID ДАТА/ДЕНЬ ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_delete ID',
 ].join('\n');
 
@@ -62,7 +64,7 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/event_add' || command === '/event_weekly' || command === '/event_delete') {
+    if (command === '/event_add' || command === '/event_weekly' || command === '/event_edit' || command === '/event_delete') {
       if (!this.options.adminUserIds.has(message.userId)) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
@@ -103,6 +105,23 @@ export class CommandRouter {
           timezone: this.options.timezone,
         });
         await this.reply(message.chatId, `Еженедельное событие добавлено.\n\n${formatEvent(event)}`);
+        return;
+      }
+
+      if (command === '/event_edit') {
+        const parsed = parseEditEventCommand(message.text);
+        if (!parsed) {
+          await this.reply(message.chatId, 'Формат: /event_edit ID ДАТА/ДЕНЬ ЧЧ:ММ | Название | Место | Минут до напоминания');
+          return;
+        }
+        const event = await this.options.eventService.edit({
+          ...parsed,
+          chatId: message.chatId,
+        });
+        await this.reply(
+          message.chatId,
+          event ? `Событие обновлено.\n\n${formatEvent(event)}` : 'Событие с таким ID не найдено.',
+        );
         return;
       }
 

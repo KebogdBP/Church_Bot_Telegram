@@ -1,5 +1,5 @@
 import { EventRecurrence, PrismaClient, type Event as PrismaEvent } from '@prisma/client';
-import type { ChurchEvent, CreateChurchEvent, EventRepository } from './event.js';
+import type { ChurchEvent, CreateChurchEvent, EventRepository, UpdateChurchEvent } from './event.js';
 
 export class PrismaEventRepository implements EventRepository {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -37,6 +37,40 @@ export class PrismaEventRepository implements EventRepository {
       orderBy: { startsAt: 'asc' },
     });
     return events.map((event) => toDomain(event, chatId));
+  }
+
+  public async findActive(chatId: string, eventId: string): Promise<ChurchEvent | null> {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, churchGroup: { telegramChatId: chatId }, active: true },
+    });
+    return event ? toDomain(event, chatId) : null;
+  }
+
+  public async update(chatId: string, eventId: string, input: UpdateChurchEvent): Promise<ChurchEvent | null> {
+    const existing = await this.prisma.event.findFirst({
+      where: { id: eventId, churchGroup: { telegramChatId: chatId }, active: true },
+      select: { id: true },
+    });
+    if (!existing) return null;
+
+    const event = await this.prisma.$transaction(async (transaction) => {
+      const updated = await transaction.event.update({
+        where: { id: eventId },
+        data: {
+          title: input.title,
+          startsAt: input.startsAt,
+          weeklyDay: input.weeklyDay ?? null,
+          localTime: input.localTime ?? null,
+          reminderMinutesBefore: input.reminderMinutesBefore,
+          location: input.location ?? null,
+        },
+      });
+      await transaction.reminderDelivery.deleteMany({
+        where: { eventId, status: { not: 'SENT' } },
+      });
+      return updated;
+    });
+    return toDomain(event, chatId);
   }
 
   public async delete(chatId: string, eventId: string): Promise<boolean> {

@@ -16,6 +16,16 @@ export interface CreateWeeklyEventInput extends Omit<CreateOneTimeEventInput, 'd
   weekday: number;
 }
 
+export interface EditEventInput {
+  chatId: string;
+  eventId: string;
+  schedule: string;
+  time: string;
+  title: string;
+  reminderMinutesBefore: number;
+  location?: string;
+}
+
 export class EventValidationError extends Error {}
 
 export class EventService {
@@ -83,9 +93,57 @@ export class EventService {
     return this.repository.listActive(chatId);
   }
 
+  public async edit(input: EditEventInput): Promise<ChurchEvent | null> {
+    validateCommon(input);
+    const existing = await this.repository.findActive(input.chatId, input.eventId);
+    if (!existing) return null;
+
+    if (existing.recurrence === 'weekly') {
+      const weekday = Number(input.schedule);
+      if (!Number.isInteger(weekday) || weekday < 1 || weekday > 7) {
+        throw new EventValidationError('Для еженедельного события укажите день недели от 1 до 7.');
+      }
+      const startsAt = nextWeeklyStart(weekday, input.time, existing.timezone, this.now());
+      return this.repository.update(input.chatId, input.eventId, {
+        title: input.title,
+        startsAt,
+        weeklyDay: weekday,
+        localTime: input.time,
+        reminderMinutesBefore: input.reminderMinutesBefore,
+        ...(input.location ? { location: input.location } : {}),
+      });
+    }
+
+    const localStart = parseFutureStart(input.schedule, input.time, existing.timezone, this.now());
+    return this.repository.update(input.chatId, input.eventId, {
+      title: input.title,
+      startsAt: localStart,
+      reminderMinutesBefore: input.reminderMinutesBefore,
+      ...(input.location ? { location: input.location } : {}),
+    });
+  }
+
   public delete(chatId: string, eventId: string): Promise<boolean> {
     return this.repository.delete(chatId, eventId);
   }
+}
+
+function parseFutureStart(date: string, time: string, timezone: string, now: Date): Date {
+  const localStart = DateTime.fromFormat(`${date} ${time}`, 'yyyy-MM-dd HH:mm', { zone: timezone });
+  if (!localStart.isValid) throw new EventValidationError('Неверная дата, время или часовой пояс.');
+  if (localStart.toMillis() <= now.getTime()) throw new EventValidationError('Событие должно быть в будущем.');
+  return localStart.toUTC().toJSDate();
+}
+
+function nextWeeklyStart(weekday: number, time: string, timezone: string, date: Date): Date {
+  const now = DateTime.fromJSDate(date, { zone: timezone });
+  const parsedTime = DateTime.fromFormat(time, 'HH:mm', { zone: timezone });
+  if (!parsedTime.isValid) throw new EventValidationError('Неверное время или часовой пояс.');
+
+  let next = now.startOf('day').set({ hour: parsedTime.hour, minute: parsedTime.minute })
+    .plus({ days: (weekday - now.weekday + 7) % 7 });
+  if (next <= now) next = next.plus({ weeks: 1 });
+  return next.toUTC().toJSDate();
 }
 
 function validateCommon(input: Pick<CreateOneTimeEventInput, 'title' | 'reminderMinutesBefore'>): void {

@@ -102,4 +102,30 @@ describe('Telegram webhook', () => {
       text: expect.stringContaining('Воскресное собрание'),
     });
   });
+
+  it('allows an admin to edit an event', async () => {
+    const { app, sendMessage } = createTestApp('42');
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+    await app.inject({
+      method: 'POST',
+      url: '/webhooks/telegram',
+      headers,
+      payload: messageUpdate('/event_add 2099-09-20 10:00 | Старое название | Старый зал | 60'),
+    });
+    const creationText = sendMessage.mock.calls[0]?.[0].text ?? '';
+    const eventId = creationText.match(/<code>([^<]+)<\/code>/)?.[1];
+    expect(eventId).toBeTruthy();
+
+    await app.inject({
+      method: 'POST',
+      url: '/webhooks/telegram',
+      headers,
+      payload: messageUpdate(`/event_edit ${eventId} 2099-09-27 11:00 | Новое название | Новый зал | 1440`),
+    });
+
+    expect(sendMessage).toHaveBeenLastCalledWith({
+      chatId: '100',
+      text: expect.stringContaining('Новое название'),
+    });
+  });
 });

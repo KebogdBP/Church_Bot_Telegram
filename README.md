@@ -49,6 +49,8 @@ Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run bui
 - `/events` lists active events in the current group.
 - `/event_add 2026-09-20 10:00 | Воскресное собрание | Дом молитвы | 1020` creates a one-time event and reminds 1,020 minutes before it.
 - `/event_weekly 7 10:00 | Воскресное собрание | Дом молитвы | 1020` creates a weekly Sunday event.
+- `/event_edit EVENT_ID 2026-09-27 11:00 | Особое собрание | Дом молитвы | 1440` edits a one-time event.
+- `/event_edit EVENT_ID 7 11:00 | Воскресное собрание | Дом молитвы | 1020` edits a weekly event.
 - `/event_delete EVENT_ID` disables an event.
 
 Weekdays use ISO numbering: Monday is 1 and Sunday is 7. Administrative commands are restricted to IDs in `TELEGRAM_ADMIN_USER_IDS`. Use `/whoami` to obtain your ID.

@@ -6,7 +6,7 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 2 - Schedule And Reminders
 
-Current focus: connect the Telegram bot and finish event editing.
+Current focus: connect the Telegram bot, then begin sermon audio intake.
 
 ## Active Tasks
 
@@ -15,7 +15,6 @@ Current focus: connect the Telegram bot and finish event editing.
 - [ ] Register the Telegram webhook.
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [ ] Verify `/whoami`, `/help`, and admin-only `/status` end to end.
-- [ ] Add event editing command.
 
 ## Done
 
@@ -44,6 +43,8 @@ Current focus: connect the Telegram bot and finish event editing.
 - [x] Add bounded retries with exponential backoff and stale-job recovery.
 - [x] Add warm, timezone-aware reminder messages.
 - [x] Test the reminder repository against a real PostgreSQL database.
+- [x] Add `/event_edit` for one-time and weekly events.
+- [x] Re-plan pending reminders transactionally after an event edit.
 
 ## Decisions Needed
 
@@ -78,3 +79,5 @@ Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 
 Reminder note: the worker runs only when both `DATABASE_URL` and `TELEGRAM_BOT_TOKEN` are configured. It polls every `REMINDER_POLL_INTERVAL_MS` and persists every delivery attempt.
+
+Event editing note: `/event_edit ID YYYY-MM-DD HH:MM | Title | Location | ReminderMinutes` edits one-time events. For weekly events, replace the date with an ISO weekday from 1 to 7.

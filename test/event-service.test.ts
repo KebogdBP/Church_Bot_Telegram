@@ -52,4 +52,59 @@ describe('EventService', () => {
     expect(DateTime.fromJSDate(reminder!.occurrenceAt).toUTC().toISO()).toBe('2026-09-20T07:00:00.000Z');
     expect(DateTime.fromJSDate(reminder!.scheduledFor).toUTC().toISO()).toBe('2026-09-19T14:00:00.000Z');
   });
+
+  it('edits a one-time event and keeps it in the same chat', async () => {
+    const repository = new InMemoryEventRepository();
+    const service = new EventService(repository, () => NOW);
+    const event = await service.createOneTime({
+      chatId: '100',
+      userId: '42',
+      date: '2026-09-20',
+      time: '10:00',
+      title: 'Старое название',
+      timezone: 'Europe/Moscow',
+      reminderMinutesBefore: 60,
+    });
+
+    const updated = await service.edit({
+      chatId: '100',
+      eventId: event.id,
+      schedule: '2026-09-27',
+      time: '11:30',
+      title: 'Новое название',
+      location: 'Большой зал',
+      reminderMinutesBefore: 1_440,
+    });
+
+    expect(updated?.title).toBe('Новое название');
+    expect(updated?.startsAt.toISOString()).toBe('2026-09-27T08:30:00.000Z');
+    expect(updated?.location).toBe('Большой зал');
+  });
+
+  it('uses a weekday when editing a weekly event', async () => {
+    const repository = new InMemoryEventRepository();
+    const service = new EventService(repository, () => NOW);
+    const event = await service.createWeekly({
+      chatId: '100',
+      userId: '42',
+      weekday: 7,
+      time: '10:00',
+      title: 'Собрание',
+      timezone: 'Europe/Moscow',
+      reminderMinutesBefore: 60,
+    });
+
+    const updated = await service.edit({
+      chatId: '100',
+      eventId: event.id,
+      schedule: '6',
+      time: '18:00',
+      title: 'Молодёжное собрание',
+      reminderMinutesBefore: 120,
+    });
+
+    expect(updated?.weeklyDay).toBe(6);
+    expect(updated?.localTime).toBe('18:00');
+    expect(updated?.startsAt.toISOString()).toBe('2026-09-19T15:00:00.000Z');
+  });
 });

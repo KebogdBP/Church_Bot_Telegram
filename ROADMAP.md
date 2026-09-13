@@ -34,12 +34,12 @@ Goal: manage church events and send reliable reminders.
 - [x] Design event schema.
 - [x] Implement recurring event support.
 - [x] Implement reminder scheduling.
-- [ ] Add commands for creating, editing, listing, and deleting events. Create, list, and delete are complete; edit remains.
+- [x] Add commands for creating, editing, listing, and deleting events.
 - [x] Add reminder message templates.
 - [x] Add timezone support.
 - [x] Add tests for reminder timing.
 
-Deliverable: admins can create a Sunday service and the bot reminds the group at the configured time.
+Deliverable: admins can create, edit, list, and delete a Sunday service, and the bot reminds the group at the configured time. Implementation and database tests are complete; Telegram end-to-end verification remains part of the connection task.
 
 ## Phase 3: Sermon Audio Pipeline
 
