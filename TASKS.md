@@ -6,7 +6,7 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 2 - Schedule And Reminders
 
-Current focus: finish durable reminder delivery while MAX credentials and hosting are pending.
+Current focus: finish event editing while MAX credentials and hosting are pending.
 
 ## Active Tasks
 
@@ -15,8 +15,6 @@ Current focus: finish durable reminder delivery while MAX credentials and hostin
 - [ ] Register the MAX webhook subscription.
 - [ ] Add the bot to a MAX test group.
 - [ ] Verify `/help` and admin-only `/status` end to end.
-- [ ] Implement the durable reminder worker.
-- [ ] Add reminder message templates.
 - [ ] Add event editing command.
 
 ## Done
@@ -41,6 +39,11 @@ Current focus: finish durable reminder delivery while MAX credentials and hostin
 - [x] Add `/events`, `/event_add`, `/event_weekly`, and `/event_delete`.
 - [x] Add timezone-aware reminder calculation.
 - [x] Verify the migration against PostgreSQL 17 in Docker.
+- [x] Add durable reminder planning and delivery worker.
+- [x] Prevent duplicate delivery with a database uniqueness constraint.
+- [x] Add bounded retries with exponential backoff and stale-job recovery.
+- [x] Add warm, timezone-aware reminder messages.
+- [x] Test the reminder repository against a real PostgreSQL database.
 
 ## Decisions Needed
 
@@ -70,6 +73,8 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
+Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy`.
 
 Implementation note: MAX production delivery uses webhook at `POST /webhooks/max`; requests are checked against `X-Max-Bot-Api-Secret` when `MAX_WEBHOOK_SECRET` is configured.
+
+Reminder note: the worker runs only when both `DATABASE_URL` and `MAX_BOT_TOKEN` are configured. It polls every `REMINDER_POLL_INTERVAL_MS` and persists every delivery attempt.

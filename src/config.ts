@@ -11,6 +11,7 @@ const envSchema = z.object({
   MAX_WEBHOOK_SECRET: z.string().regex(/^[a-zA-Z0-9_-]{5,256}$/).optional(),
   MAX_ADMIN_USER_IDS: z.string().default(''),
   DATABASE_URL: z.string().min(1).optional(),
+  REMINDER_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -37,5 +38,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       ),
     },
     databaseUrl: parsed.DATABASE_URL,
+    reminderPollIntervalMs: parsed.REMINDER_POLL_INTERVAL_MS,
   };
 }

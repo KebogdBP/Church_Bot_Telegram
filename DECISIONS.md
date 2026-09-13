@@ -73,3 +73,21 @@ Consequences:
 - Local development has a reproducible Docker database.
 - The project keeps its Node.js 20.19 minimum.
 - Upgrading Prisma can happen separately after its runtime and dependency requirements are reviewed.
+
+## ADR-0005: PostgreSQL-Backed Reminder Worker Before Redis
+
+Status: Accepted
+
+Context:
+
+The MVP needs dependable reminders, but does not yet need the operational overhead of a second persistence system. PostgreSQL already stores events and can coordinate delivery claims safely.
+
+Decision:
+
+Use a polling worker backed by the `ReminderDelivery` table. Enforce one delivery per event occurrence, claim jobs conditionally, recover stale processing jobs, and retry failures with exponential backoff. Revisit BullMQ and Redis when workload or horizontal scaling demonstrates the need.
+
+Consequences:
+
+- Reminder state remains visible and recoverable in one database.
+- The MVP has fewer infrastructure dependencies.
+- Polling introduces up to `REMINDER_POLL_INTERVAL_MS` of delivery latency.

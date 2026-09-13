@@ -33,9 +33,9 @@ Goal: manage church events and send reliable reminders.
 
 - [x] Design event schema.
 - [x] Implement recurring event support.
-- [ ] Implement reminder scheduling.
+- [x] Implement reminder scheduling.
 - [ ] Add commands for creating, editing, listing, and deleting events. Create, list, and delete are complete; edit remains.
-- [ ] Add reminder message templates.
+- [x] Add reminder message templates.
 - [x] Add timezone support.
 - [x] Add tests for reminder timing.
 

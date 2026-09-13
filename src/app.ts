@@ -9,6 +9,8 @@ import type { EventRepository } from './events/event.js';
 import { EventService } from './events/event-service.js';
 import { InMemoryEventRepository } from './events/in-memory-event-repository.js';
 import { PrismaEventRepository } from './events/prisma-event-repository.js';
+import { PrismaReminderRepository } from './reminders/prisma-reminder-repository.js';
+import { ReminderWorker } from './reminders/reminder-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -33,9 +35,27 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     eventService,
     timezone: config.app.timezone,
   });
+  const reminderWorker = prisma && config.max.botToken
+    ? new ReminderWorker({
+        repository: new PrismaReminderRepository(prisma),
+        sender,
+        logger: app.log,
+        intervalMs: config.reminderPollIntervalMs,
+      })
+    : null;
 
   if (prisma) {
-    app.addHook('onClose', async () => prisma.$disconnect());
+    app.addHook('onReady', async () => {
+      if (reminderWorker) {
+        reminderWorker.start();
+      } else {
+        app.log.warn('Reminder worker is disabled because MAX_BOT_TOKEN is not configured');
+      }
+    });
+    app.addHook('onClose', async () => {
+      reminderWorker?.stop();
+      await prisma.$disconnect();
+    });
   }
 
   app.get('/health', async () => ({ status: 'ok' }));

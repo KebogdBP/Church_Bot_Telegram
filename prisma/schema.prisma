@@ -58,6 +58,7 @@ model ReminderDelivery {
   event        Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   occurrenceAt DateTime
   scheduledFor DateTime
+  availableAt  DateTime
   status       ReminderDeliveryStatus @default(PENDING)
   attempts     Int                    @default(0)
   sentAt       DateTime?
@@ -66,5 +67,5 @@ model ReminderDelivery {
   updatedAt    DateTime               @updatedAt
 
   @@unique([eventId, occurrenceAt])
-  @@index([status, scheduledFor])
+  @@index([status, availableAt])
 }

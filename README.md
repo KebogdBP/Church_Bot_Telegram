@@ -52,3 +52,11 @@ Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run bui
 - `/event_delete EVENT_ID` disables an event.
 
 Weekdays use ISO numbering: Monday is 1 and Sunday is 7. Administrative commands are restricted to IDs in `MAX_ADMIN_USER_IDS`.
+
+## Reminder Worker
+
+The reminder worker starts automatically when both `DATABASE_URL` and `MAX_BOT_TOKEN` are configured. It plans each occurrence in PostgreSQL, atomically claims due deliveries, and records successful or failed attempts. Failed sends retry with exponential backoff, up to five total attempts. `REMINDER_POLL_INTERVAL_MS` controls how often the worker checks the queue.
+
+Run the PostgreSQL integration test with:
+
+`DATABASE_URL=postgresql://postgres:postgres@localhost:5433/max_church_bot TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/max_church_bot npm test`
