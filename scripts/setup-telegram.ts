@@ -16,6 +16,9 @@ await callTelegram('setMyCommands', {
     { command: 'help', description: 'Показать доступные команды' },
     { command: 'whoami', description: 'Показать ваш Telegram ID' },
     { command: 'events', description: 'Показать ближайшие события' },
+    { command: 'ask', description: 'Задать библейский вопрос' },
+    { command: 'sermons', description: 'Проверить черновики проповедей' },
+    { command: 'settings', description: 'Настройки группы' },
     { command: 'status', description: 'Проверить состояние бота' },
   ],
 });

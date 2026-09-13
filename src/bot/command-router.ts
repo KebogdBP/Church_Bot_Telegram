@@ -10,6 +10,7 @@ import type { SermonPostService } from '../sermons/sermon-post-service.js';
 import { escapeHtml } from '../messaging/html.js';
 import type { BibleAssistantService } from '../assistant/bible-assistant-service.js';
 import type { AdminService } from '../admin/admin-service.js';
+import type { SermonIntakeService } from '../sermons/sermon-intake-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -18,6 +19,7 @@ export interface CommandRouterOptions {
   sermonPostService?: SermonPostService;
   bibleAssistant?: BibleAssistantService;
   adminService: AdminService;
+  sermonIntake?: SermonIntakeService;
 }
 
 const HELP_TEXT = [
@@ -37,6 +39,7 @@ const HELP_TEXT = [
   '',
   '<b>Материалы проповедей</b>',
   '/sermons - черновики публикаций',
+  '/sermon_link HTTPS_URL - добавить аудио по ссылке',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
   '/context_set ТЕКСТ - задать контекст общины',
@@ -121,9 +124,20 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve') {
+    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_link') {
       if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
+        return;
+      }
+      if (command === '/sermon_link') {
+        const rawUrl = message.text.split(/\s+/, 2)[1];
+        if (!rawUrl || !this.options.sermonIntake) { await this.reply(message.chatId, 'Формат: /sermon_link https://example.org/sermon.mp3'); return; }
+        try {
+          const result = await this.options.sermonIntake.receiveLink({ chatId: message.chatId, messageId: message.messageId, userId: message.userId, url: rawUrl });
+          await this.reply(message.chatId, result.status === 'forbidden'
+            ? 'Добавлять проповеди могут только администраторы.'
+            : result.status === 'duplicate' ? 'Эта ссылка уже принята.' : `Ссылка принята. ID: <code>${result.sermon.id}</code>`);
+        } catch { await this.reply(message.chatId, 'Нужна публичная HTTPS-ссылка на аудиофайл.'); }
         return;
       }
       await this.handleSermonCommand(command, message);

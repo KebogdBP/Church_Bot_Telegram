@@ -9,6 +9,7 @@
 - Urgent safety categories are handled before an AI request and direct people to human help.
 - Telegram/AI calls and durable jobs have bounded retries; stale claims are recovered.
 - Audio size is limited and generated text is escaped before Telegram HTML rendering.
+- Linked audio requires HTTPS, refuses redirects and credentials, resolves DNS before download, and blocks private/reserved networks.
 - The container runs as a non-root user and readiness checks include PostgreSQL.
 
 ## Residual Risks

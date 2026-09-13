@@ -58,4 +58,16 @@ describe('SermonIntakeService', () => {
     const result = await service.receive(channelAudio);
     expect(result.status).toBe('accepted');
   });
+
+  it('accepts a public HTTPS sermon link from an administrator', async () => {
+    const service = new SermonIntakeService(new InMemorySermonRepository(), async () => true, 'Europe/Moscow');
+    const result = await service.receiveLink({ chatId: '-100500', messageId: '78', userId: '42', url: 'https://media.example.org/sermon.mp3' });
+    expect(result.status).toBe('accepted');
+    if (result.status === 'accepted') expect(result.sermon.sourceUrl).toBe('https://media.example.org/sermon.mp3');
+  });
+
+  it('rejects non-HTTPS sermon links', async () => {
+    const service = new SermonIntakeService(new InMemorySermonRepository(), async () => true, 'Europe/Moscow');
+    await expect(service.receiveLink({ chatId: '-100500', messageId: '79', userId: '42', url: 'http://example.org/sermon.mp3' })).rejects.toThrow('HTTPS');
+  });
 });

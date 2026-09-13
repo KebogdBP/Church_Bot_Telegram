@@ -7,9 +7,10 @@ export interface Sermon {
   chatId: string;
   sourceMessageId: string;
   submittedByUserId?: string;
-  kind: IncomingSermonAudio['kind'];
-  telegramFileId: string;
-  telegramFileUniqueId: string;
+  kind?: IncomingSermonAudio['kind'];
+  telegramFileId?: string;
+  telegramFileUniqueId?: string;
+  sourceUrl?: string;
   fileName?: string;
   mimeType?: string;
   fileSize?: number;

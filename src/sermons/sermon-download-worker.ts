@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { TelegramFileClient } from '../telegram/telegram-api-client.js';
 import type { AudioStorage } from './audio-storage.js';
 import type { SermonRepository } from './sermon.js';
+import type { PublicAudioClient } from './public-audio-client.js';
 
 const STALE_AFTER_MS = 10 * 60_000;
 
@@ -12,6 +13,7 @@ export interface SermonDownloadWorkerOptions {
   logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
   intervalMs: number;
   maxFileSizeBytes: number;
+  publicAudio?: PublicAudioClient;
   now?: () => Date;
 }
 
@@ -52,6 +54,15 @@ export class SermonDownloadWorker {
       }
 
       try {
+        if (sermon.sourceUrl) {
+          if (!this.options.publicAudio) throw new Error('Public audio downloader is not configured');
+          const file = await this.options.publicAudio.download(sermon.sourceUrl, this.options.maxFileSizeBytes);
+          const storedPath = await this.options.storage.save(sermon.id, file.fileName, file.bytes);
+          await this.options.repository.markStored(sermon.id, sermon.sourceUrl, storedPath);
+          this.options.logger.info({ sermonId: sermon.id, storedPath }, 'Linked sermon audio stored');
+          return;
+        }
+        if (!sermon.telegramFileId) throw new Error('Telegram file ID is missing');
         const file = await this.options.telegram.getFile(sermon.telegramFileId);
         const actualSize = file.fileSize ?? sermon.fileSize;
         if (actualSize !== undefined && actualSize > this.options.maxFileSizeBytes) {

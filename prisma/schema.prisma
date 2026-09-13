@@ -105,9 +105,10 @@ model Sermon {
   churchGroup        ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
   sourceMessageId    String
   submittedByUserId  String?
-  audioKind          SermonAudioKind
-  telegramFileId     String
-  telegramFileUniqueId String
+  audioKind          SermonAudioKind?
+  telegramFileId     String?
+  telegramFileUniqueId String?
+  sourceUrl          String?
   fileName           String?
   mimeType           String?
   fileSize           BigInt?

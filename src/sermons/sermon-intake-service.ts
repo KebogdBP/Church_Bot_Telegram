@@ -36,4 +36,18 @@ export class SermonIntakeService {
 
     return { status: result.created ? 'accepted' : 'duplicate', sermon: result.sermon };
   }
+
+  public async receiveLink(input: { chatId: string; messageId: string; userId: string; url: string }): Promise<SermonIntakeResult> {
+    if (!(await this.isAdmin(input.chatId, input.userId))) return { status: 'forbidden' };
+    const url = new URL(input.url);
+    if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Only public HTTPS links are accepted');
+    const result = await this.repository.createIfNew({
+      chatId: input.chatId,
+      sourceMessageId: input.messageId,
+      submittedByUserId: input.userId,
+      sourceUrl: url.toString(),
+      fileName: url.pathname.split('/').pop() || 'sermon.audio',
+    }, this.timezone);
+    return { status: result.created ? 'accepted' : 'duplicate', sermon: result.sermon };
+  }
 }
