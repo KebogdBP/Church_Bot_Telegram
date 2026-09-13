@@ -78,4 +78,27 @@ describe('MAX webhook', () => {
       text: 'Бот работает. Подключение к MAX активно.',
     });
   });
+
+  it('allows an admin to create and list an event', async () => {
+    const { app, sendMessage } = createTestApp('42');
+    const headers = { 'x-max-bot-api-secret': 'test-secret' };
+
+    await app.inject({
+      method: 'POST',
+      url: '/webhooks/max',
+      headers,
+      payload: messageUpdate('/event_add 2099-09-20 10:00 | Воскресное собрание | Дом молитвы | 1020'),
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/webhooks/max',
+      headers,
+      payload: messageUpdate('/events'),
+    });
+
+    expect(sendMessage).toHaveBeenLastCalledWith({
+      chatId: '100',
+      text: expect.stringContaining('Воскресное собрание'),
+    });
+  });
 });

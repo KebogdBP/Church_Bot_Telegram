@@ -31,13 +31,13 @@ Deliverable: bot can receive a message, recognize admins, and send a reply. Loca
 
 Goal: manage church events and send reliable reminders.
 
-- [ ] Design event schema.
-- [ ] Implement recurring event support.
+- [x] Design event schema.
+- [x] Implement recurring event support.
 - [ ] Implement reminder scheduling.
-- [ ] Add commands for creating, editing, listing, and deleting events.
+- [ ] Add commands for creating, editing, listing, and deleting events. Create, list, and delete are complete; edit remains.
 - [ ] Add reminder message templates.
-- [ ] Add timezone support.
-- [ ] Add tests for reminder timing.
+- [x] Add timezone support.
+- [x] Add tests for reminder timing.
 
 Deliverable: admins can create a Sunday service and the bot reminds the group at the configured time.
 

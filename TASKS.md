@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: 1 - Bot Foundation
+Phase: 2 - Schedule And Reminders
 
-Current focus: connect the working local foundation to a real MAX test bot.
+Current focus: finish durable reminder delivery while MAX credentials and hosting are pending.
 
 ## Active Tasks
 
@@ -15,6 +15,9 @@ Current focus: connect the working local foundation to a real MAX test bot.
 - [ ] Register the MAX webhook subscription.
 - [ ] Add the bot to a MAX test group.
 - [ ] Verify `/help` and admin-only `/status` end to end.
+- [ ] Implement the durable reminder worker.
+- [ ] Add reminder message templates.
+- [ ] Add event editing command.
 
 ## Done
 
@@ -33,11 +36,16 @@ Current focus: connect the working local foundation to a real MAX test bot.
 - [x] Add initial admin authorization.
 - [x] Add automated tests for the foundation.
 - [x] Record verified MAX API constraints and source links.
+- [x] Add PostgreSQL and Prisma event schema with an initial migration.
+- [x] Add one-time and weekly event creation.
+- [x] Add `/events`, `/event_add`, `/event_weekly`, and `/event_delete`.
+- [x] Add timezone-aware reminder calculation.
+- [x] Verify the migration against PostgreSQL 17 in Docker.
 
 ## Decisions Needed
 
 - Hosting target.
-- Confirm PostgreSQL and Redis hosting approach before Phase 2.
+- Confirm production PostgreSQL and Redis hosting approach.
 - Confirm OpenAI as transcription and text generation provider before Phase 3.
 - Whether admin UX starts as commands only or includes a web panel.
 

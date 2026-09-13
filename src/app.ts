@@ -1,13 +1,19 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
+import { PrismaClient } from '@prisma/client';
 import type { AppConfig } from './config.js';
 import { CommandRouter } from './bot/command-router.js';
 import { MaxApiClient, type MaxMessageSender } from './max/max-api-client.js';
 import { normalizeMessage } from './max/normalize-update.js';
 import { maxUpdateSchema } from './max/types.js';
+import type { EventRepository } from './events/event.js';
+import { EventService } from './events/event-service.js';
+import { InMemoryEventRepository } from './events/in-memory-event-repository.js';
+import { PrismaEventRepository } from './events/prisma-event-repository.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
   sender?: MaxMessageSender;
+  eventRepository?: EventRepository;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -17,7 +23,20 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     logger: options.logger ?? { level: config.app.logLevel },
   });
   const sender = options.sender ?? new MaxApiClient(config.max.botToken, config.max.apiBaseUrl);
-  const router = new CommandRouter({ sender, adminUserIds: config.max.adminUserIds });
+  const prisma = !options.eventRepository && config.databaseUrl ? new PrismaClient() : null;
+  const eventRepository = options.eventRepository
+    ?? (prisma ? new PrismaEventRepository(prisma) : new InMemoryEventRepository());
+  const eventService = new EventService(eventRepository);
+  const router = new CommandRouter({
+    sender,
+    adminUserIds: config.max.adminUserIds,
+    eventService,
+    timezone: config.app.timezone,
+  });
+
+  if (prisma) {
+    app.addHook('onClose', async () => prisma.$disconnect());
+  }
 
   app.get('/health', async () => ({ status: 'ok' }));
 

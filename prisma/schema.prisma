@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventRecurrence {
+  NONE
+  WEEKLY
+}
+
+enum ReminderDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model ChurchGroup {
+  id        String   @id @default(cuid())
+  maxChatId String   @unique
+  timezone  String   @default("Europe/Moscow")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]
+}
+
+model Event {
+  id                    String          @id @default(cuid())
+  churchGroupId         String
+  churchGroup           ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String?
+  location              String?
+  topic                 String?
+  biblePassage          String?
+  startsAt              DateTime
+  timezone              String
+  recurrence            EventRecurrence @default(NONE)
+  weeklyDay             Int?
+  localTime             String?
+  reminderMinutesBefore Int
+  active                 Boolean         @default(true)
+  createdByMaxUserId    String
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  reminderDeliveries     ReminderDelivery[]
+
+  @@index([churchGroupId, active, startsAt])
+}
+
+model ReminderDelivery {
+  id           String                 @id @default(cuid())
+  eventId      String
+  event        Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  occurrenceAt DateTime
+  scheduledFor DateTime
+  status       ReminderDeliveryStatus @default(PENDING)
+  attempts     Int                    @default(0)
+  sentAt       DateTime?
+  lastError    String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([eventId, occurrenceAt])
+  @@index([status, scheduledFor])
+}

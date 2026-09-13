@@ -34,10 +34,21 @@ Requirements: Node.js 20.19 or newer.
 
 1. Install dependencies: `npm install`.
 2. Create a local environment file: `cp .env.example .env`.
-3. Add `MAX_BOT_TOKEN`, `MAX_WEBHOOK_SECRET`, and admin user IDs.
-4. Start development mode: `npm run dev`.
-5. Check the service at `http://localhost:3000/health`.
+3. Start PostgreSQL: `docker compose up -d postgres`.
+4. Apply database migrations: `npm run db:deploy`.
+5. Add `MAX_BOT_TOKEN`, `MAX_WEBHOOK_SECRET`, and admin user IDs.
+6. Start development mode: `npm run dev`.
+7. Check the service at `http://localhost:3000/health`.
 
 MAX sends production updates to `POST /webhooks/max`. The public endpoint must use HTTPS on port 443 and the subscription secret must match `MAX_WEBHOOK_SECRET`.
 
 Useful checks: `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.
+
+## Schedule Commands
+
+- `/events` lists active events in the current group.
+- `/event_add 2026-09-20 10:00 | Воскресное собрание | Дом молитвы | 1020` creates a one-time event and reminds 1,020 minutes before it.
+- `/event_weekly 7 10:00 | Воскресное собрание | Дом молитвы | 1020` creates a weekly Sunday event.
+- `/event_delete EVENT_ID` disables an event.
+
+Weekdays use ISO numbering: Monday is 1 and Sunday is 7. Administrative commands are restricted to IDs in `MAX_ADMIN_USER_IDS`.

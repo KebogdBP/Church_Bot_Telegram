@@ -10,6 +10,7 @@ const envSchema = z.object({
   MAX_BOT_TOKEN: z.string().min(1).optional(),
   MAX_WEBHOOK_SECRET: z.string().regex(/^[a-zA-Z0-9_-]{5,256}$/).optional(),
   MAX_ADMIN_USER_IDS: z.string().default(''),
+  DATABASE_URL: z.string().min(1).optional(),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -35,5 +36,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
           .filter(Boolean),
       ),
     },
+    databaseUrl: parsed.DATABASE_URL,
   };
 }

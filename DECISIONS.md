@@ -55,3 +55,21 @@ Consequences:
 - Webhook behavior is explicit and straightforward to test.
 - MAX API changes are isolated to one module.
 - We own retry and rate-limit behavior and must implement it before production launch.
+
+## ADR-0004: PostgreSQL With Prisma 6 For Durable State
+
+Status: Accepted
+
+Context:
+
+Events, recurring schedules, and reminder deliveries must survive process restarts. Prisma 8 requires a newer Node.js baseline, while Prisma 7 currently introduces vulnerable development dependencies in this project.
+
+Decision:
+
+Use PostgreSQL 17 and Prisma 6.12 for the MVP. Keep persistence behind repository interfaces so domain tests do not depend on a running database.
+
+Consequences:
+
+- Local development has a reproducible Docker database.
+- The project keeps its Node.js 20.19 minimum.
+- Upgrading Prisma can happen separately after its runtime and dependency requirements are reviewed.
