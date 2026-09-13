@@ -6,7 +6,7 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 Phase: 3 - Sermon Audio Pipeline
 
-Current focus: add administrator review and scheduling for generated sermon posts.
+Current focus: implement the safe AI Bible assistant.
 
 ## Active Tasks
 
@@ -16,8 +16,8 @@ Current focus: add administrator review and scheduling for generated sermon post
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [x] Verify private bot messaging end to end through local polling.
 - [ ] Verify the bot in a Telegram test channel and discussion group.
-- [ ] Add commands for reviewing and approving generated sermon posts.
-- [ ] Schedule approved follow-up posts.
+- [ ] Define and implement the Bible assistant safety policy.
+- [ ] Add private-chat question handling and privacy-aware logs.
 
 ## Done
 
@@ -59,6 +59,9 @@ Current focus: add administrator review and scheduling for generated sermon post
 - [x] Connect `@pastorHelperBot` and configure the first administrator.
 - [x] Generate structured summaries, key thoughts, reflection questions, and post drafts.
 - [x] Persist generated sermon materials and retry state in PostgreSQL.
+- [x] Materialize AI follow-up drafts as separately reviewable posts.
+- [x] Add `/sermons`, `/sermon_review`, and `/sermon_approve`.
+- [x] Schedule approved series and deliver them with bounded retries.
 
 ## Decisions Needed
 

@@ -47,6 +47,14 @@ enum ContentGenerationStatus {
   FAILED
 }
 
+enum SermonPostStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -55,6 +63,7 @@ model ChurchGroup {
   updatedAt DateTime @updatedAt
   events    Event[]
   sermons   Sermon[]
+  sermonPosts SermonPost[]
 }
 
 model Sermon {
@@ -98,11 +107,37 @@ model Sermon {
   contentGeneratedAt  DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+  posts              SermonPost[]
 
   @@unique([churchGroupId, sourceMessageId])
   @@index([status, availableAt])
   @@index([status, transcriptionStatus, transcriptionAvailableAt])
   @@index([transcriptionStatus, contentStatus, contentAvailableAt])
+}
+
+model SermonPost {
+  id               String           @id @default(cuid())
+  sermonId         String
+  sermon           Sermon           @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  churchGroupId    String
+  churchGroup      ChurchGroup      @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  sequence         Int
+  content          String
+  status           SermonPostStatus @default(DRAFT)
+  scheduledFor     DateTime?
+  availableAt      DateTime         @default(now())
+  attempts         Int              @default(0)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  sentAt           DateTime?
+  telegramMessageId String?
+  lastError        String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([sermonId, sequence])
+  @@index([status, availableAt])
+  @@index([churchGroupId, status])
 }
 
 model Event {

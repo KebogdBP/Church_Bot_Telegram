@@ -25,12 +25,16 @@ import { TelegramPollingWorker } from './telegram/telegram-polling-worker.js';
 import { OpenAISermonContentProvider } from './ai/openai-sermon-content-provider.js';
 import { PrismaContentGenerationRepository } from './sermons/prisma-content-generation-repository.js';
 import { SermonContentWorker } from './sermons/sermon-content-worker.js';
+import { PrismaSermonPostRepository } from './sermons/prisma-sermon-post-repository.js';
+import { SermonPostService } from './sermons/sermon-post-service.js';
+import { SermonPostWorker } from './sermons/sermon-post-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
   sender?: MessageSender;
   eventRepository?: EventRepository;
   sermonRepository?: SermonRepository;
+  sermonPostService?: SermonPostService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -52,11 +56,14 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     config.telegram.adminUserIds,
     config.app.timezone,
   );
+  const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
+  const sermonPostService = options.sermonPostService ?? (sermonPostRepository ? new SermonPostService(sermonPostRepository) : undefined);
   const router = new CommandRouter({
     sender,
     adminUserIds: config.telegram.adminUserIds,
     eventService,
     timezone: config.app.timezone,
+    ...(sermonPostService ? { sermonPostService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -121,6 +128,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         intervalMs: config.openai.contentGenerationPollIntervalMs,
       })
     : null;
+  const sermonPostWorker = sermonPostRepository && config.telegram.botToken
+    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.openai.sermonPostPollIntervalMs })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -137,6 +147,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       }
       await telegramPollingWorker?.start();
       sermonContentWorker?.start();
+      sermonPostWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -144,6 +155,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonTranscriptionWorker?.stop();
       telegramPollingWorker?.stop();
       sermonContentWorker?.stop();
+      sermonPostWorker?.stop();
       await prisma.$disconnect();
     });
   }

@@ -29,6 +29,7 @@ const envSchema = z.object({
   OPENAI_TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
   OPENAI_TEXT_MODEL: z.string().min(1).default('gpt-5-mini'),
   CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
+  SERMON_POST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
@@ -71,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       transcriptionPollIntervalMs: parsed.TRANSCRIPTION_POLL_INTERVAL_MS,
       textModel: parsed.OPENAI_TEXT_MODEL,
       contentGenerationPollIntervalMs: parsed.CONTENT_GENERATION_POLL_INTERVAL_MS,
+      sermonPostPollIntervalMs: parsed.SERMON_POST_POLL_INTERVAL_MS,
     },
   };
 }

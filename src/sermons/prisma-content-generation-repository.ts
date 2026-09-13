@@ -35,9 +35,10 @@ export class PrismaContentGenerationRepository implements ContentGenerationRepos
   }
 
   public async markCompleted(sermonId: string, content: SermonContent, model: string, now: Date): Promise<void> {
-    await this.prisma.sermon.update({
-      where: { id: sermonId },
-      data: {
+    await this.prisma.$transaction(async (tx) => {
+      const sermon = await tx.sermon.update({
+        where: { id: sermonId },
+        data: {
         contentStatus: ContentGenerationStatus.COMPLETED,
         summary: content.summary,
         keyThoughts: content.keyThoughts,
@@ -46,7 +47,17 @@ export class PrismaContentGenerationRepository implements ContentGenerationRepos
         contentModel: model,
         contentGeneratedAt: now,
         contentError: null,
-      },
+        },
+      });
+      await tx.sermonPost.createMany({
+        data: content.followUpPosts.map((post, sequence) => ({
+          sermonId,
+          churchGroupId: sermon.churchGroupId,
+          sequence,
+          content: post,
+        })),
+        skipDuplicates: true,
+      });
     });
   }
 

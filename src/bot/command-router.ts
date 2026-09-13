@@ -6,12 +6,15 @@ import {
   parseWeeklyEventCommand,
 } from '../events/event-command-parser.js';
 import { EventService, EventValidationError, formatEvent } from '../events/event-service.js';
+import type { SermonPostService } from '../sermons/sermon-post-service.js';
+import { escapeHtml } from '../messaging/html.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
   adminUserIds: ReadonlySet<string>;
   eventService: EventService;
   timezone: string;
+  sermonPostService?: SermonPostService;
 }
 
 const HELP_TEXT = [
@@ -27,6 +30,11 @@ const HELP_TEXT = [
   '/event_weekly 1-7 ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_edit ID ДАТА/ДЕНЬ ЧЧ:ММ | Название | Место | Минут до напоминания',
   '/event_delete ID',
+  '',
+  '<b>Материалы проповедей</b>',
+  '/sermons - черновики публикаций',
+  '/sermon_review ID - посмотреть черновик',
+  '/sermon_approve ID - одобрить серию',
 ].join('\n');
 
 export class CommandRouter {
@@ -71,7 +79,39 @@ export class CommandRouter {
       }
 
       await this.handleAdminEventCommand(command, message);
+      return;
     }
+
+    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve') {
+      if (!this.options.adminUserIds.has(message.userId)) {
+        await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
+        return;
+      }
+      await this.handleSermonCommand(command, message);
+    }
+  }
+
+  private async handleSermonCommand(command: string, message: IncomingMessage): Promise<void> {
+    const service = this.options.sermonPostService;
+    if (!service) { await this.reply(message.chatId, 'Хранилище проповедей сейчас недоступно.'); return; }
+    if (command === '/sermons') {
+      const drafts = await service.list(message.chatId);
+      await this.reply(message.chatId, drafts.length
+        ? ['<b>Черновики проповедей</b>', ...drafts.map((post) => `<code>${post.id}</code> — ${escapeHtml(post.content.slice(0, 100))}`)].join('\n\n')
+        : 'Черновиков для проверки пока нет.');
+      return;
+    }
+    const postId = message.text.split(/\s+/, 2)[1];
+    if (!postId) { await this.reply(message.chatId, `Формат: ${command} ID`); return; }
+    if (command === '/sermon_review') {
+      const post = await service.review(message.chatId, postId);
+      await this.reply(message.chatId, post
+        ? `<b>Черновик</b>\n\n${escapeHtml(post.content)}\n\nID: <code>${post.id}</code>`
+        : 'Черновик не найден.');
+      return;
+    }
+    const count = await service.approve(message.chatId, postId, message.userId);
+    await this.reply(message.chatId, count ? `Одобрено и запланировано публикаций: ${count}.` : 'Черновик не найден или уже обработан.');
   }
 
   private async handleAdminEventCommand(command: string, message: IncomingMessage): Promise<void> {

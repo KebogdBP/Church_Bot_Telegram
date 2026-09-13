@@ -76,3 +76,5 @@ The hosted Telegram Bot API allows bots to download files up to 20 MB. `SERMON_M
 When `OPENAI_API_KEY` is configured, a second background worker sends stored sermon audio to the OpenAI transcription API. The default model is `gpt-4o-mini-transcribe` with Russian language guidance. The full transcript, model name, processing status, attempt count, and errors are persisted in PostgreSQL. Configure the worker with `OPENAI_TRANSCRIPTION_MODEL`, `OPENAI_TRANSCRIPTION_LANGUAGE`, and `TRANSCRIPTION_POLL_INTERVAL_MS`.
 
 After transcription, a content worker uses the OpenAI Responses API with a strict JSON schema to generate a summary, key thoughts, reflection questions, and follow-up post drafts. Responses are requested with `store: false`; generated drafts remain unpublished until administrator approval is implemented and granted.
+
+Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.

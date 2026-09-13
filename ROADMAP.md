@@ -54,8 +54,8 @@ Goal: turn sermon audio into reusable text and weekly content.
 - [x] Save transcript.
 - [x] Generate sermon summary.
 - [x] Generate key thoughts and reflection questions.
-- [ ] Generate scheduled follow-up posts.
-- [ ] Add admin review before sending generated posts.
+- [x] Generate scheduled follow-up posts.
+- [x] Add admin review before sending generated posts.
 
 Deliverable: a sermon audio file produces transcript, summary, and draft follow-up posts.
 
@@ -79,7 +79,7 @@ Goal: make the MVP usable by non-developers.
 
 - [ ] Decide between command-only MVP and small web admin panel.
 - [ ] Add settings management.
-- [ ] Add sermon review workflow.
+- [x] Add sermon review workflow.
 - [ ] Add event management workflow.
 - [ ] Add role management.
 - [ ] Add basic dashboard or status command.
