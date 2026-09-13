@@ -22,7 +22,7 @@ describe('SermonIntakeService', () => {
   it('accepts an audio file from an administrator only once', async () => {
     const service = new SermonIntakeService(
       new InMemorySermonRepository(),
-      new Set(['42']),
+      async (_chatId, userId) => userId === '42',
       'Europe/Moscow',
     );
 
@@ -40,7 +40,7 @@ describe('SermonIntakeService', () => {
   it('rejects a group upload from a regular member', async () => {
     const service = new SermonIntakeService(
       new InMemorySermonRepository(),
-      new Set(['99']),
+      async (_chatId, userId) => userId === '99',
       'Europe/Moscow',
     );
     expect(await service.receive(AUDIO)).toEqual({ status: 'forbidden' });
@@ -49,7 +49,7 @@ describe('SermonIntakeService', () => {
   it('accepts a channel post without a user', async () => {
     const service = new SermonIntakeService(
       new InMemorySermonRepository(),
-      new Set(),
+      async () => false,
       'Europe/Moscow',
     );
     const channelAudio: IncomingSermonAudio = { ...AUDIO, chatType: 'channel' };

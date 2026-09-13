@@ -77,12 +77,12 @@ Deliverable: members can ask questions and get cautious, useful answers.
 
 Goal: make the MVP usable by non-developers.
 
-- [ ] Decide between command-only MVP and small web admin panel.
-- [ ] Add settings management.
+- [x] Decide between command-only MVP and small web admin panel.
+- [x] Add settings management.
 - [x] Add sermon review workflow.
-- [ ] Add event management workflow.
-- [ ] Add role management.
-- [ ] Add basic dashboard or status command.
+- [x] Add event management workflow.
+- [x] Add role management.
+- [x] Add basic dashboard or status command.
 
 Deliverable: church leaders can operate the bot without editing code.
 

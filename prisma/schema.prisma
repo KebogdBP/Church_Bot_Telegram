@@ -72,6 +72,18 @@ model ChurchGroup {
   sermonPosts SermonPost[]
   assistantContext String?
   assistantInteractions AssistantInteraction[]
+  admins    GroupAdmin[]
+}
+
+model GroupAdmin {
+  id            String      @id @default(cuid())
+  churchGroupId String
+  churchGroup   ChurchGroup @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  telegramUserId String
+  addedByUserId String
+  createdAt     DateTime    @default(now())
+
+  @@unique([churchGroupId, telegramUserId])
 }
 
 model AssistantInteraction {

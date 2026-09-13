@@ -31,6 +31,8 @@ import { SermonPostWorker } from './sermons/sermon-post-worker.js';
 import { PrismaAssistantRepository } from './assistant/prisma-assistant-repository.js';
 import { OpenAIBibleAnswerProvider } from './assistant/openai-bible-answer-provider.js';
 import { BibleAssistantService } from './assistant/bible-assistant-service.js';
+import { AdminService } from './admin/admin-service.js';
+import { PrismaAdminRepository } from './admin/prisma-admin-repository.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -55,9 +57,10 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const eventService = new EventService(eventRepository);
   const sermonRepository = options.sermonRepository
     ?? (prisma ? new PrismaSermonRepository(prisma) : new InMemorySermonRepository());
+  const adminService = new AdminService(prisma ? new PrismaAdminRepository(prisma) : undefined, config.telegram.adminUserIds, config.app.timezone);
   const sermonIntake = new SermonIntakeService(
     sermonRepository,
-    config.telegram.adminUserIds,
+    (chatId, userId) => adminService.isAdmin(chatId, userId),
     config.app.timezone,
   );
   const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
@@ -72,11 +75,11 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     : undefined);
   const router = new CommandRouter({
     sender,
-    adminUserIds: config.telegram.adminUserIds,
     eventService,
     timezone: config.app.timezone,
     ...(sermonPostService ? { sermonPostService } : {}),
     ...(bibleAssistant ? { bibleAssistant } : {}),
+    adminService,
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({

@@ -162,3 +162,17 @@ Consequences:
 - Downstream review and scheduling receive predictable data.
 - Invalid or incomplete model output fails the job and is retried.
 - AI-generated church communication always remains accountable to a human reviewer.
+
+## ADR-0010: Command-First Admin Experience For MVP
+
+Status: Accepted
+
+Decision:
+
+Complete the MVP administration inside Telegram commands instead of adding a web panel. Persist group-scoped administrator roles while retaining environment IDs as non-removable bootstrap administrators.
+
+Consequences:
+
+- Church leaders can manage events, sermon drafts, AI context, roles, and status without editing code.
+- The MVP avoids a second authentication and frontend surface.
+- A web dashboard remains a post-MVP enhancement.

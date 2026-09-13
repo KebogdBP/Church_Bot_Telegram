@@ -9,14 +9,15 @@ import { EventService, EventValidationError, formatEvent } from '../events/event
 import type { SermonPostService } from '../sermons/sermon-post-service.js';
 import { escapeHtml } from '../messaging/html.js';
 import type { BibleAssistantService } from '../assistant/bible-assistant-service.js';
+import type { AdminService } from '../admin/admin-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
-  adminUserIds: ReadonlySet<string>;
   eventService: EventService;
   timezone: string;
   sermonPostService?: SermonPostService;
   bibleAssistant?: BibleAssistantService;
+  adminService: AdminService;
 }
 
 const HELP_TEXT = [
@@ -39,6 +40,9 @@ const HELP_TEXT = [
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
   '/context_set ТЕКСТ - задать контекст общины',
+  '/settings - настройки и состояние группы',
+  '/admin_add ID - добавить администратора',
+  '/admin_remove ID - удалить администратора',
 ].join('\n');
 
 export class CommandRouter {
@@ -58,12 +62,20 @@ export class CommandRouter {
     }
 
     if (command === '/status') {
-      if (!this.options.adminUserIds.has(message.userId)) {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
       }
 
-      await this.reply(message.chatId, 'Бот работает. Подключение к Telegram активно.');
+      const status = await this.options.adminService.dashboard(message.chatId);
+      await this.reply(message.chatId, [
+        '<b>Бот работает</b>',
+        'Подключение к Telegram активно.',
+        `События: ${status.events}`,
+        `Проповеди: ${status.sermons}`,
+        `Черновики: ${status.draftPosts}`,
+        `Запланировано постов: ${status.scheduledPosts}`,
+      ].join('\n'));
       return;
     }
 
@@ -90,7 +102,7 @@ export class CommandRouter {
     }
 
     if (command === '/context_set') {
-      if (!this.options.adminUserIds.has(message.userId)) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
       const context = message.text.replace(/^\/context_set(?:@\w+)?\s*/i, '').trim();
       if (!context || context.length > 2_000) { await this.reply(message.chatId, 'Добавьте описание общины длиной до 2000 символов.'); return; }
       if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
@@ -100,7 +112,7 @@ export class CommandRouter {
     }
 
     if (command === '/event_add' || command === '/event_weekly' || command === '/event_edit' || command === '/event_delete') {
-      if (!this.options.adminUserIds.has(message.userId)) {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
       }
@@ -110,11 +122,28 @@ export class CommandRouter {
     }
 
     if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve') {
-      if (!this.options.adminUserIds.has(message.userId)) {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
       }
       await this.handleSermonCommand(command, message);
+      return;
+    }
+
+    if (command === '/settings' || command === '/admin_add' || command === '/admin_remove') {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      if (command === '/settings') {
+        const status = await this.options.adminService.dashboard(message.chatId);
+        const admins = await this.options.adminService.list(message.chatId);
+        await this.reply(message.chatId, ['<b>Состояние группы</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Черновики: ${status.draftPosts}`, `Запланировано постов: ${status.scheduledPosts}`, `Контекст AI: ${status.contextConfigured ? 'настроен' : 'не настроен'}`, `Администраторы: ${admins.map((id) => `<code>${id}</code>`).join(', ')}`].join('\n'));
+        return;
+      }
+      const userId = message.text.split(/\s+/, 2)[1];
+      if (!userId || !/^\d+$/.test(userId)) { await this.reply(message.chatId, `Формат: ${command} TELEGRAM_ID`); return; }
+      const changed = command === '/admin_add'
+        ? await this.options.adminService.add(message.chatId, userId, message.userId)
+        : await this.options.adminService.remove(message.chatId, userId);
+      await this.reply(message.chatId, changed ? 'Роли администраторов обновлены.' : 'Изменений нет. Bootstrap-администратора нельзя удалить командой.');
     }
   }
 

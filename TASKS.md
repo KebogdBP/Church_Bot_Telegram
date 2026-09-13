@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: 5 - Admin Experience
+Phase: 6 - Production Readiness
 
-Current focus: complete command-based settings, roles, and operational status UX.
+Current focus: deployment, backups, monitoring, security review, and pilot documentation.
 
 ## Active Tasks
 
@@ -16,8 +16,8 @@ Current focus: complete command-based settings, roles, and operational status UX
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [x] Verify private bot messaging end to end through local polling.
 - [ ] Verify the bot in a Telegram test channel and discussion group.
-- [ ] Add command-based settings and role management.
-- [ ] Expand `/status` with operational pipeline health.
+- [ ] Add production deployment and backup configuration.
+- [ ] Add readiness monitoring and complete the security review.
 
 ## Done
 
@@ -66,6 +66,9 @@ Current focus: complete command-based settings, roles, and operational status UX
 - [x] Add deterministic crisis and professional-advice escalation.
 - [x] Add admin-configurable church context with `/context_set`.
 - [x] Log only privacy-preserving interaction metadata.
+- [x] Choose command-first administration for the MVP.
+- [x] Add persistent group roles with `/admin_add` and `/admin_remove`.
+- [x] Add `/settings` and an operational `/status` dashboard.
 
 ## Decisions Needed
 

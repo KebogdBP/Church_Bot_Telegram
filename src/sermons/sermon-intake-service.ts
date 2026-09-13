@@ -9,13 +9,13 @@ export type SermonIntakeResult =
 export class SermonIntakeService {
   public constructor(
     private readonly repository: SermonRepository,
-    private readonly adminUserIds: ReadonlySet<string>,
+    private readonly isAdmin: (chatId: string, userId: string) => Promise<boolean>,
     private readonly timezone: string,
   ) {}
 
   public async receive(audio: IncomingSermonAudio): Promise<SermonIntakeResult> {
     const trustedChannelPost = audio.chatType === 'channel';
-    const trustedAdmin = audio.userId !== undefined && this.adminUserIds.has(audio.userId);
+    const trustedAdmin = audio.userId !== undefined && await this.isAdmin(audio.chatId, audio.userId);
     if (!trustedChannelPost && !trustedAdmin) return { status: 'forbidden' };
 
     const result = await this.repository.createIfNew({

@@ -111,7 +111,7 @@ describe('Telegram webhook', () => {
 
     expect(sendMessage).toHaveBeenCalledWith({
       chatId: '100',
-      text: 'Бот работает. Подключение к Telegram активно.',
+      text: expect.stringContaining('Подключение к Telegram активно.'),
     });
   });
 
