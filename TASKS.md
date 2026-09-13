@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: 3 - Sermon Audio Pipeline
+Phase: 5 - Admin Experience
 
-Current focus: implement the safe AI Bible assistant.
+Current focus: complete command-based settings, roles, and operational status UX.
 
 ## Active Tasks
 
@@ -16,8 +16,8 @@ Current focus: implement the safe AI Bible assistant.
 - [ ] Add the bot to a Telegram test channel and discussion group.
 - [x] Verify private bot messaging end to end through local polling.
 - [ ] Verify the bot in a Telegram test channel and discussion group.
-- [ ] Define and implement the Bible assistant safety policy.
-- [ ] Add private-chat question handling and privacy-aware logs.
+- [ ] Add command-based settings and role management.
+- [ ] Expand `/status` with operational pipeline health.
 
 ## Done
 
@@ -62,6 +62,10 @@ Current focus: implement the safe AI Bible assistant.
 - [x] Materialize AI follow-up drafts as separately reviewable posts.
 - [x] Add `/sermons`, `/sermon_review`, and `/sermon_approve`.
 - [x] Schedule approved series and deliver them with bounded retries.
+- [x] Add `/ask` with strict structured AI responses and Bible references.
+- [x] Add deterministic crisis and professional-advice escalation.
+- [x] Add admin-configurable church context with `/context_set`.
+- [x] Log only privacy-preserving interaction metadata.
 
 ## Decisions Needed
 

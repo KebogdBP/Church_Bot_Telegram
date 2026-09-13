@@ -28,6 +28,9 @@ import { SermonContentWorker } from './sermons/sermon-content-worker.js';
 import { PrismaSermonPostRepository } from './sermons/prisma-sermon-post-repository.js';
 import { SermonPostService } from './sermons/sermon-post-service.js';
 import { SermonPostWorker } from './sermons/sermon-post-worker.js';
+import { PrismaAssistantRepository } from './assistant/prisma-assistant-repository.js';
+import { OpenAIBibleAnswerProvider } from './assistant/openai-bible-answer-provider.js';
+import { BibleAssistantService } from './assistant/bible-assistant-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -35,6 +38,7 @@ export interface BuildAppOptions {
   eventRepository?: EventRepository;
   sermonRepository?: SermonRepository;
   sermonPostService?: SermonPostService;
+  bibleAssistant?: BibleAssistantService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -58,12 +62,21 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   );
   const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
   const sermonPostService = options.sermonPostService ?? (sermonPostRepository ? new SermonPostService(sermonPostRepository) : undefined);
+  const bibleAssistant = options.bibleAssistant ?? (prisma && config.openai.apiKey
+    ? new BibleAssistantService(
+        new PrismaAssistantRepository(prisma),
+        new OpenAIBibleAnswerProvider(config.openai.apiKey, config.openai.textModel, config.openai.apiBaseUrl),
+        config.privacySecret,
+        config.app.timezone,
+      )
+    : undefined);
   const router = new CommandRouter({
     sender,
     adminUserIds: config.telegram.adminUserIds,
     eventService,
     timezone: config.app.timezone,
     ...(sermonPostService ? { sermonPostService } : {}),
+    ...(bibleAssistant ? { bibleAssistant } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({

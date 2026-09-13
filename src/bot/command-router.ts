@@ -8,6 +8,7 @@ import {
 import { EventService, EventValidationError, formatEvent } from '../events/event-service.js';
 import type { SermonPostService } from '../sermons/sermon-post-service.js';
 import { escapeHtml } from '../messaging/html.js';
+import type { BibleAssistantService } from '../assistant/bible-assistant-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -15,6 +16,7 @@ export interface CommandRouterOptions {
   eventService: EventService;
   timezone: string;
   sermonPostService?: SermonPostService;
+  bibleAssistant?: BibleAssistantService;
 }
 
 const HELP_TEXT = [
@@ -24,6 +26,7 @@ const HELP_TEXT = [
   '/whoami - показать ваш Telegram ID',
   '/status - проверить состояние бота (для администраторов)',
   '/events - ближайшие события',
+  '/ask ВОПРОС - задать библейский вопрос',
   '',
   '<b>Команды администратора</b>',
   '/event_add ГГГГ-ММ-ДД ЧЧ:ММ | Название | Место | Минут до напоминания',
@@ -35,6 +38,7 @@ const HELP_TEXT = [
   '/sermons - черновики публикаций',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
+  '/context_set ТЕКСТ - задать контекст общины',
 ].join('\n');
 
 export class CommandRouter {
@@ -69,6 +73,29 @@ export class CommandRouter {
         ? 'В расписании пока нет событий.'
         : ['<b>Ближайшие события</b>', '', ...events.map(formatEvent)].join('\n\n');
       await this.reply(message.chatId, response);
+      return;
+    }
+
+    if (command === '/ask') {
+      const question = message.text.replace(/^\/ask(?:@\w+)?\s*/i, '').trim();
+      if (!question) { await this.reply(message.chatId, 'Формат: /ask ваш вопрос'); return; }
+      if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
+      try {
+        const answer = await this.options.bibleAssistant.ask(message.chatId, message.userId, question);
+        await this.reply(message.chatId, escapeHtml(answer.text));
+      } catch {
+        await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');
+      }
+      return;
+    }
+
+    if (command === '/context_set') {
+      if (!this.options.adminUserIds.has(message.userId)) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      const context = message.text.replace(/^\/context_set(?:@\w+)?\s*/i, '').trim();
+      if (!context || context.length > 2_000) { await this.reply(message.chatId, 'Добавьте описание общины длиной до 2000 символов.'); return; }
+      if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
+      await this.options.bibleAssistant.setContext(message.chatId, context);
+      await this.reply(message.chatId, 'Контекст общины сохранён.');
       return;
     }
 

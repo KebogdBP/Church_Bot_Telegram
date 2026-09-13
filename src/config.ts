@@ -10,6 +10,7 @@ const envSchema = z.object({
   APP_HOST: z.string().default('0.0.0.0'),
   APP_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
   APP_TIMEZONE: z.string().default('Europe/Moscow'),
+  APP_PRIVACY_SECRET: optionalString(z.string().min(16)),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TELEGRAM_API_BASE_URL: z.url().default('https://api.telegram.org'),
   TELEGRAM_BOT_TOKEN: optionalString(z.string().min(1)),
@@ -74,5 +75,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       contentGenerationPollIntervalMs: parsed.CONTENT_GENERATION_POLL_INTERVAL_MS,
       sermonPostPollIntervalMs: parsed.SERMON_POST_POLL_INTERVAL_MS,
     },
+    privacySecret: parsed.APP_PRIVACY_SECRET ?? parsed.TELEGRAM_WEBHOOK_SECRET ?? parsed.TELEGRAM_BOT_TOKEN ?? 'development-only-privacy-secret',
   };
 }

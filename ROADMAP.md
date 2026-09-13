@@ -63,13 +63,13 @@ Deliverable: a sermon audio file produces transcript, summary, and draft follow-
 
 Goal: answer basic Bible and church-related questions safely.
 
-- [ ] Define assistant behavior policy.
-- [ ] Add prompt templates.
-- [ ] Add Bible reference handling.
-- [ ] Add refusal and escalation rules.
-- [ ] Add admin-configurable church context.
-- [ ] Add conversation logging with privacy boundaries.
-- [ ] Add tests for sensitive cases.
+- [x] Define assistant behavior policy.
+- [x] Add prompt templates.
+- [x] Add Bible reference handling.
+- [x] Add refusal and escalation rules.
+- [x] Add admin-configurable church context.
+- [x] Add conversation logging with privacy boundaries.
+- [x] Add tests for sensitive cases.
 
 Deliverable: members can ask questions and get cautious, useful answers.
 

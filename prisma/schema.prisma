@@ -55,6 +55,12 @@ enum SermonPostStatus {
   FAILED
 }
 
+enum AssistantOutcome {
+  ANSWERED
+  ESCALATED
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -64,6 +70,21 @@ model ChurchGroup {
   events    Event[]
   sermons   Sermon[]
   sermonPosts SermonPost[]
+  assistantContext String?
+  assistantInteractions AssistantInteraction[]
+}
+
+model AssistantInteraction {
+  id            String           @id @default(cuid())
+  churchGroupId String
+  churchGroup   ChurchGroup      @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  userHash      String
+  outcome       AssistantOutcome
+  category      String
+  model         String?
+  createdAt     DateTime         @default(now())
+
+  @@index([churchGroupId, createdAt])
 }
 
 model Sermon {

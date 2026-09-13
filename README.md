@@ -27,6 +27,7 @@ See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md
 - [CONTRIBUTING.md](CONTRIBUTING.md): workflow for future contributors.
 - [DECISIONS.md](DECISIONS.md): architecture decision log.
 - [docs/TELEGRAM_API.md](docs/TELEGRAM_API.md): verified Telegram API behavior and setup.
+- [docs/AI_SAFETY.md](docs/AI_SAFETY.md): Bible assistant boundaries, escalation, and privacy policy.
 
 ## Local Development
 
@@ -78,3 +79,7 @@ When `OPENAI_API_KEY` is configured, a second background worker sends stored ser
 After transcription, a content worker uses the OpenAI Responses API with a strict JSON schema to generate a summary, key thoughts, reflection questions, and follow-up post drafts. Responses are requested with `store: false`; generated drafts remain unpublished until administrator approval is implemented and granted.
 
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
+
+## Bible Assistant
+
+Members ask explicit questions with `/ask ВОПРОС`. The assistant returns a cautious Russian answer and a separate list of Bible references. Crisis, abuse, medical, legal, and financial-decision requests are redirected without calling AI. `/context_set ТЕКСТ` lets an administrator configure local church context. Conversation text is not retained in audit logs.
