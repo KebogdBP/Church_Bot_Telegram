@@ -269,7 +269,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       if (sermonAudio.chatType !== 'channel' && result.status === 'accepted') {
         await sender.sendMessage({
           chatId: sermonAudio.chatId,
-          text: `Аудио проповеди принято. ID: <code>${result.sermon.id}</code>`,
+          text: result.sermon.purpose === 'personal_transcription'
+            ? `Аудио принято на транскрибацию. ID: <code>${result.sermon.id}</code>. Я пришлю текст автоматически.`
+            : `Аудио проповеди принято. ID: <code>${result.sermon.id}</code>`,
         });
       } else if (sermonAudio.chatType !== 'channel' && result.status === 'forbidden') {
         await sender.sendMessage({
@@ -280,7 +282,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     }
     if (callback) {
       await router.handleCallback(callback);
-    } else if (message) {
+    } else if (message && !sermonAudio) {
       await router.handle(message);
     }
 

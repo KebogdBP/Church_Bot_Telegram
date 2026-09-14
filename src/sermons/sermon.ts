@@ -5,6 +5,7 @@ export type SermonStatus = 'received' | 'downloading' | 'stored' | 'too_large' |
 export interface Sermon {
   id: string;
   chatId: string;
+  purpose?: 'church_sermon' | 'personal_transcription';
   sourceMessageId: string;
   submittedByUserId?: string;
   kind?: IncomingSermonAudio['kind'];

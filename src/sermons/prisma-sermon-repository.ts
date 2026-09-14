@@ -3,6 +3,7 @@ import {
   PrismaClient,
   SermonAudioKind,
   SermonStatus as PrismaSermonStatus,
+  SermonPurpose,
   type Sermon as PrismaSermon,
 } from '@prisma/client';
 import type { CreateSermon, Sermon, SermonRepository } from './sermon.js';
@@ -21,6 +22,7 @@ export class PrismaSermonRepository implements SermonRepository {
       const sermon = await this.prisma.sermon.create({
         data: {
           churchGroupId: group.id,
+          purpose: input.purpose === 'personal_transcription' ? SermonPurpose.PERSONAL_TRANSCRIPTION : SermonPurpose.CHURCH_SERMON,
           sourceMessageId: input.sourceMessageId,
           submittedByUserId: input.submittedByUserId ?? null,
           audioKind: input.kind ? toPrismaKind(input.kind) : null,
@@ -137,6 +139,7 @@ function toDomain(sermon: PrismaSermon, chatId: string): Sermon {
   return {
     id: sermon.id,
     chatId,
+    purpose: sermon.purpose === SermonPurpose.PERSONAL_TRANSCRIPTION ? 'personal_transcription' : 'church_sermon',
     sourceMessageId: sermon.sourceMessageId,
     ...(sermon.submittedByUserId === null ? {} : { submittedByUserId: sermon.submittedByUserId }),
     ...(sermon.audioKind === null ? {} : { kind: sermon.audioKind === SermonAudioKind.VOICE

@@ -104,6 +104,8 @@ Members ask explicit questions with `/ask ВОПРОС`. The assistant returns a
 
 In a private chat with the bot, members can also send an ordinary text question without a slash command. The same local safety checks, Gemini provider, privacy-preserving metadata log, and pastoral escalation rules apply. Free-form group messages are ignored so the bot does not interrupt normal conversation. Groq Whisper remains dedicated to sermon audio transcription.
 
+Audio, voice messages, and audio documents sent directly to the bot are treated as personal transcription requests. Any user may submit them in a private chat; Groq Whisper transcribes the stored audio and the bot returns the complete escaped transcript in ordered Telegram-sized parts. Personal transcriptions never enter Gemini sermon-content generation or create church publication drafts. Group and channel audio keeps the administrator-controlled sermon workflow.
+
 ## Administration
 
 The MVP uses Telegram commands rather than a separate web panel. Bootstrap administrators come from `TELEGRAM_ADMIN_USER_IDS`; `/admin_add ID` and `/admin_remove ID` manage persistent group-scoped roles. `/settings` shows group configuration and `/status` reports operational counts for events and sermon processing.

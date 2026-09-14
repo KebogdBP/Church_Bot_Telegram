@@ -15,12 +15,14 @@ export class SermonIntakeService {
 
   public async receive(audio: IncomingSermonAudio): Promise<SermonIntakeResult> {
     const trustedChannelPost = audio.chatType === 'channel';
+    const personalTranscription = audio.chatType === 'private' && audio.userId !== undefined;
     const trustedAdmin = audio.userId !== undefined && await this.isAdmin(audio.chatId, audio.userId);
-    if (!trustedChannelPost && !trustedAdmin) return { status: 'forbidden' };
+    if (!trustedChannelPost && !trustedAdmin && !personalTranscription) return { status: 'forbidden' };
 
     const result = await this.repository.createIfNew({
       chatId: audio.chatId,
       sourceMessageId: audio.messageId,
+      purpose: personalTranscription ? 'personal_transcription' : 'church_sermon',
       ...(audio.userId ? { submittedByUserId: audio.userId } : {}),
       kind: audio.kind,
       telegramFileId: audio.fileId,

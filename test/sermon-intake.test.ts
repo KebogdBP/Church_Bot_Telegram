@@ -46,6 +46,13 @@ describe('SermonIntakeService', () => {
     expect(await service.receive(AUDIO)).toEqual({ status: 'forbidden' });
   });
 
+  it('accepts private audio from a regular member as personal transcription', async () => {
+    const service = new SermonIntakeService(new InMemorySermonRepository(), async () => false, 'Europe/Moscow');
+    const result = await service.receive({ ...AUDIO, chatId: '77', chatType: 'private', userId: '77' });
+    expect(result.status).toBe('accepted');
+    if (result.status === 'accepted') expect(result.sermon.purpose).toBe('personal_transcription');
+  });
+
   it('accepts a channel post without a user', async () => {
     const service = new SermonIntakeService(
       new InMemorySermonRepository(),

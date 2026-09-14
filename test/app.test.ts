@@ -352,4 +352,13 @@ describe('Telegram webhook', () => {
       text: 'Добавлять проповеди могут только администраторы.',
     });
   });
+
+  it('accepts private audio from a regular member for automatic transcription', async () => {
+    const { app, sendMessage } = createTestApp('99');
+    const payload = audioUpdate(42);
+    payload.message.chat.type = 'private';
+    const response = await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload });
+    expect(response.statusCode).toBe(200);
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('принято на транскрибацию') });
+  });
 });

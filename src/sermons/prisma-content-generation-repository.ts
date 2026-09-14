@@ -1,4 +1,4 @@
-import { ContentGenerationStatus, PrismaClient, TranscriptionStatus } from '@prisma/client';
+import { ContentGenerationStatus, PrismaClient, SermonPurpose, TranscriptionStatus } from '@prisma/client';
 import type { SermonContent } from '../ai/sermon-content-provider.js';
 import type { ContentGenerationRepository, SermonForContentGeneration } from './content-generation.js';
 
@@ -17,6 +17,7 @@ export class PrismaContentGenerationRepository implements ContentGenerationRepos
     const candidate = await this.prisma.sermon.findFirst({
       where: {
         transcriptionStatus: TranscriptionStatus.COMPLETED,
+        purpose: SermonPurpose.CHURCH_SERMON,
         transcript: { not: null },
         contentStatus: { in: [ContentGenerationStatus.PENDING, ContentGenerationStatus.FAILED] },
         contentAvailableAt: { lte: now },

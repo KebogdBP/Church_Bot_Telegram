@@ -25,6 +25,11 @@ enum SermonAudioKind {
   DOCUMENT
 }
 
+enum SermonPurpose {
+  CHURCH_SERMON
+  PERSONAL_TRANSCRIPTION
+}
+
 enum SermonStatus {
   RECEIVED
   DOWNLOADING
@@ -236,6 +241,7 @@ model Sermon {
   id                 String          @id @default(cuid())
   churchGroupId      String
   churchGroup        ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  purpose            SermonPurpose   @default(CHURCH_SERMON)
   sourceMessageId    String
   submittedByUserId  String?
   audioKind          SermonAudioKind?

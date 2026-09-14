@@ -196,6 +196,19 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });
 
+  it('plans transcript text messages for personal audio without Gemini materials', async () => {
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: `personal-audio-${Date.now()}` } });
+    const sermon = await prisma.sermon.create({ data: { churchGroupId: group.id, sourceMessageId: 'personal-1', submittedByUserId: 'member-1', purpose: 'PERSONAL_TRANSCRIPTION', status: 'STORED', transcriptionStatus: 'COMPLETED', transcript: `Начало ${'слово '.repeat(700)} конец`, contentStatus: 'PENDING' } });
+    const repository = new PrismaSermonNotificationRepository(prisma);
+    const now = new Date('2026-09-14T12:00:00Z');
+    await repository.planMilestones(now);
+    const rows = await prisma.sermonNotification.findMany({ where: { sermonId: sermon.id }, orderBy: { availableAt: 'asc' } });
+    expect(rows.some((row) => row.kind.startsWith('transcript_'))).toBe(true);
+    expect(rows.some((row) => row.kind === 'content_ready')).toBe(false);
+    expect(rows.filter((row) => row.kind.startsWith('transcript_')).map((row) => row.message).join('')).toContain('Начало');
+    await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
   it('audits draft moderation and regenerates only unpublished series', async () => {
     const chatId = `moderation-${Date.now()}`;
     const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId } });

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added natural private AI chat without slash commands; ordinary group conversation remains untouched.
+- Added automatic private audio and voice-message transcription with transcript delivery in chat.
 - Added optional archive-grounded AI answers, moderated announcements, and private prayer requests.
 
 ## 0.2.0 - 2026-09-14
