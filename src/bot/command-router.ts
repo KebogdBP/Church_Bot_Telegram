@@ -18,6 +18,7 @@ import type { EventRsvpService } from '../events/event-rsvp-service.js';
 import type { SermonSearchService } from '../sermons/sermon-search-service.js';
 import { DateTime } from 'luxon';
 import type { AnnouncementService } from '../announcements/announcement-service.js';
+import type { PrayerRequestService } from '../prayers/prayer-request-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -33,6 +34,7 @@ export interface CommandRouterOptions {
   eventRsvpService?: EventRsvpService;
   sermonSearchService?: SermonSearchService;
   announcementService?: AnnouncementService;
+  prayerRequestService?: PrayerRequestService;
 }
 
 const HELP_TEXT = [
@@ -46,6 +48,8 @@ const HELP_TEXT = [
   '/ask ВОПРОС - задать библейский вопрос',
   '/ask_sermons ВОПРОС - спросить с учетом архива проповедей',
   '/sermon_search ЗАПРОС - найти мысль в архиве проповедей',
+  '/church_id - показать ID церковной группы',
+  '/prayer_to GROUP_ID private|share | ТЕКСТ - личная молитвенная просьба',
   '',
   '<b>Команды администратора</b>',
   '/event_add ГГГГ-ММ-ДД ЧЧ:ММ | Название | Место | Минут до напоминания',
@@ -71,6 +75,10 @@ const HELP_TEXT = [
   '/announce_edit ID | ТЕКСТ - исправить объявление',
   '/announce_approve ID [ГГГГ-ММ-ДД ЧЧ:ММ] - одобрить отправку',
   '/announce_reject ID - отклонить объявление',
+  '/prayers GROUP_ID - молитвенные просьбы для лидеров',
+  '/prayer_ack ID - отметить просьбу принятой',
+  '/prayer_publish ID | АНОНИМНЫЙ ТЕКСТ - одобрить публикацию',
+  '/prayer_archive ID - архивировать просьбу',
   '/context_set ТЕКСТ - задать контекст общины',
   '/settings - настройки и состояние группы',
   '/admin_add ID - добавить администратора',
@@ -91,6 +99,22 @@ export class CommandRouter {
     if (command === '/whoami') {
       await this.reply(message.chatId, `Ваш Telegram ID: <code>${message.userId}</code>`);
       return;
+    }
+    if (command === '/church_id') { await this.reply(message.chatId, message.chatType === 'private' ? 'Эту команду нужно вызвать в церковной группе.' : `ID этой группы: <code>${message.chatId}</code>`); return; }
+    if (command === '/prayer_to') {
+      if (message.chatType !== 'private') { await this.reply(message.chatId, 'Молитвенные просьбы принимаются только в личном чате с ботом.'); return; }
+      const match = /^\/prayer_to(?:@\w+)?\s+(\S+)\s+(private|share)\s*\|\s*([\s\S]+)$/i.exec(message.text);
+      if (!match || !match[3]?.trim() || match[3].trim().length > 3000 || !this.options.prayerRequestService) { await this.reply(message.chatId, 'Формат: /prayer_to GROUP_ID private|share | текст до 3000 символов'); return; }
+      const request = await this.options.prayerRequestService.submit(match[1]!, message.userId, match[3].trim(), match[2] === 'share');
+      if (!request) { await this.reply(message.chatId, 'Церковная группа не найдена. Уточните GROUP_ID у лидера.'); return; }
+      await this.reply(message.chatId, request.visibility === 'ANONYMOUS_SHARE' ? `Просьба принята. ID: <code>${request.id}</code>. Вы разрешили лидерам подготовить анонимную публикацию.` : `Просьба принята только для лидеров. ID: <code>${request.id}</code>.`); return;
+    }
+    if (command === '/prayers' || command === '/prayer_ack' || command === '/prayer_publish' || command === '/prayer_archive') {
+      const service = this.options.prayerRequestService; if (!service) { await this.reply(message.chatId, 'Молитвенные просьбы сейчас недоступны.'); return; }
+      if (command === '/prayers') { const groupId = message.text.split(/\s+/, 2)[1]; if (!groupId || !(await this.options.adminService.isAdmin(groupId, message.userId))) { await this.reply(message.chatId, 'Формат для лидера: /prayers GROUP_ID'); return; } const rows = await service.list(groupId); await this.reply(message.chatId, rows.length ? rows.map((row) => `<code>${row.id}</code> · ${row.visibility === 'ANONYMOUS_SHARE' ? 'разрешена анонимная публикация' : 'только лидерам'}\n${escapeHtml(row.text)}`).join('\n\n') : 'Новых просьб нет.'); return; }
+      const match = /^\/\w+(?:@\w+)?\s+(\S+)(?:\s*\|\s*([\s\S]+))?$/i.exec(message.text); const id = match?.[1]; if (!id) { await this.reply(message.chatId, `Формат: ${command} ID`); return; } const groupId = await service.groupFor(id); if (!groupId || !(await this.options.adminService.isAdmin(groupId, message.userId))) { await this.reply(message.chatId, 'Просьба не найдена или недостаточно прав.'); return; }
+      const changed = command === '/prayer_ack' ? await service.acknowledge(id, message.userId) : command === '/prayer_archive' ? await service.archive(id, message.userId) : match?.[2]?.trim() ? await service.approveAnonymous(id, message.userId, match[2].trim()) : false;
+      await this.reply(message.chatId, changed ? (command === '/prayer_publish' ? 'Анонимная публикация одобрена.' : 'Статус просьбы обновлён.') : 'Действие недоступно для этой просьбы.'); return;
     }
 
     if (command === '/cancel') {

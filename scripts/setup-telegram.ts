@@ -31,6 +31,8 @@ await callTelegram('setMyCommands', {
     { command: 'sermon_status', description: 'Статус обработки проповеди' },
     { command: 'digest_preview', description: 'Предпросмотр недельного дайджеста' },
     { command: 'announcements', description: 'Черновики объявлений' },
+    { command: 'church_id', description: 'Показать ID церковной группы' },
+    { command: 'prayer_to', description: 'Передать молитвенную просьбу лично' },
     { command: 'settings', description: 'Настройки группы' },
     { command: 'status', description: 'Проверить состояние бота' },
   ],

@@ -85,6 +85,21 @@ enum AnnouncementStatus {
   FAILED
 }
 
+enum PrayerVisibility {
+  LEADERS_ONLY
+  ANONYMOUS_SHARE
+}
+
+enum PrayerRequestStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  PUBLIC_SCHEDULED
+  PUBLIC_PROCESSING
+  PUBLISHED
+  FAILED
+  ARCHIVED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -103,6 +118,33 @@ model ChurchGroup {
   digestWeekday Int @default(5)
   digestLocalTime String @default("18:00")
   announcements Announcement[]
+  prayerRequests PrayerRequest[]
+}
+
+model PrayerRequest {
+  id                   String              @id @default(cuid())
+  churchGroupId        String
+  churchGroup          ChurchGroup         @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  submitterUserId      String
+  text                 String
+  visibility           PrayerVisibility
+  status               PrayerRequestStatus @default(SUBMITTED)
+  anonymousPublicDraft String?
+  availableAt          DateTime             @default(now())
+  attempts             Int                  @default(0)
+  acknowledgedByUserId String?
+  acknowledgedAt       DateTime?
+  approvedByUserId     String?
+  approvedAt            DateTime?
+  archivedByUserId     String?
+  archivedAt            DateTime?
+  publishedAt           DateTime?
+  lastError             String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([churchGroupId, status, createdAt])
+  @@index([status, availableAt])
 }
 
 model Announcement {

@@ -29,6 +29,7 @@
 - The member chooses private-leaders-only or consent-to-anonymous-group-sharing.
 - Leaders can acknowledge, archive, or approve an anonymized public draft.
 - Raw request text never appears in operational logs.
+- Implemented with private-chat enforcement, explicit visibility, group-scoped leader authorization, and a durable anonymous-publication worker.
 
 ## Phase 4: Audit And Operations
 

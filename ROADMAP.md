@@ -120,7 +120,7 @@ Goal: deepen the bot's usefulness while keeping personal and church communicatio
 
 - [x] Ground optional AI answers in the current group's sermon archive with explicit sources.
 - [x] Add moderated church announcements with scheduling and retryable delivery.
-- [ ] Add private prayer requests with explicit sharing consent and administrator moderation.
+- [x] Add private prayer requests with explicit sharing consent and administrator moderation.
 - [ ] Add a durable administrator audit log and an operational activity view.
 - [ ] Add configurable retention and deletion tools for transcripts, audio, and private requests.
 - [ ] Complete production regression, privacy review, and operator documentation for v0.3.

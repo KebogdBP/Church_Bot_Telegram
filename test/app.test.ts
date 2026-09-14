@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -20,6 +20,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(sermonSearchService ? { sermonSearchService } : {}),
     ...(bibleAssistant ? { bibleAssistant } : {}),
     ...(announcementService ? { announcementService } : {}),
+    ...(prayerRequestService ? { prayerRequestService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -29,14 +30,14 @@ function callbackUpdate(data: string, userId = 42) {
   return { update_id: 3, callback_query: { id: 'callback-1', from: { id: userId, is_bot: false, first_name: 'Test User' }, data, message: { message_id: 12, date: Math.floor(Date.now() / 1_000), chat: { id: 100, type: 'group' } } } };
 }
 
-function messageUpdate(text: string, userId = 42) {
+function messageUpdate(text: string, userId = 42, chatType: 'private' | 'group' = 'group') {
   return {
     update_id: 1,
     message: {
       message_id: 10,
       date: Math.floor(Date.now() / 1_000),
       from: { id: userId, is_bot: false, first_name: 'Test User' },
-      chat: { id: 100, type: 'group' },
+      chat: { id: 100, type: chatType },
       text,
     },
   };
@@ -237,6 +238,17 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({ keyboard: [[expect.objectContaining({ callbackData: 'announce:approve:a1' }), expect.anything()]] }));
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('announce:approve:a1') });
     expect(announcements.approve).toHaveBeenCalledWith('100', 'a1', '42');
+  });
+
+  it('accepts prayer requests only in a private chat with explicit visibility', async () => {
+    const prayers = { submit: vi.fn().mockResolvedValue({ id: 'p1', visibility: 'LEADERS_ONLY' }) } as unknown as import('../src/prayers/prayer-request-service.js').PrayerRequestService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, undefined, undefined, prayers);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/prayer_to -100 private | Помолитесь обо мне', 77, 'group') });
+    expect(prayers.submit).not.toHaveBeenCalled();
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/prayer_to -100 private | Помолитесь обо мне', 77, 'private') });
+    expect(prayers.submit).toHaveBeenCalledWith('-100', '77', 'Помолитесь обо мне', false);
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: expect.stringContaining('только для лидеров') });
   });
 
   it('allows an admin to create and list an event', async () => {

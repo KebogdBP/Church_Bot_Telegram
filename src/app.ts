@@ -47,6 +47,8 @@ import { SermonSearchService } from './sermons/sermon-search-service.js';
 import { PrismaAnnouncementRepository } from './announcements/prisma-announcement-repository.js';
 import { AnnouncementService } from './announcements/announcement-service.js';
 import { AnnouncementWorker } from './announcements/announcement-worker.js';
+import { PrayerRequestService } from './prayers/prayer-request-service.js';
+import { PrayerRequestWorker } from './prayers/prayer-request-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -59,6 +61,7 @@ export interface BuildAppOptions {
   eventRsvpService?: EventRsvpService;
   sermonSearchService?: SermonSearchService;
   announcementService?: AnnouncementService;
+  prayerRequestService?: PrayerRequestService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -90,6 +93,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const sermonSearchService = options.sermonSearchService ?? (prisma ? new SermonSearchService(prisma) : undefined);
   const announcementRepository = prisma ? new PrismaAnnouncementRepository(prisma) : null;
   const announcementService = options.announcementService ?? (announcementRepository ? new AnnouncementService(announcementRepository, config.app.timezone) : undefined);
+  const prayerRequestService = options.prayerRequestService ?? (prisma ? new PrayerRequestService(prisma) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -113,6 +117,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(eventRsvpService ? { eventRsvpService } : {}),
     ...(sermonSearchService ? { sermonSearchService } : {}),
     ...(announcementService ? { announcementService } : {}),
+    ...(prayerRequestService ? { prayerRequestService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -193,6 +198,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const announcementWorker = announcementRepository && config.telegram.botToken
     ? new AnnouncementWorker({ repository: announcementRepository, sender, logger: app.log, intervalMs: config.ai.announcementPollIntervalMs })
     : null;
+  const prayerRequestWorker = prisma && config.telegram.botToken ? new PrayerRequestWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.prayerRequestPollIntervalMs }) : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -213,6 +219,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonNotificationWorker?.start();
       weeklyDigestWorker?.start();
       announcementWorker?.start();
+      prayerRequestWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -224,6 +231,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonNotificationWorker?.stop();
       weeklyDigestWorker?.stop();
       announcementWorker?.stop();
+      prayerRequestWorker?.stop();
       await prisma.$disconnect();
     });
   }

@@ -94,6 +94,8 @@ Members can search completed sermon transcripts with `/sermon_search QUERY`. Res
 
 Administrators create announcement drafts with `/announce_new TEXT`, list them with `/announcements`, and use `/announce_edit ID | TEXT`, `/announce_reject ID`, or `/announce_approve ID [YYYY-MM-DD HH:MM]`. Approval without a date sends as soon as the worker claims the draft. All moderator identities and timestamps are retained, and temporary Telegram failures retry durably according to `ANNOUNCEMENT_POLL_INTERVAL_MS`.
 
+Prayer requests are accepted only in a private chat. A member obtains the group ID with `/church_id` in the church group, then privately sends `/prayer_to GROUP_ID private | TEXT` for leaders only or `/prayer_to GROUP_ID share | TEXT` to permit a separately reviewed anonymous publication. Leaders use `/prayers GROUP_ID`, `/prayer_ack ID`, `/prayer_archive ID`, and `/prayer_publish ID | ANONYMOUS TEXT`. The original request is never published by the delivery worker.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

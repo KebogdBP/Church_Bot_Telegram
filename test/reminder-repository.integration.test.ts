@@ -1,5 +1,5 @@
 import { PrismaClient, ReminderDeliveryStatus, TranscriptionStatus } from '@prisma/client';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repository.js';
 import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
 import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
@@ -12,6 +12,8 @@ import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-diges
 import { EventRsvpService } from '../src/events/event-rsvp-service.js';
 import { SermonSearchService } from '../src/sermons/sermon-search-service.js';
 import { PrismaAnnouncementRepository } from '../src/announcements/prisma-announcement-repository.js';
+import { PrayerRequestService } from '../src/prayers/prayer-request-service.js';
+import { PrayerRequestWorker } from '../src/prayers/prayer-request-worker.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -293,6 +295,22 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     await repository.markSent(draft.id, now);
     const stored = await prisma.announcement.findUniqueOrThrow({ where: { id: draft.id } });
     expect(stored).toMatchObject({ status: 'SENT', editedByUserId: 'admin-2', approvedByUserId: 'admin-3' });
+    await prisma.churchGroup.delete({ where: { telegramChatId: chatId } });
+  });
+
+  it('keeps prayer text private until an anonymized draft is approved', async () => {
+    const chatId = `prayer-${Date.now()}`;
+    await prisma.churchGroup.create({ data: { telegramChatId: chatId } });
+    const service = new PrayerRequestService(prisma, () => new Date('2026-09-15T10:00:00Z'));
+    const request = await service.submit(chatId, 'member-1', 'Личная исходная просьба', true);
+    expect(request).not.toBeNull();
+    expect(await service.approveAnonymous(request!.id, 'admin-1', 'Просьба о поддержке семьи')).toBe(true);
+    const sender = { sendMessage: vi.fn().mockResolvedValue(undefined) };
+    const worker = new PrayerRequestWorker({ prisma, sender, now: () => new Date('2026-09-15T10:00:00Z'), intervalMs: 15_000, logger: { error: vi.fn() } });
+    await worker.tick();
+    expect(sender.sendMessage).toHaveBeenCalledWith({ chatId, text: expect.stringContaining('Просьба о поддержке семьи') });
+    expect(sender.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Личная исходная просьба') }));
+    expect((await prisma.prayerRequest.findUniqueOrThrow({ where: { id: request!.id } })).status).toBe('PUBLISHED');
     await prisma.churchGroup.delete({ where: { telegramChatId: chatId } });
   });
 });
