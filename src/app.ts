@@ -37,6 +37,8 @@ import { SafePublicAudioClient } from './sermons/public-audio-client.js';
 import { FfmpegAudioSegmenter } from './sermons/audio-segmenter.js';
 import { PrismaSermonStatusReader } from './sermons/sermon-status-service.js';
 import { GuidedEventService } from './admin/guided-event-service.js';
+import { PrismaSermonNotificationRepository } from './sermons/prisma-sermon-notification-repository.js';
+import { SermonNotificationWorker } from './sermons/sermon-notification-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -154,6 +156,14 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const sermonPostWorker = sermonPostRepository && config.telegram.botToken
     ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs })
     : null;
+  const sermonNotificationWorker = prisma && config.telegram.botToken
+    ? new SermonNotificationWorker({
+        repository: new PrismaSermonNotificationRepository(prisma),
+        sender,
+        logger: app.log,
+        intervalMs: config.ai.sermonNotificationPollIntervalMs,
+      })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -171,6 +181,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       await telegramPollingWorker?.start();
       sermonContentWorker?.start();
       sermonPostWorker?.start();
+      sermonNotificationWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -179,6 +190,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       telegramPollingWorker?.stop();
       sermonContentWorker?.stop();
       sermonPostWorker?.stop();
+      sermonNotificationWorker?.stop();
       await prisma.$disconnect();
     });
   }

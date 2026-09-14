@@ -20,6 +20,7 @@
 
 - The submitting administrator receives milestone notifications for download, transcription, Gemini content generation, and failures.
 - Notifications are deduplicated and avoid sending transcript or private content.
+- Implemented with durable `SermonNotification` records, stale-delivery recovery, and exponential retry backoff.
 
 ## Phase 3: Draft Moderation
 

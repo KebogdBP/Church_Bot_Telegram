@@ -4,6 +4,7 @@ import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repos
 import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
 import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
 import { PrismaTranscriptionRepository } from '../src/sermons/prisma-transcription-repository.js';
+import { PrismaSermonNotificationRepository } from '../src/sermons/prisma-sermon-notification-repository.js';
 import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
 
@@ -141,5 +142,50 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     await expect(flow.confirm('guided-chat', '42')).resolves.toMatchObject({ text: expect.stringContaining('создано') });
     expect(await prisma.event.count({ where: { churchGroup: { telegramChatId: 'guided-chat' } } })).toBe(1);
     expect(await prisma.adminFlow.count({ where: { telegramUserId: '42' } })).toBe(0);
+  });
+});
+
+describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
+  let prisma: PrismaClient;
+
+  beforeAll(async () => {
+    process.env.DATABASE_URL = databaseUrl;
+    prisma = new PrismaClient();
+    await prisma.sermonNotification.deleteMany();
+    await prisma.sermon.deleteMany();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  it('plans each completed milestone once and claims it for delivery', async () => {
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: `notification-${Date.now()}` } });
+    const sermon = await prisma.sermon.create({
+      data: {
+        churchGroupId: group.id,
+        sourceMessageId: '991',
+        telegramFileId: 'file-notification',
+        telegramFileUniqueId: 'unique-notification',
+        audioKind: 'AUDIO',
+        submittedByUserId: 'admin-77',
+        status: 'STORED',
+        transcriptionStatus: 'COMPLETED',
+        contentStatus: 'COMPLETED',
+      },
+    });
+    const repository = new PrismaSermonNotificationRepository(prisma);
+    const now = new Date('2026-09-14T12:00:00Z');
+
+    expect(await repository.planMilestones(now)).toBe(3);
+    expect(await repository.planMilestones(now)).toBe(0);
+    const claimed = await repository.claimDue(now, 10);
+
+    expect(claimed).toHaveLength(3);
+    expect(claimed.every((item) => item.targetChatId === 'admin-77')).toBe(true);
+    await Promise.all(claimed.map((item) => repository.markSent(item.id, now)));
+    expect(await prisma.sermonNotification.count({ where: { sermonId: sermon.id, status: 'SENT' } })).toBe(3);
+
+    await prisma.churchGroup.delete({ where: { id: group.id } });
   });
 });

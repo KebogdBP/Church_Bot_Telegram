@@ -159,11 +159,31 @@ model Sermon {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   posts              SermonPost[]
+  notifications      SermonNotification[]
 
   @@unique([churchGroupId, sourceMessageId])
   @@index([status, availableAt])
   @@index([status, transcriptionStatus, transcriptionAvailableAt])
   @@index([transcriptionStatus, contentStatus, contentAvailableAt])
+}
+
+model SermonNotification {
+  id           String                 @id @default(cuid())
+  sermonId     String
+  sermon       Sermon                 @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  kind         String
+  targetChatId String
+  message      String
+  status       ReminderDeliveryStatus @default(PENDING)
+  attempts     Int                    @default(0)
+  availableAt  DateTime               @default(now())
+  sentAt       DateTime?
+  lastError    String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([sermonId, kind])
+  @@index([status, availableAt])
 }
 
 model SermonPost {
