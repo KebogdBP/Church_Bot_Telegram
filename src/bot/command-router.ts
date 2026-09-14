@@ -11,6 +11,7 @@ import { escapeHtml } from '../messaging/html.js';
 import type { BibleAssistantService } from '../assistant/bible-assistant-service.js';
 import type { AdminService } from '../admin/admin-service.js';
 import type { SermonIntakeService } from '../sermons/sermon-intake-service.js';
+import type { SermonStatusReader } from '../sermons/sermon-status-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -20,6 +21,7 @@ export interface CommandRouterOptions {
   bibleAssistant?: BibleAssistantService;
   adminService: AdminService;
   sermonIntake?: SermonIntakeService;
+  sermonStatus?: SermonStatusReader;
 }
 
 const HELP_TEXT = [
@@ -40,6 +42,7 @@ const HELP_TEXT = [
   '<b>Материалы проповедей</b>',
   '/sermons - черновики публикаций',
   '/sermon_link HTTPS_URL - добавить аудио по ссылке',
+  '/sermon_status ID - проверить обработку проповеди',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
   '/context_set ТЕКСТ - задать контекст общины',
@@ -124,7 +127,7 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_link') {
+    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_link' || command === '/sermon_status') {
       if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
@@ -138,6 +141,22 @@ export class CommandRouter {
             ? 'Добавлять проповеди могут только администраторы.'
             : result.status === 'duplicate' ? 'Эта ссылка уже принята.' : `Ссылка принята. ID: <code>${result.sermon.id}</code>`);
         } catch { await this.reply(message.chatId, 'Нужна публичная HTTPS-ссылка на аудиофайл.'); }
+        return;
+      }
+      if (command === '/sermon_status') {
+        const sermonId = message.text.split(/\s+/, 2)[1];
+        if (!sermonId || !this.options.sermonStatus) { await this.reply(message.chatId, 'Формат: /sermon_status ID'); return; }
+        const status = await this.options.sermonStatus.get(message.chatId, sermonId);
+        if (!status) { await this.reply(message.chatId, 'Проповедь с таким ID не найдена.'); return; }
+        await this.reply(message.chatId, [
+          `<b>Проповедь</b> <code>${status.id}</code>`,
+          ...(status.fileName ? [`Файл: ${escapeHtml(status.fileName)}`] : []),
+          `Загрузка: ${status.download}`,
+          `Транскрибация: ${status.transcription}`,
+          `Материалы Gemini: ${status.content}`,
+          `Черновики: ${status.posts}`,
+          ...(status.error ? [`Ошибка: ${escapeHtml(status.error)}`] : []),
+        ].join('\n'));
         return;
       }
       await this.handleSermonCommand(command, message);

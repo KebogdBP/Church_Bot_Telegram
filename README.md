@@ -78,6 +78,8 @@ When `GROQ_API_KEY` is configured, a background worker sends stored sermon audio
 
 After transcription, a content worker uses Gemini structured output to generate a summary, key thoughts, reflection questions, and follow-up post drafts. Generated drafts remain unpublished until an administrator approves them. Gemini also powers `/ask`; urgent safety routing happens locally before any provider request.
 
+Large sermons can be submitted with `/sermon_link HTTPS_URL`. Public linked files are accepted up to `SERMON_MAX_LINK_FILE_SIZE_BYTES` (500 MB by default), normalized to 16 kHz mono OGG/Opus with `ffmpeg`, split into one-hour segments, transcribed sequentially by Groq, and joined before Gemini analysis. Use `/sermon_status ID` to monitor every stage. Direct Telegram uploads remain subject to Telegram Cloud Bot API's 20 MB download limit.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import { basename } from 'node:path';
 import type { FastifyBaseLogger } from 'fastify';
 import type { TranscriptionProvider } from '../ai/transcription-provider.js';
 import type { TranscriptionRepository } from './transcription.js';
+import type { AudioSegmenter } from './audio-segmenter.js';
 
 const STALE_AFTER_MS = 30 * 60_000;
 
@@ -12,7 +11,7 @@ export interface SermonTranscriptionWorkerOptions {
   logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
   intervalMs: number;
   now?: () => Date;
-  readAudio?: (path: string) => Promise<Uint8Array>;
+  segmenter: AudioSegmenter;
 }
 
 export class SermonTranscriptionWorker {
@@ -47,14 +46,14 @@ export class SermonTranscriptionWorker {
       const sermon = await this.options.repository.claimNext(now);
       if (!sermon) return;
       try {
-        const bytes = await (this.options.readAudio ?? readFile)(sermon.storedPath);
-        const result = await this.options.provider.transcribe({
-          bytes,
-          fileName: sermon.fileName ?? basename(sermon.storedPath),
-          ...(sermon.mimeType === undefined ? {} : { mimeType: sermon.mimeType }),
-        });
-        await this.options.repository.markCompleted(sermon.id, result.text, result.model, now);
-        this.options.logger.info({ sermonId: sermon.id, model: result.model }, 'Sermon transcribed');
+        const segments = await this.options.segmenter.segment(sermon.storedPath);
+        const results = [];
+        for (const segment of segments) results.push(await this.options.provider.transcribe(segment));
+        const transcript = results.map((result) => result.text.trim()).filter(Boolean).join('\n\n');
+        if (!transcript) throw new Error('Transcription produced no text');
+        const model = results[0]?.model ?? 'unknown';
+        await this.options.repository.markCompleted(sermon.id, transcript, model, now);
+        this.options.logger.info({ sermonId: sermon.id, model, segments: segments.length }, 'Sermon transcribed');
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const delayMs = Math.min(2 ** Math.max(0, sermon.attempts - 1) * 60_000, 30 * 60_000);

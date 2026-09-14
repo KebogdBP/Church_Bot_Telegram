@@ -22,6 +22,7 @@ const envSchema = z.object({
   REMINDER_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_DOWNLOAD_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+  SERMON_MAX_LINK_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(500 * 1024 * 1024),
   SERMON_STORAGE_DIR: z.string().min(1).default('data/sermons'),
   TRANSCRIPTION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   GEMINI_API_KEY: optionalString(z.string().min(1)),
@@ -74,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     sermon: {
       downloadIntervalMs: parsed.SERMON_DOWNLOAD_INTERVAL_MS,
       maxFileSizeBytes: parsed.SERMON_MAX_FILE_SIZE_BYTES,
+      maxLinkFileSizeBytes: parsed.SERMON_MAX_LINK_FILE_SIZE_BYTES,
       storageDirectory: parsed.SERMON_STORAGE_DIR,
     },
     ai: {

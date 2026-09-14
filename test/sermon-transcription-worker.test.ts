@@ -27,7 +27,7 @@ function setup(providerError?: Error) {
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     intervalMs: 30_000,
     now: () => new Date('2026-09-13T12:00:00Z'),
-    readAudio: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+    segmenter: { segment: vi.fn().mockResolvedValue([{ bytes: new Uint8Array([1, 2, 3]), fileName: 'segment-000.ogg', mimeType: 'audio/ogg' }]) },
   });
   return { repository, provider, worker };
 }
@@ -40,8 +40,8 @@ describe('SermonTranscriptionWorker', () => {
 
     expect(provider.transcribe).toHaveBeenCalledWith({
       bytes: new Uint8Array([1, 2, 3]),
-      fileName: 'Sunday.mp3',
-      mimeType: 'audio/mpeg',
+      fileName: 'segment-000.ogg',
+      mimeType: 'audio/ogg',
     });
     expect(repository.markCompleted).toHaveBeenCalledWith(
       'sermon-1',
@@ -49,6 +49,24 @@ describe('SermonTranscriptionWorker', () => {
       'gpt-4o-mini-transcribe',
       new Date('2026-09-13T12:00:00Z'),
     );
+  });
+
+  it('transcribes segments in order and joins their text', async () => {
+    const { repository } = setup();
+    const worker = new SermonTranscriptionWorker({
+      repository,
+      provider: { transcribe: vi.fn()
+        .mockResolvedValueOnce({ text: 'Первая часть', model: 'whisper-large-v3-turbo' })
+        .mockResolvedValueOnce({ text: 'Вторая часть', model: 'whisper-large-v3-turbo' }) },
+      segmenter: { segment: vi.fn().mockResolvedValue([
+        { bytes: new Uint8Array([1]), fileName: 'segment-000.ogg', mimeType: 'audio/ogg' },
+        { bytes: new Uint8Array([2]), fileName: 'segment-001.ogg', mimeType: 'audio/ogg' },
+      ]) },
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, intervalMs: 30_000,
+      now: () => new Date('2026-09-13T12:00:00Z'),
+    });
+    await worker.tick();
+    expect(repository.markCompleted).toHaveBeenCalledWith('sermon-1', 'Первая часть\n\nВторая часть', 'whisper-large-v3-turbo', new Date('2026-09-13T12:00:00Z'));
   });
 
   it('schedules a retry when transcription fails', async () => {

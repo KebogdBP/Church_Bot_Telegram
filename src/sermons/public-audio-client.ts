@@ -7,12 +7,17 @@ export interface PublicAudioClient {
 
 export class SafePublicAudioClient implements PublicAudioClient {
   public async download(rawUrl: string, maxBytes: number): Promise<{ bytes: Uint8Array; fileName: string }> {
-    const url = new URL(rawUrl);
-    if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Only public HTTPS links are accepted');
-    const addresses = await lookup(url.hostname, { all: true });
-    if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error('Private network addresses are not allowed');
-
-    const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(30_000) });
+    let url = new URL(rawUrl);
+    let response: Response | undefined;
+    for (let redirect = 0; redirect <= 5; redirect += 1) {
+      await assertPublicHttpsUrl(url);
+      response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(10 * 60_000) });
+      if (![301, 302, 303, 307, 308].includes(response.status)) break;
+      const location = response.headers.get('location');
+      if (!location || redirect === 5) throw new Error('Audio link has too many redirects');
+      url = new URL(location, url);
+    }
+    if (!response) throw new Error('Audio link could not be requested');
     if (!response.ok || !response.body) throw new Error(`Audio link returned HTTP ${response.status}`);
     const declaredSize = Number(response.headers.get('content-length'));
     if (Number.isFinite(declaredSize) && declaredSize > maxBytes) throw new Error('File exceeds the configured download limit');
@@ -29,6 +34,12 @@ export class SafePublicAudioClient implements PublicAudioClient {
     for (const chunk of chunks) { combined.set(chunk, offset); offset += chunk.byteLength; }
     return { bytes: combined, fileName: url.pathname.split('/').pop() || 'sermon.audio' };
   }
+}
+
+async function assertPublicHttpsUrl(url: URL): Promise<void> {
+  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Only public HTTPS links are accepted');
+  const addresses = await lookup(url.hostname, { all: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error('Private network addresses are not allowed');
 }
 
 export function isPrivateAddress(address: string): boolean {

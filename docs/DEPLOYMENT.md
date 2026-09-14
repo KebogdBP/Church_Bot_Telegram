@@ -9,4 +9,6 @@ The reference production target is one Docker host behind an HTTPS reverse proxy
 5. Run `npm run telegram:setup` from a trusted machine with the same `.env`.
 6. Verify `/health`, `/ready`, Telegram `/status`, and container logs.
 
+The provided Docker image includes `ffmpeg`, which is required for sermon normalization and segmentation. A non-Docker installation must provide `ffmpeg` on `PATH`.
+
 Deploy updates with `git pull` followed by the same Compose command. Prisma migrations run before the application starts. Keep port 3000 private behind the reverse proxy when possible.

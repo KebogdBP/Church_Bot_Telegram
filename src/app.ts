@@ -34,6 +34,8 @@ import { BibleAssistantService } from './assistant/bible-assistant-service.js';
 import { AdminService } from './admin/admin-service.js';
 import { PrismaAdminRepository } from './admin/prisma-admin-repository.js';
 import { SafePublicAudioClient } from './sermons/public-audio-client.js';
+import { FfmpegAudioSegmenter } from './sermons/audio-segmenter.js';
+import { PrismaSermonStatusReader } from './sermons/sermon-status-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -82,6 +84,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(bibleAssistant ? { bibleAssistant } : {}),
     adminService,
     sermonIntake,
+    ...(prisma ? { sermonStatus: new PrismaSermonStatusReader(prisma) } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -99,6 +102,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         logger: app.log,
         intervalMs: config.sermon.downloadIntervalMs,
         maxFileSizeBytes: config.sermon.maxFileSizeBytes,
+        maxLinkFileSizeBytes: config.sermon.maxLinkFileSizeBytes,
         publicAudio: new SafePublicAudioClient(),
       })
     : null;
@@ -113,6 +117,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         ),
         logger: app.log,
         intervalMs: config.ai.transcriptionPollIntervalMs,
+        segmenter: new FfmpegAudioSegmenter(),
       })
     : null;
   const telegramPollingWorker = config.telegram.updateMode === 'polling' && config.telegram.botToken

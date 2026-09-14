@@ -18,6 +18,7 @@ await callTelegram('setMyCommands', {
     { command: 'events', description: 'Показать ближайшие события' },
     { command: 'ask', description: 'Задать библейский вопрос' },
     { command: 'sermons', description: 'Проверить черновики проповедей' },
+    { command: 'sermon_status', description: 'Статус обработки проповеди' },
     { command: 'settings', description: 'Настройки группы' },
     { command: 'status', description: 'Проверить состояние бота' },
   ],

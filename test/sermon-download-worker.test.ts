@@ -44,6 +44,7 @@ function setup(overrides: { claimed?: Sermon; getFileError?: Error } = {}) {
     logger,
     intervalMs: 30_000,
     maxFileSizeBytes: 20 * 1024 * 1024,
+    maxLinkFileSizeBytes: 500 * 1024 * 1024,
     now: () => new Date('2026-09-13T12:00:00Z'),
   });
   return { worker, repository, telegram, storage };
@@ -98,11 +99,11 @@ describe('SermonDownloadWorker', () => {
     delete linked.telegramFileUniqueId;
     const { repository, telegram, storage } = setup({ claimed: linked });
     const publicAudio = { download: vi.fn().mockResolvedValue({ bytes: new Uint8Array([4, 5]), fileName: 'sermon.mp3' }) };
-    const worker = new SermonDownloadWorker({ repository, telegram, storage, publicAudio, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, intervalMs: 30_000, maxFileSizeBytes: 20 * 1024 * 1024 });
+    const worker = new SermonDownloadWorker({ repository, telegram, storage, publicAudio, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, intervalMs: 30_000, maxFileSizeBytes: 20 * 1024 * 1024, maxLinkFileSizeBytes: 500 * 1024 * 1024 });
 
     await worker.tick();
 
-    expect(publicAudio.download).toHaveBeenCalledWith(linked.sourceUrl, 20 * 1024 * 1024);
+    expect(publicAudio.download).toHaveBeenCalledWith(linked.sourceUrl, 500 * 1024 * 1024);
     expect(telegram.getFile).not.toHaveBeenCalled();
     expect(repository.markStored).toHaveBeenCalledWith('sermon-1', linked.sourceUrl, '/data/sermons/sermon-1.mp3');
   });

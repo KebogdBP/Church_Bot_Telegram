@@ -13,6 +13,7 @@ export interface SermonDownloadWorkerOptions {
   logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>;
   intervalMs: number;
   maxFileSizeBytes: number;
+  maxLinkFileSizeBytes: number;
   publicAudio?: PublicAudioClient;
   now?: () => Date;
 }
@@ -48,7 +49,8 @@ export class SermonDownloadWorker {
 
       const sermon = await this.options.repository.claimNext(now);
       if (!sermon) return;
-      if (sermon.fileSize !== undefined && sermon.fileSize > this.options.maxFileSizeBytes) {
+      const sourceLimit = sermon.sourceUrl ? this.options.maxLinkFileSizeBytes : this.options.maxFileSizeBytes;
+      if (sermon.fileSize !== undefined && sermon.fileSize > sourceLimit) {
         await this.options.repository.markTooLarge(sermon.id, sermon.fileSize);
         return;
       }
@@ -56,7 +58,7 @@ export class SermonDownloadWorker {
       try {
         if (sermon.sourceUrl) {
           if (!this.options.publicAudio) throw new Error('Public audio downloader is not configured');
-          const file = await this.options.publicAudio.download(sermon.sourceUrl, this.options.maxFileSizeBytes);
+          const file = await this.options.publicAudio.download(sermon.sourceUrl, sourceLimit);
           const storedPath = await this.options.storage.save(sermon.id, file.fileName, file.bytes);
           await this.options.repository.markStored(sermon.id, sermon.sourceUrl, storedPath);
           this.options.logger.info({ sermonId: sermon.id, storedPath }, 'Linked sermon audio stored');
@@ -65,12 +67,12 @@ export class SermonDownloadWorker {
         if (!sermon.telegramFileId) throw new Error('Telegram file ID is missing');
         const file = await this.options.telegram.getFile(sermon.telegramFileId);
         const actualSize = file.fileSize ?? sermon.fileSize;
-        if (actualSize !== undefined && actualSize > this.options.maxFileSizeBytes) {
+        if (actualSize !== undefined && actualSize > sourceLimit) {
           await this.options.repository.markTooLarge(sermon.id, actualSize);
           return;
         }
         const bytes = await this.options.telegram.downloadFile(file.filePath);
-        if (bytes.byteLength > this.options.maxFileSizeBytes) {
+        if (bytes.byteLength > sourceLimit) {
           await this.options.repository.markTooLarge(sermon.id, bytes.byteLength);
           return;
         }
