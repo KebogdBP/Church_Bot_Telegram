@@ -96,8 +96,15 @@ describe('Telegram webhook', () => {
     expect(response.json()).toEqual({ status: 'not_ready', database: 'not_configured' });
   });
 
-  it('requires production secrets and webhook mode', () => {
+  it('requires production secrets', () => {
     expect(() => loadConfig({ APP_ENV: 'production', TELEGRAM_UPDATE_MODE: 'polling' })).toThrow();
+  });
+
+  it('allows secure production polling without a webhook secret', () => {
+    expect(loadConfig({
+      APP_ENV: 'production', TELEGRAM_UPDATE_MODE: 'polling', DATABASE_URL: 'postgresql://localhost/db',
+      TELEGRAM_BOT_TOKEN: 'token', APP_PRIVACY_SECRET: 'privacy-secret-long', GEMINI_API_KEY: 'gemini', GROQ_API_KEY: 'groq',
+    }).telegram.updateMode).toBe('polling');
   });
 
   it('rejects a request with an invalid webhook secret', async () => {

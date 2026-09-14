@@ -1,0 +1,41 @@
+name: telegram-church-bot
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APP_ENV: production
+      TELEGRAM_UPDATE_MODE: polling
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/telegram_church_bot
+      SERMON_STORAGE_DIR: /app/data/sermons
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - sermon_data:/app/data/sermons
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: telegram_church_bot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d telegram_church_bot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:
+  sermon_data:

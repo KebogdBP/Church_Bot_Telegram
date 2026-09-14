@@ -12,3 +12,14 @@ The reference production target is one Docker host behind an HTTPS reverse proxy
 The provided Docker image includes `ffmpeg`, which is required for sermon normalization and segmentation. A non-Docker installation must provide `ffmpeg` on `PATH`.
 
 Deploy updates with `git pull` followed by the same Compose command. Prisma migrations run before the application starts. Keep port 3000 private behind the reverse proxy when possible.
+
+## Raspberry Pi Polling Deployment
+
+For an ARM64 Raspberry Pi without a public domain, use `compose.raspberrypi.yaml`. It runs production polling, PostgreSQL, migrations, and persistent sermon storage without publishing application or database ports to the LAN.
+
+1. Set production secrets in `.env`, including a unique `POSTGRES_PASSWORD` and `APP_PRIVACY_SECRET`.
+2. Run `docker compose -f compose.raspberrypi.yaml up -d --build`.
+3. Verify `docker compose -f compose.raspberrypi.yaml ps` and the internal `/ready` health check.
+4. Do not run another polling instance with the same Telegram token.
+
+Both containers use `restart: unless-stopped` and return after a Raspberry Pi reboot when Docker is enabled.

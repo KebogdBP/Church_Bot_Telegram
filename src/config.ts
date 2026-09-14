@@ -40,12 +40,12 @@ const envSchema = z.object({
   PRAYER_REQUEST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(15_000),
 }).superRefine((env, context) => {
   if (env.APP_ENV !== 'production') return;
-  const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'APP_PRIVACY_SECRET', 'GEMINI_API_KEY', 'GROQ_API_KEY'] as const;
+  const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'APP_PRIVACY_SECRET', 'GEMINI_API_KEY', 'GROQ_API_KEY'] as const;
   for (const key of required) {
     if (!env[key]) context.addIssue({ code: 'custom', path: [key], message: `${key} is required in production` });
   }
-  if (env.TELEGRAM_UPDATE_MODE !== 'webhook') {
-    context.addIssue({ code: 'custom', path: ['TELEGRAM_UPDATE_MODE'], message: 'Production must use webhook mode' });
+  if (env.TELEGRAM_UPDATE_MODE === 'webhook' && !env.TELEGRAM_WEBHOOK_SECRET) {
+    context.addIssue({ code: 'custom', path: ['TELEGRAM_WEBHOOK_SECRET'], message: 'TELEGRAM_WEBHOOK_SECRET is required for production webhook mode' });
   }
 });
 
