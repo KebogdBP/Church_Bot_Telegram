@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService, auditService?: import('../src/audit/audit-service.js').AuditService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService, auditService?: import('../src/audit/audit-service.js').AuditService, retentionService?: import('../src/retention/retention-service.js').RetentionService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -22,6 +22,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(announcementService ? { announcementService } : {}),
     ...(prayerRequestService ? { prayerRequestService } : {}),
     ...(auditService ? { auditService } : {}),
+    ...(retentionService ? { retentionService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -159,6 +160,21 @@ describe('Telegram webhook', () => {
     const denied = createTestApp('99', undefined, undefined, undefined, undefined, undefined, undefined, undefined, auditService);
     await denied.app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/activity') });
     expect(denied.sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Эта команда доступна только администраторам.' });
+  });
+
+  it('previews retention without deletion and requires exact confirmation', async () => {
+    const retention = { getPolicy: vi.fn(), setPolicy: vi.fn(), preview: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4 }), execute: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4 }) } as unknown as import('../src/retention/retention-service.js').RetentionService;
+    const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, retention);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/retention_dry_run') });
+    expect(retention.preview).toHaveBeenCalledWith('100');
+    expect(retention.execute).not.toHaveBeenCalled();
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: expect.stringContaining('Данны не удалены') });
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/retention_run confirm') });
+    expect(retention.execute).not.toHaveBeenCalled();
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/retention_run CONFIRM') });
+    expect(retention.execute).toHaveBeenCalledWith('100');
   });
 
   it('shows an inline administration dashboard', async () => {

@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: Version 0.3, Phase 5 - Data Lifecycle
+Phase: Version 0.3 - Release Audit
 
-Current focus: configurable retention, dry-run reporting, and auditable deletion of audio, transcripts, and private prayer requests.
+Current focus: production regression, privacy review, operator documentation, deployment verification, and the v0.3 release.
 
 ## Active Tasks
 
@@ -19,9 +19,9 @@ Current focus: configurable retention, dry-run reporting, and auditable deletion
 - [ ] Add production deployment and backup configuration.
 - [ ] Add readiness monitoring and complete the security review.
 - [ ] Restore outbound access from Raspberry Pi to `api.telegram.org` (currently times out from the host and containers).
-- [ ] Add group retention settings for audio, transcripts, and private prayer requests.
-- [ ] Add an administrator-only retention dry run.
-- [ ] Add retry-safe, audited deletion jobs.
+- [x] Add group retention settings for audio, transcripts, and private prayer requests.
+- [x] Add an administrator-only retention dry run.
+- [x] Add retry-safe, audited deletion with explicit confirmation.
 
 ## Done
 
@@ -77,6 +77,9 @@ Current focus: configurable retention, dry-run reporting, and auditable deletion
 - [x] Record event, sermon moderation, digest, announcement, role, and prayer-request mutations without sensitive text.
 - [x] Add administrator-only `/activity` with the latest 20 actions and a failed-job summary.
 - [x] Verify the audit migration against PostgreSQL 17.
+- [x] Add `/retention`, `/retention_set`, `/retention_dry_run`, and `/retention_run CONFIRM`.
+- [x] Preserve active prayer publications during retention cleanup.
+- [x] Verify retention against PostgreSQL 17 and local filesystem deletion; verify a repeated run removes zero records.
 
 ## Decisions Needed
 
@@ -106,7 +109,7 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands (2026-09-14): `npm test` (88 passed, 12 skipped), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy` against PostgreSQL 17.
+Last tested commands (2026-09-14): `npm test` (91 passed, 12 skipped), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy` against PostgreSQL 17, plus an isolated retention/database/filesystem smoke test.
 
 Deployment note: the Raspberry Pi deployment is installed at `/home/kebogd/apps/telegram-church-bot`; PostgreSQL starts successfully, but production polling is blocked until the host can reach `api.telegram.org:443`.
 

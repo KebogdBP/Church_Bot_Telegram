@@ -122,7 +122,7 @@ Goal: deepen the bot's usefulness while keeping personal and church communicatio
 - [x] Add moderated church announcements with scheduling and retryable delivery.
 - [x] Add private prayer requests with explicit sharing consent and administrator moderation.
 - [x] Add a durable administrator audit log and an operational activity view.
-- [ ] Add configurable retention and deletion tools for transcripts, audio, and private requests.
+- [x] Add configurable retention and deletion tools for transcripts, audio, and private requests.
 - [ ] Complete production regression, privacy review, and operator documentation for v0.3.
 
 Deliverable: members can receive grounded answers and submit sensitive requests safely, while leaders can manage communication and data lifecycle with a clear audit trail.

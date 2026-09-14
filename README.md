@@ -10,6 +10,21 @@ See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md
 
 Administrators can use `/activity` to inspect the latest 20 consequential actions and the total number of failed background jobs. Audit entries contain actor/action/entity identifiers and safe metadata only; announcement text, prayer requests, transcripts, and AI context are never copied into the audit log.
 
+### Data retention
+
+Retention is configured separately for stored sermon audio, transcripts, and private prayer requests. Defaults are 90 days for audio and 365 days for transcripts and prayer requests.
+
+```text
+/retention
+/retention_set audio 90
+/retention_set transcripts 365
+/retention_set prayers 365
+/retention_dry_run
+/retention_run CONFIRM
+```
+
+Only administrators can use these commands. Always inspect `/retention_dry_run` first. Cleanup is scoped to the current group, excludes prayer requests currently being published, uses a group-level database lock, and records counts rather than deleted content in `/activity`.
+
 ## MVP Scope
 
 - Manage church events and recurring schedule.

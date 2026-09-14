@@ -125,6 +125,9 @@ model ChurchGroup {
   announcements Announcement[]
   prayerRequests PrayerRequest[]
   auditEntries AuditEntry[]
+  audioRetentionDays Int @default(90)
+  transcriptRetentionDays Int @default(365)
+  prayerRetentionDays Int @default(365)
 }
 
 model AuditEntry {

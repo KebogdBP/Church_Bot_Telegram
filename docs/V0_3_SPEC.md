@@ -45,6 +45,7 @@
 - Groups configure retention for stored audio, transcripts, and private prayer requests.
 - A dry-run command reports what would be removed.
 - Deletion is explicit, auditable, and retry-safe.
+- Implemented with group-scoped day limits, database-enforced bounds, PostgreSQL advisory locking, an exact `CONFIRM` command, idempotent field clearing/deletion, and privacy-safe audit counts.
 
 ## Definition Of Done
 

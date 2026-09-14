@@ -5,6 +5,8 @@
 - Added a durable group-scoped administrator audit log and `/activity` command.
 - Added privacy-safe operational failure totals without exposing member or sermon content.
 - Recorded successful event, sermon moderation, digest, announcement, role, and prayer-request mutations.
+- Added configurable retention for sermon audio, transcripts, and private prayer requests.
+- Added administrator-only dry-run and explicitly confirmed, idempotent cleanup commands.
 
 ## Unreleased
 

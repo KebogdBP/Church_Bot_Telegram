@@ -14,11 +14,13 @@
 - RSVP callbacks validate the event against the current chat and expose aggregate counts only.
 - Digest and sermon AI content cannot enter a delivery queue without an authenticated administrator approval.
 - Archive search is group-scoped and returns bounded stored excerpts rather than AI-generated citations.
+- Retention values are group-scoped and constrained to 1–3650 days in both application validation and PostgreSQL.
+- Destructive cleanup requires an exact administrator confirmation, excludes in-flight prayer publications, and writes only aggregate counts to the audit log.
 
 ## Residual Risks
 
 - Telegram delivery is at-least-once; a crash after a successful send can produce a duplicate.
-- Local disk audio requires encrypted host backups and retention rules.
+- Local disk audio requires encrypted host backups; configured retention reduces exposure but does not securely erase backup copies.
 - Group administrators must periodically review role membership and generated drafts.
 - A production host still needs TLS, firewalling, patching, log retention, and uptime alerts.
 

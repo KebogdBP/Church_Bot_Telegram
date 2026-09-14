@@ -20,6 +20,7 @@ import { DateTime } from 'luxon';
 import type { AnnouncementService } from '../announcements/announcement-service.js';
 import type { PrayerRequestService } from '../prayers/prayer-request-service.js';
 import type { AuditService } from '../audit/audit-service.js';
+import { parseRetentionSetting, type RetentionService } from '../retention/retention-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -37,6 +38,7 @@ export interface CommandRouterOptions {
   announcementService?: AnnouncementService;
   prayerRequestService?: PrayerRequestService;
   auditService?: AuditService;
+  retentionService?: RetentionService;
 }
 
 const HELP_TEXT = [
@@ -48,6 +50,10 @@ const HELP_TEXT = [
   '/whoami - показать ваш Telegram ID',
   '/status - проверить состояние бота (для администраторов)',
   '/activity - последние действия администраторов',
+  '/retention - сроки хранения данных',
+  '/retention_set audio|transcripts|prayers DAYS - изменить срок',
+  '/retention_dry_run - предварительный отчёт',
+  '/retention_run CONFIRM - запустить очистку',
   '/admin - открыть панель администратора',
   '/events - ближайшие события',
   '/ask ВОПРОС - задать библейский вопрос',
@@ -185,11 +191,37 @@ export class CommandRouter {
         'announcement.created': 'создано объявление', 'announcement.approved': 'одобрено объявление', 'announcement.rejected': 'отклонено объявление',
         'admin.added': 'добавлен администратор', 'admin.removed': 'удалён администратор',
         'prayer.acknowledged': 'просьба принята', 'prayer.approved': 'одобрена анонимная публикация', 'prayer.archived': 'просьба архивирована',
+        'retention.configured': 'изменён срок хранения', 'retention.executed': 'выполнена очистка данных',
       };
       const failedTotal = Object.values(failures).reduce((sum, count) => sum + count, 0);
       const activity = entries.length ? entries.map((entry) => `${DateTime.fromJSDate(entry.createdAt, { zone: this.options.timezone }).toFormat('dd.LL HH:mm')} · ${escapeHtml(labels[entry.action] ?? entry.action)} · <code>${escapeHtml(entry.actorUserId)}</code>${entry.entityId ? ` · <code>${escapeHtml(entry.entityId)}</code>` : ''}`) : ['Журнал пока пуст.'];
       await this.reply(message.chatId, ['<b>Последние действия</b>', ...activity, '', `<b>Ошибки фоновых задач:</b> ${failedTotal}`].join('\n'));
       return;
+    }
+
+    if (command === '/retention' || command === '/retention_set' || command === '/retention_dry_run' || command === '/retention_run') {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      const service = this.options.retentionService;
+      if (!service) { await this.reply(message.chatId, 'Управление хранением сейчас недоступно.'); return; }
+      if (command === '/retention') {
+        const policy = await service.getPolicy(message.chatId);
+        await this.reply(message.chatId, policy ? `<b>Сроки хранения</b>\nАудио: ${policy.audio} дн.\nТранскрипты: ${policy.transcripts} дн.\nМолитвенные просьбы: ${policy.prayers} дн.` : 'Группа ещё не настроена.'); return;
+      }
+      if (command === '/retention_set') {
+        const setting = parseRetentionSetting(message.text);
+        if (!setting) { await this.reply(message.chatId, 'Формат: /retention_set audio|transcripts|prayers DAYS (1–3650)'); return; }
+        const policy = await service.setPolicy(message.chatId, setting.kind, setting.days);
+        if (policy) await this.audit(message.chatId, message.userId, 'retention.configured', 'retention_policy', setting.kind, { days: setting.days });
+        await this.reply(message.chatId, policy ? `Срок хранения ${setting.kind}: ${setting.days} дн.` : 'Группа не найдена.'); return;
+      }
+      if (command === '/retention_dry_run') {
+        const preview = await service.preview(message.chatId);
+        await this.reply(message.chatId, preview ? `<b>Предварительная очистка</b>\nАудио: ${preview.audio}\nТранскрипты: ${preview.transcripts}\nМолитвенные просьбы: ${preview.prayers}\n\nДанны не удалены. Для запуска: <code>/retention_run CONFIRM</code>` : 'Группа не найдена.'); return;
+      }
+      if (message.text.trim() !== '/retention_run CONFIRM') { await this.reply(message.chatId, 'Очистка не запущена. Точная команда: /retention_run CONFIRM'); return; }
+      const removed = await service.execute(message.chatId);
+      if (removed) await this.audit(message.chatId, message.userId, 'retention.executed', 'retention_cleanup', undefined, { ...removed });
+      await this.reply(message.chatId, removed ? `Очистка завершена. Аудио: ${removed.audio}, транскрипты: ${removed.transcripts}, просьбы: ${removed.prayers}.` : 'Группа не найдена.'); return;
     }
 
     if (command === '/events') {
