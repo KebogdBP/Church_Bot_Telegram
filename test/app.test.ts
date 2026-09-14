@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService, auditService?: import('../src/audit/audit-service.js').AuditService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -21,6 +21,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(bibleAssistant ? { bibleAssistant } : {}),
     ...(announcementService ? { announcementService } : {}),
     ...(prayerRequestService ? { prayerRequestService } : {}),
+    ...(auditService ? { auditService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -145,6 +146,19 @@ describe('Telegram webhook', () => {
       chatId: '100',
       text: expect.stringContaining('Подключение к Telegram активно.'),
     });
+  });
+
+  it('shows bounded audit activity only to administrators', async () => {
+    const auditService = { list: vi.fn().mockResolvedValue([{ id: 'audit-1', actorUserId: '42', action: 'announcement.approved', entityType: 'announcement', entityId: 'announcement-1', metadata: {}, createdAt: new Date('2026-09-14T10:00:00Z') }]), failureSummary: vi.fn().mockResolvedValue({ reminders: 1 }), record: vi.fn() } as unknown as import('../src/audit/audit-service.js').AuditService;
+    const allowed = createTestApp('42', undefined, undefined, undefined, undefined, undefined, undefined, undefined, auditService);
+    await allowed.app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/activity') });
+    expect(auditService.list).toHaveBeenCalledWith('100');
+    expect(allowed.sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('одобрено объявление') });
+    expect(allowed.sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('Ошибки фоновых задач:</b> 1') });
+
+    const denied = createTestApp('99', undefined, undefined, undefined, undefined, undefined, undefined, undefined, auditService);
+    await denied.app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/activity') });
+    expect(denied.sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Эта команда доступна только администраторам.' });
   });
 
   it('shows an inline administration dashboard', async () => {

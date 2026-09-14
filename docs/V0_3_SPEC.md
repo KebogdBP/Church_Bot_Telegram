@@ -38,6 +38,7 @@
 - Event, sermon moderation, digest, announcement, role, and prayer-request mutations create audit records.
 - `/activity` is administrator-only and shows bounded metadata without sensitive text.
 - Failed durable jobs are summarized for administrators without exposing transcripts or requests.
+- Implemented with a group-scoped append-only audit table, bounded `/activity` output, safe metadata allowlisting, and aggregate failed-job counts.
 
 ## Phase 5: Data Lifecycle
 

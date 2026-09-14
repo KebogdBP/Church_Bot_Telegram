@@ -124,6 +124,22 @@ model ChurchGroup {
   digestLocalTime String @default("18:00")
   announcements Announcement[]
   prayerRequests PrayerRequest[]
+  auditEntries AuditEntry[]
+}
+
+model AuditEntry {
+  id            String      @id @default(cuid())
+  churchGroupId String
+  churchGroup   ChurchGroup @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  actorUserId   String
+  action        String
+  entityType    String
+  entityId      String?
+  metadata      Json        @default("{}")
+  createdAt     DateTime    @default(now())
+
+  @@index([churchGroupId, createdAt])
+  @@index([churchGroupId, action])
 }
 
 model PrayerRequest {

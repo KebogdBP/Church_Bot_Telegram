@@ -4,9 +4,11 @@ MVP bot for a church community in Telegram: channel reminders, sermon audio proc
 
 ## Project Status
 
-Current phase: sermon audio pipeline.
+Current phase: version 0.3 data lifecycle. The administrator audit and operations phase is complete.
 
 See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md) for the live checklist.
+
+Administrators can use `/activity` to inspect the latest 20 consequential actions and the total number of failed background jobs. Audit entries contain actor/action/entity identifiers and safe metadata only; announcement text, prayer requests, transcripts, and AI context are never copied into the audit log.
 
 ## MVP Scope
 

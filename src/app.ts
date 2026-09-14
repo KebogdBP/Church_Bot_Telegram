@@ -49,6 +49,8 @@ import { AnnouncementService } from './announcements/announcement-service.js';
 import { AnnouncementWorker } from './announcements/announcement-worker.js';
 import { PrayerRequestService } from './prayers/prayer-request-service.js';
 import { PrayerRequestWorker } from './prayers/prayer-request-worker.js';
+import { AuditService } from './audit/audit-service.js';
+import { PrismaAuditRepository } from './audit/prisma-audit-repository.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -62,6 +64,7 @@ export interface BuildAppOptions {
   sermonSearchService?: SermonSearchService;
   announcementService?: AnnouncementService;
   prayerRequestService?: PrayerRequestService;
+  auditService?: AuditService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -94,6 +97,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const announcementRepository = prisma ? new PrismaAnnouncementRepository(prisma) : null;
   const announcementService = options.announcementService ?? (announcementRepository ? new AnnouncementService(announcementRepository, config.app.timezone) : undefined);
   const prayerRequestService = options.prayerRequestService ?? (prisma ? new PrayerRequestService(prisma) : undefined);
+  const auditService = options.auditService ?? (prisma ? new AuditService(new PrismaAuditRepository(prisma, config.app.timezone)) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -118,6 +122,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(sermonSearchService ? { sermonSearchService } : {}),
     ...(announcementService ? { announcementService } : {}),
     ...(prayerRequestService ? { prayerRequestService } : {}),
+    ...(auditService ? { auditService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({

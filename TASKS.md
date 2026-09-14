@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: 6 - Production Readiness
+Phase: Version 0.3, Phase 5 - Data Lifecycle
 
-Current focus: deployment, backups, monitoring, security review, and pilot documentation.
+Current focus: configurable retention, dry-run reporting, and auditable deletion of audio, transcripts, and private prayer requests.
 
 ## Active Tasks
 
@@ -18,6 +18,10 @@ Current focus: deployment, backups, monitoring, security review, and pilot docum
 - [ ] Verify the bot in a Telegram test channel and discussion group.
 - [ ] Add production deployment and backup configuration.
 - [ ] Add readiness monitoring and complete the security review.
+- [ ] Restore outbound access from Raspberry Pi to `api.telegram.org` (currently times out from the host and containers).
+- [ ] Add group retention settings for audio, transcripts, and private prayer requests.
+- [ ] Add an administrator-only retention dry run.
+- [ ] Add retry-safe, audited deletion jobs.
 
 ## Done
 
@@ -69,6 +73,10 @@ Current focus: deployment, backups, monitoring, security review, and pilot docum
 - [x] Choose command-first administration for the MVP.
 - [x] Add persistent group roles with `/admin_add` and `/admin_remove`.
 - [x] Add `/settings` and an operational `/status` dashboard.
+- [x] Add a durable, group-scoped administrator audit log.
+- [x] Record event, sermon moderation, digest, announcement, role, and prayer-request mutations without sensitive text.
+- [x] Add administrator-only `/activity` with the latest 20 actions and a failed-job summary.
+- [x] Verify the audit migration against PostgreSQL 17.
 
 ## Decisions Needed
 
@@ -98,7 +106,9 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy`.
+Last tested commands (2026-09-14): `npm test` (88 passed, 12 skipped), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy` against PostgreSQL 17.
+
+Deployment note: the Raspberry Pi deployment is installed at `/home/kebogd/apps/telegram-church-bot`; PostgreSQL starts successfully, but production polling is blocked until the host can reach `api.telegram.org:443`.
 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 

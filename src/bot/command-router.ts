@@ -19,6 +19,7 @@ import type { SermonSearchService } from '../sermons/sermon-search-service.js';
 import { DateTime } from 'luxon';
 import type { AnnouncementService } from '../announcements/announcement-service.js';
 import type { PrayerRequestService } from '../prayers/prayer-request-service.js';
+import type { AuditService } from '../audit/audit-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -35,6 +36,7 @@ export interface CommandRouterOptions {
   sermonSearchService?: SermonSearchService;
   announcementService?: AnnouncementService;
   prayerRequestService?: PrayerRequestService;
+  auditService?: AuditService;
 }
 
 const HELP_TEXT = [
@@ -45,6 +47,7 @@ const HELP_TEXT = [
   '/help - показать доступные команды',
   '/whoami - показать ваш Telegram ID',
   '/status - проверить состояние бота (для администраторов)',
+  '/activity - последние действия администраторов',
   '/admin - открыть панель администратора',
   '/events - ближайшие события',
   '/ask ВОПРОС - задать библейский вопрос',
@@ -116,6 +119,7 @@ export class CommandRouter {
       if (command === '/prayers') { const groupId = message.text.split(/\s+/, 2)[1]; if (!groupId || !(await this.options.adminService.isAdmin(groupId, message.userId))) { await this.reply(message.chatId, 'Формат для лидера: /prayers GROUP_ID'); return; } const rows = await service.list(groupId); await this.reply(message.chatId, rows.length ? rows.map((row) => `<code>${row.id}</code> · ${row.visibility === 'ANONYMOUS_SHARE' ? 'разрешена анонимная публикация' : 'только лидерам'}\n${escapeHtml(row.text)}`).join('\n\n') : 'Новых просьб нет.'); return; }
       const match = /^\/\w+(?:@\w+)?\s+(\S+)(?:\s*\|\s*([\s\S]+))?$/i.exec(message.text); const id = match?.[1]; if (!id) { await this.reply(message.chatId, `Формат: ${command} ID`); return; } const groupId = await service.groupFor(id); if (!groupId || !(await this.options.adminService.isAdmin(groupId, message.userId))) { await this.reply(message.chatId, 'Просьба не найдена или недостаточно прав.'); return; }
       const changed = command === '/prayer_ack' ? await service.acknowledge(id, message.userId) : command === '/prayer_archive' ? await service.archive(id, message.userId) : match?.[2]?.trim() ? await service.approveAnonymous(id, message.userId, match[2].trim()) : false;
+      if (changed) await this.audit(groupId, message.userId, command === '/prayer_ack' ? 'prayer.acknowledged' : command === '/prayer_archive' ? 'prayer.archived' : 'prayer.approved', 'prayer_request', id);
       await this.reply(message.chatId, changed ? (command === '/prayer_publish' ? 'Анонимная публикация одобрена.' : 'Статус просьбы обновлён.') : 'Действие недоступно для этой просьбы.'); return;
     }
 
@@ -163,6 +167,28 @@ export class CommandRouter {
         `Черновики: ${status.draftPosts}`,
         `Запланировано постов: ${status.scheduledPosts}`,
       ].join('\n'));
+      return;
+    }
+
+    if (command === '/activity') {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
+        await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
+        return;
+      }
+      if (!this.options.auditService) { await this.reply(message.chatId, 'Журнал действий сейчас недоступен.'); return; }
+      const entries = await this.options.auditService.list(message.chatId);
+      const failures = await this.options.auditService.failureSummary(message.chatId);
+      const labels: Record<string, string> = {
+        'event.created': 'создано событие', 'event.updated': 'изменено событие', 'event.deleted': 'удалено событие',
+        'sermon.approved': 'одобрена серия публикаций', 'sermon.edited': 'изменён черновик', 'sermon.rejected': 'отклонён черновик',
+        'digest.approved': 'одобрен дайджест', 'digest.configured': 'изменены настройки дайджеста',
+        'announcement.created': 'создано объявление', 'announcement.approved': 'одобрено объявление', 'announcement.rejected': 'отклонено объявление',
+        'admin.added': 'добавлен администратор', 'admin.removed': 'удалён администратор',
+        'prayer.acknowledged': 'просьба принята', 'prayer.approved': 'одобрена анонимная публикация', 'prayer.archived': 'просьба архивирована',
+      };
+      const failedTotal = Object.values(failures).reduce((sum, count) => sum + count, 0);
+      const activity = entries.length ? entries.map((entry) => `${DateTime.fromJSDate(entry.createdAt, { zone: this.options.timezone }).toFormat('dd.LL HH:mm')} · ${escapeHtml(labels[entry.action] ?? entry.action)} · <code>${escapeHtml(entry.actorUserId)}</code>${entry.entityId ? ` · <code>${escapeHtml(entry.entityId)}</code>` : ''}`) : ['Журнал пока пуст.'];
+      await this.reply(message.chatId, ['<b>Последние действия</b>', ...activity, '', `<b>Ошибки фоновых задач:</b> ${failedTotal}`].join('\n'));
       return;
     }
 
@@ -272,6 +298,7 @@ export class CommandRouter {
       const changed = command === '/admin_add'
         ? await this.options.adminService.add(message.chatId, userId, message.userId)
         : await this.options.adminService.remove(message.chatId, userId);
+      if (changed) await this.audit(message.chatId, message.userId, command === '/admin_add' ? 'admin.added' : 'admin.removed', 'admin', userId);
       await this.reply(message.chatId, changed ? 'Роли администраторов обновлены.' : 'Изменений нет. Bootstrap-администратора нельзя удалить командой.');
     }
 
@@ -287,12 +314,14 @@ export class CommandRouter {
         const id = message.text.split(/\s+/, 2)[1];
         if (!id) { await this.reply(message.chatId, 'Формат: /digest_approve ID'); return; }
         const approved = await service.approve(message.chatId, id, message.userId);
+        if (approved) await this.audit(message.chatId, message.userId, 'digest.approved', 'weekly_digest', id);
         await this.reply(message.chatId, approved ? 'Дайджест одобрен и поставлен на отправку.' : 'Черновик дайджеста не найден или уже обработан.'); return;
       }
-      if (command === '/digest_disable') { await service.disable(message.chatId); await this.reply(message.chatId, 'Автоматические еженедельные черновики отключены.'); return; }
+      if (command === '/digest_disable') { await service.disable(message.chatId); await this.audit(message.chatId, message.userId, 'digest.configured', 'weekly_digest_settings', undefined, { enabled: false }); await this.reply(message.chatId, 'Автоматические еженедельные черновики отключены.'); return; }
       const match = /^\/digest_enable(?:@\w+)?\s+([1-7])\s+([01]\d|2[0-3]):([0-5]\d)$/i.exec(message.text.trim());
       if (!match) { await this.reply(message.chatId, 'Формат: /digest_enable 1-7 ЧЧ:ММ'); return; }
       await service.configure(message.chatId, Number(match[1]), `${match[2]}:${match[3]}`);
+      await this.audit(message.chatId, message.userId, 'digest.configured', 'weekly_digest_settings', undefined, { enabled: true, weekday: Number(match[1]) });
       await this.reply(message.chatId, `Еженедельный черновик включён: день ${match[1]}, ${match[2]}:${match[3]}.`); return;
     }
 
@@ -304,6 +333,7 @@ export class CommandRouter {
         const content = message.text.replace(/^\/announce_new(?:@\w+)?\s*/i, '').trim();
         if (!content || content.length > 4_000) { await this.reply(message.chatId, 'Формат: /announce_new текст до 4000 символов'); return; }
         const draft = await service.create(message.chatId, message.userId, content);
+        await this.audit(message.chatId, message.userId, 'announcement.created', 'announcement', draft.id);
         await this.sendAnnouncementPreview(message.chatId, draft); return;
       }
       if (command === '/announcements') {
@@ -314,13 +344,15 @@ export class CommandRouter {
         const match = /^\/announce_edit(?:@\w+)?\s+(\S+)\s*\|\s*([\s\S]+)$/i.exec(message.text);
         if (!match || !match[2]?.trim() || match[2].trim().length > 4_000) { await this.reply(message.chatId, 'Формат: /announce_edit ID | новый текст'); return; }
         const edited = await service.edit(message.chatId, match[1]!, message.userId, match[2].trim());
+        if (edited) await this.audit(message.chatId, message.userId, 'announcement.edited', 'announcement', match[1]!);
         await this.reply(message.chatId, edited ? 'Объявление обновлено.' : 'Черновик не найден или уже обработан.'); return;
       }
       const [, id, schedule] = /^\/\w+(?:@\w+)?\s+(\S+)(?:\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}))?$/i.exec(message.text.trim()) ?? [];
       if (!id) { await this.reply(message.chatId, `Формат: ${command} ID`); return; }
       if (command === '/announce_preview') { const draft = await service.find(message.chatId, id); if (draft) await this.sendAnnouncementPreview(message.chatId, draft); else await this.reply(message.chatId, 'Объявление не найдено.'); return; }
-      if (command === '/announce_reject') { const rejected = await service.reject(message.chatId, id, message.userId); await this.reply(message.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return; }
+      if (command === '/announce_reject') { const rejected = await service.reject(message.chatId, id, message.userId); if (rejected) await this.audit(message.chatId, message.userId, 'announcement.rejected', 'announcement', id); await this.reply(message.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return; }
       const approved = await service.approve(message.chatId, id, message.userId, schedule);
+      if (approved) await this.audit(message.chatId, message.userId, 'announcement.approved', 'announcement', id, { scheduled: Boolean(schedule) });
       await this.reply(message.chatId, approved ? 'Объявление одобрено и поставлено на отправку.' : 'Проверьте ID, статус и будущую дату ГГГГ-ММ-ДД ЧЧ:ММ.'); return;
     }
   }
@@ -378,8 +410,8 @@ export class CommandRouter {
       if (announcementAction && this.options.announcementService) {
         const [, action, id] = announcementAction;
         if (action === 'view') { const draft = await this.options.announcementService.find(callback.chatId, id!); if (draft) await this.sendAnnouncementPreview(callback.chatId, draft); else await this.reply(callback.chatId, 'Объявление не найдено.'); return; }
-        if (action === 'approve') { const approved = await this.options.announcementService.approve(callback.chatId, id!, callback.userId); await this.reply(callback.chatId, approved ? 'Объявление одобрено и поставлено на отправку.' : 'Черновик не найден или уже обработан.'); return; }
-        const rejected = await this.options.announcementService.reject(callback.chatId, id!, callback.userId); await this.reply(callback.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return;
+        if (action === 'approve') { const approved = await this.options.announcementService.approve(callback.chatId, id!, callback.userId); if (approved) await this.audit(callback.chatId, callback.userId, 'announcement.approved', 'announcement', id!); await this.reply(callback.chatId, approved ? 'Объявление одобрено и поставлено на отправку.' : 'Черновик не найден или уже обработан.'); return; }
+        const rejected = await this.options.announcementService.reject(callback.chatId, id!, callback.userId); if (rejected) await this.audit(callback.chatId, callback.userId, 'announcement.rejected', 'announcement', id!); await this.reply(callback.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return;
       }
       const postAction = /^post:(review|approve|reject):(.+)$/.exec(callback.data);
       if (postAction && this.options.sermonPostService) {
@@ -391,14 +423,17 @@ export class CommandRouter {
         }
         if (action === 'approve') {
           const count = await this.options.sermonPostService.approve(callback.chatId, postId!, callback.userId);
+          if (count) await this.audit(callback.chatId, callback.userId, 'sermon.approved', 'sermon_post', postId!, { posts: count });
           await this.reply(callback.chatId, count ? `Одобрено и запланировано публикаций: ${count}.` : 'Черновик не найден или уже обработан.'); return;
         }
         const rejected = await this.options.sermonPostService.reject(callback.chatId, postId!, callback.userId);
+        if (rejected) await this.audit(callback.chatId, callback.userId, 'sermon.rejected', 'sermon_post', postId!);
         await this.reply(callback.chatId, rejected ? 'Черновик отклонён.' : 'Черновик не найден или уже обработан.'); return;
       }
       const digestApproval = /^digest:approve:(.+)$/.exec(callback.data);
       if (digestApproval && this.options.weeklyDigestService) {
         const approved = await this.options.weeklyDigestService.approve(callback.chatId, digestApproval[1]!, callback.userId);
+        if (approved) await this.audit(callback.chatId, callback.userId, 'digest.approved', 'weekly_digest', digestApproval[1]!);
         await this.reply(callback.chatId, approved ? 'Дайджест одобрен и поставлен на отправку.' : 'Черновик дайджеста не найден или уже обработан.'); return;
       }
       await this.options.sender.answerCallback?.(callback.id, 'Кнопка устарела');
@@ -431,6 +466,7 @@ export class CommandRouter {
       const match = /^\/sermon_edit(?:@\w+)?\s+(\S+)\s*\|\s*([\s\S]+)$/i.exec(message.text);
       if (!match || !match[2]?.trim() || match[2].trim().length > 4_000) { await this.reply(message.chatId, 'Формат: /sermon_edit ID | новый текст (до 4000 символов)'); return; }
       const edited = await service.edit(message.chatId, match[1]!, match[2].trim(), message.userId);
+      if (edited) await this.audit(message.chatId, message.userId, 'sermon.edited', 'sermon_post', match[1]!);
       await this.reply(message.chatId, edited ? 'Черновик обновлён.' : 'Черновик не найден или уже обработан.'); return;
     }
     const postId = message.text.split(/\s+/, 2)[1];
@@ -444,6 +480,7 @@ export class CommandRouter {
     }
     if (command === '/sermon_reject') {
       const rejected = await service.reject(message.chatId, postId, message.userId);
+      if (rejected) await this.audit(message.chatId, message.userId, 'sermon.rejected', 'sermon_post', postId);
       await this.reply(message.chatId, rejected ? 'Черновик отклонён.' : 'Черновик не найден или уже обработан.'); return;
     }
     if (command === '/sermon_regenerate') {
@@ -451,6 +488,7 @@ export class CommandRouter {
       await this.reply(message.chatId, regenerated ? 'Материалы поставлены на повторную генерацию.' : 'Перегенерация невозможна: проповедь не найдена или серия уже запланирована/опубликована.'); return;
     }
     const count = await service.approve(message.chatId, postId, message.userId);
+    if (count) await this.audit(message.chatId, message.userId, 'sermon.approved', 'sermon_post', postId, { posts: count });
     await this.reply(message.chatId, count ? `Одобрено и запланировано публикаций: ${count}.` : 'Черновик не найден или уже обработан.');
   }
 
@@ -468,6 +506,7 @@ export class CommandRouter {
           userId: message.userId,
           timezone: this.options.timezone,
         });
+        await this.audit(message.chatId, message.userId, 'event.created', 'event', event.id, { recurring: false });
         await this.reply(message.chatId, `Событие добавлено.\n\n${formatEvent(event)}`);
         return;
       }
@@ -484,6 +523,7 @@ export class CommandRouter {
           userId: message.userId,
           timezone: this.options.timezone,
         });
+        await this.audit(message.chatId, message.userId, 'event.created', 'event', event.id, { recurring: true });
         await this.reply(message.chatId, `Еженедельное событие добавлено.\n\n${formatEvent(event)}`);
         return;
       }
@@ -498,6 +538,7 @@ export class CommandRouter {
           ...parsed,
           chatId: message.chatId,
         });
+        if (event) await this.audit(message.chatId, message.userId, 'event.updated', 'event', event.id);
         await this.reply(
           message.chatId,
           event ? `Событие обновлено.\n\n${formatEvent(event)}` : 'Событие с таким ID не найдено.',
@@ -511,6 +552,7 @@ export class CommandRouter {
         return;
       }
       const deleted = await this.options.eventService.delete(message.chatId, eventId);
+      if (deleted) await this.audit(message.chatId, message.userId, 'event.deleted', 'event', eventId);
       await this.reply(message.chatId, deleted ? 'Событие удалено.' : 'Событие с таким ID не найдено.');
     } catch (error) {
       if (error instanceof EventValidationError) {
@@ -523,6 +565,10 @@ export class CommandRouter {
 
   private async reply(chatId: string, text: string, keyboard?: import('../messaging/message-sender.js').InlineButton[][]): Promise<void> {
     await this.options.sender.sendMessage({ chatId, text, ...(keyboard ? { keyboard } : {}) });
+  }
+
+  private async audit(chatId: string, actorUserId: string, action: string, entityType: string, entityId?: string, metadata?: Record<string, string | number | boolean>): Promise<void> {
+    await this.options.auditService?.record(chatId, actorUserId, action, entityType, entityId, metadata);
   }
 
   private rsvpKeyboard(events: Array<{ id: string }>): import('../messaging/message-sender.js').InlineButton[][] {

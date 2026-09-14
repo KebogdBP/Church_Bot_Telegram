@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added a durable group-scoped administrator audit log and `/activity` command.
+- Added privacy-safe operational failure totals without exposing member or sermon content.
+- Recorded successful event, sermon moderation, digest, announcement, role, and prayer-request mutations.
+
+## Unreleased
+
 - Added natural private AI chat without slash commands; ordinary group conversation remains untouched.
 - Added automatic private audio and voice-message transcription with transcript delivery in chat.
 - Added optional archive-grounded AI answers, moderated announcements, and private prayer requests.
