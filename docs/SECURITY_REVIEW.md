@@ -16,6 +16,7 @@
 - Archive search is group-scoped and returns bounded stored excerpts rather than AI-generated citations.
 - Retention values are group-scoped and constrained to 1–3650 days in both application validation and PostgreSQL.
 - Destructive cleanup requires an exact administrator confirmation, excludes in-flight prayer publications, and writes only aggregate counts to the audit log.
+- The Raspberry Pi deployment routes only bot HTTP clients through an internal Xray sidecar; its proxy port is not published to the LAN or Internet.
 
 ## Residual Risks
 

@@ -18,7 +18,7 @@ Current focus: production regression, privacy review, operator documentation, de
 - [ ] Verify the bot in a Telegram test channel and discussion group.
 - [ ] Add production deployment and backup configuration.
 - [ ] Add readiness monitoring and complete the security review.
-- [ ] Restore outbound access from Raspberry Pi to `api.telegram.org` (currently times out from the host and containers).
+- [ ] Verify the isolated Xray route to `api.telegram.org` and complete the Raspberry Pi bot rollout.
 - [x] Add group retention settings for audio, transcripts, and private prayer requests.
 - [x] Add an administrator-only retention dry run.
 - [x] Add retry-safe, audited deletion with explicit confirmation.

@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
+import { configureOutboundProxy } from './network/outbound-proxy.js';
 
 const config = loadConfig();
+configureOutboundProxy(config.outboundProxyUrl);
 const app = buildApp({ config });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

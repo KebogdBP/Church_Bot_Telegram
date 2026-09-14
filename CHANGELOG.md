@@ -7,6 +7,7 @@
 - Recorded successful event, sermon moderation, digest, announcement, role, and prayer-request mutations.
 - Added configurable retention for sermon audio, transcripts, and private prayer requests.
 - Added administrator-only dry-run and explicitly confirmed, idempotent cleanup commands.
+- Added an optional application-level outbound HTTP proxy and an isolated Xray sidecar for Raspberry Pi deployments.
 
 ## Unreleased
 

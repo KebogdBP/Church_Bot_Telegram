@@ -1,5 +1,27 @@
 # Deployment
 
+## Raspberry Pi isolated VPN routing
+
+`compose.raspberrypi.yaml` runs Xray as a sidecar HTTP proxy. Only the bot application's outbound HTTP requests use `OUTBOUND_PROXY_URL=http://vpn:10809`; PostgreSQL, Nginx, SSH, and other host services keep their normal network route.
+
+Create `deploy/xray/config.json` from `deploy/xray/config.example.json` directly on the server. The real file is ignored by Git and must have mode `600`. Never commit or log the VLESS UUID, REALITY public key, or short ID.
+
+Verify the proxy before starting the app:
+
+```sh
+docker compose -f compose.raspberrypi.yaml up -d vpn
+docker run --rm --network telegram-church-bot_default curlimages/curl:8.10.1 \
+  -x http://vpn:10809 -I --max-time 20 https://api.telegram.org
+```
+
+Then start the stack and inspect health and polling logs:
+
+```sh
+docker compose -f compose.raspberrypi.yaml up -d --build
+docker compose -f compose.raspberrypi.yaml ps
+docker compose -f compose.raspberrypi.yaml logs --tail=100 app vpn
+```
+
 The reference production target is one Docker host behind an HTTPS reverse proxy.
 
 1. Install Docker with Compose and clone the repository.

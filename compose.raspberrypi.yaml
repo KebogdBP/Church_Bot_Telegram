@@ -1,6 +1,13 @@
 name: telegram-church-bot
 
 services:
+  vpn:
+    image: ghcr.io/xtls/xray-core:26.7.28
+    restart: unless-stopped
+    command: ["run", "-config", "/etc/xray/config.json"]
+    volumes:
+      - ./deploy/xray/config.json:/etc/xray/config.json:ro
+
   app:
     build: .
     restart: unless-stopped
@@ -10,9 +17,12 @@ services:
       TELEGRAM_UPDATE_MODE: polling
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/telegram_church_bot
       SERMON_STORAGE_DIR: /app/data/sermons
+      OUTBOUND_PROXY_URL: http://vpn:10809
     depends_on:
       postgres:
         condition: service_healthy
+      vpn:
+        condition: service_started
     volumes:
       - sermon_data:/app/data/sermons
     healthcheck:

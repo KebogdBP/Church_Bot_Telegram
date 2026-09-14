@@ -10,3 +10,4 @@ coverage/
 tmp/
 data/
 backups/
+deploy/xray/config.json
