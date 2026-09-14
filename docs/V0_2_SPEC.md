@@ -26,6 +26,7 @@
 
 - Administrators can edit, reject, regenerate, review, and approve drafts.
 - Regeneration replaces only unpublished drafts and records the responsible administrator.
+- Implemented with inline review controls, command-based text editing, and transactional audit fields.
 
 ## Phase 4: Weekly Digest
 

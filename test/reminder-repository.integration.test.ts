@@ -5,6 +5,7 @@ import { PrismaEventRepository } from '../src/events/prisma-event-repository.js'
 import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
 import { PrismaTranscriptionRepository } from '../src/sermons/prisma-transcription-repository.js';
 import { PrismaSermonNotificationRepository } from '../src/sermons/prisma-sermon-notification-repository.js';
+import { PrismaSermonPostRepository } from '../src/sermons/prisma-sermon-post-repository.js';
 import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
 
@@ -185,6 +186,34 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(claimed.every((item) => item.targetChatId === 'admin-77')).toBe(true);
     await Promise.all(claimed.map((item) => repository.markSent(item.id, now)));
     expect(await prisma.sermonNotification.count({ where: { sermonId: sermon.id, status: 'SENT' } })).toBe(3);
+
+    await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
+  it('audits draft moderation and regenerates only unpublished series', async () => {
+    const chatId = `moderation-${Date.now()}`;
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId } });
+    const sermon = await prisma.sermon.create({
+      data: {
+        churchGroupId: group.id, sourceMessageId: 'moderation-1', status: 'STORED',
+        transcriptionStatus: 'COMPLETED', transcript: 'Текст', contentStatus: 'COMPLETED',
+        posts: { create: [{ sequence: 0, content: 'Первый', churchGroupId: group.id }, { sequence: 1, content: 'Второй', churchGroupId: group.id }] },
+      },
+      include: { posts: { orderBy: { sequence: 'asc' } } },
+    });
+    const repository = new PrismaSermonPostRepository(prisma);
+    const now = new Date('2026-09-14T15:00:00Z');
+
+    expect(await repository.editDraft(chatId, sermon.posts[0]!.id, 'Исправленный', 'admin-1', now)).toBe(true);
+    expect(await repository.rejectDraft(chatId, sermon.posts[1]!.id, 'admin-2', now)).toBe(true);
+    const edited = await prisma.sermonPost.findUniqueOrThrow({ where: { id: sermon.posts[0]!.id } });
+    expect(edited).toMatchObject({ content: 'Исправленный', editedByUserId: 'admin-1', editedAt: now });
+
+    expect(await repository.regenerate(chatId, sermon.id, 'admin-3', now)).toBe(true);
+    expect(await prisma.sermonPost.count({ where: { sermonId: sermon.id } })).toBe(0);
+    expect(await prisma.sermon.findUniqueOrThrow({ where: { id: sermon.id } })).toMatchObject({
+      contentStatus: 'PENDING', contentAttempts: 0, regeneratedByUserId: 'admin-3', regeneratedAt: now,
+    });
 
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });

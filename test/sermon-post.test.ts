@@ -7,6 +7,8 @@ function repository(): SermonPostRepository {
   return {
     listDrafts: vi.fn().mockResolvedValue([]), findForReview: vi.fn().mockResolvedValue(null),
     approveSeries: vi.fn().mockResolvedValue(3), recoverStale: vi.fn().mockResolvedValue(0),
+    editDraft: vi.fn().mockResolvedValue(true), rejectDraft: vi.fn().mockResolvedValue(true),
+    regenerate: vi.fn().mockResolvedValue(true),
     claimDue: vi.fn().mockResolvedValue([]), markSent: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue(undefined),
   };
@@ -19,6 +21,19 @@ describe('sermon post review and delivery', () => {
     const service = new SermonPostService(repo, () => now);
     await expect(service.approve('-100', 'post-1', '42')).resolves.toBe(3);
     expect(repo.approveSeries).toHaveBeenCalledWith('-100', 'post-1', '42', now);
+  });
+
+  it('records moderation operations through the repository', async () => {
+    const repo = repository();
+    const now = new Date('2026-09-13T17:00:00Z');
+    const service = new SermonPostService(repo, () => now);
+
+    await expect(service.edit('-100', 'post-1', 'Исправленный текст', '42')).resolves.toBe(true);
+    await expect(service.reject('-100', 'post-2', '42')).resolves.toBe(true);
+    await expect(service.regenerate('-100', 'sermon-1', '42')).resolves.toBe(true);
+    expect(repo.editDraft).toHaveBeenCalledWith('-100', 'post-1', 'Исправленный текст', '42', now);
+    expect(repo.rejectDraft).toHaveBeenCalledWith('-100', 'post-2', '42', now);
+    expect(repo.regenerate).toHaveBeenCalledWith('-100', 'sermon-1', '42', now);
   });
 
   it('escapes and sends an approved due post', async () => {

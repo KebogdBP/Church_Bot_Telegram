@@ -82,6 +82,8 @@ Large sermons can be submitted with `/sermon_link HTTPS_URL`. Public linked file
 
 The administrator who submitted a sermon receives private milestone notifications when the file is stored, transcription finishes, generated materials become ready, or a processing stage reaches a terminal failure. Notifications contain no transcript text, are deduplicated in PostgreSQL, and retry after temporary Telegram errors. `SERMON_NOTIFICATION_POLL_INTERVAL_MS` controls the polling interval.
 
+Administrators moderate AI drafts before publication. `/sermons` and `/sermon_review ID` expose approval and rejection buttons; `/sermon_edit ID | TEXT` edits a draft, `/sermon_reject ID` rejects it, and `/sermon_regenerate SERMON_ID` rebuilds an entirely unpublished series. Moderator IDs and timestamps are retained for audit. Regeneration is refused after any post in the series has been scheduled or published.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

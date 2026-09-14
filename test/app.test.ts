@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '') {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -14,6 +14,7 @@ function createTestApp(adminIds = '') {
     }),
     sender: { sendMessage, answerCallback },
     logger: false,
+    ...(sermonPostService ? { sermonPostService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -147,6 +148,34 @@ describe('Telegram webhook', () => {
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('admin:home') });
     expect(answerCallback).toHaveBeenCalledWith('callback-1', 'Недостаточно прав');
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('handles draft moderation callbacks for administrators', async () => {
+    const service = {
+      list: vi.fn(), review: vi.fn(), approve: vi.fn().mockResolvedValue(3),
+      edit: vi.fn(), reject: vi.fn().mockResolvedValue(true), regenerate: vi.fn(),
+    } as unknown as import('../src/sermons/sermon-post-service.js').SermonPostService;
+    const { app, sendMessage } = createTestApp('42', service);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('post:approve:post-1') });
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('post:reject:post-2') });
+
+    expect(service.approve).toHaveBeenCalledWith('100', 'post-1', '42');
+    expect(service.reject).toHaveBeenCalledWith('100', 'post-2', '42');
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: 'Черновик отклонён.' });
+  });
+
+  it('parses edited draft content without publishing it', async () => {
+    const service = {
+      list: vi.fn(), review: vi.fn(), approve: vi.fn(), reject: vi.fn(), regenerate: vi.fn(),
+      edit: vi.fn().mockResolvedValue(true),
+    } as unknown as import('../src/sermons/sermon-post-service.js').SermonPostService;
+    const { app, sendMessage } = createTestApp('42', service);
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/sermon_edit post-1 | Новый безопасный текст') });
+
+    expect(service.edit).toHaveBeenCalledWith('100', 'post-1', 'Новый безопасный текст', '42');
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: 'Черновик обновлён.' });
   });
 
   it('allows an admin to create and list an event', async () => {

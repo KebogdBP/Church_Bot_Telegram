@@ -49,6 +49,7 @@ enum ContentGenerationStatus {
 
 enum SermonPostStatus {
   DRAFT
+  REJECTED
   SCHEDULED
   PROCESSING
   SENT
@@ -156,6 +157,8 @@ model Sermon {
   followUpPosts       Json?
   contentError        String?
   contentGeneratedAt  DateTime?
+  regeneratedByUserId String?
+  regeneratedAt       DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   posts              SermonPost[]
@@ -200,6 +203,10 @@ model SermonPost {
   attempts         Int              @default(0)
   approvedByUserId String?
   approvedAt       DateTime?
+  editedByUserId   String?
+  editedAt         DateTime?
+  rejectedByUserId String?
+  rejectedAt       DateTime?
   sentAt           DateTime?
   telegramMessageId String?
   lastError        String?

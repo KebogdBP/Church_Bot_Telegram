@@ -106,7 +106,7 @@ Goal: make the bot comfortable for everyday use and turn sermon transcripts into
 
 - [x] Add inline keyboards and guided administrator flows.
 - [x] Notify administrators as sermon processing advances.
-- [ ] Add draft editing, rejection, and AI regeneration.
+- [x] Add draft editing, rejection, and AI regeneration.
 - [ ] Generate and deliver a moderated weekly digest.
 - [ ] Add event RSVP with aggregate counts.
 - [ ] Search sermon transcripts and cite sermon/date excerpts.

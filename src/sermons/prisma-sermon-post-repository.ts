@@ -1,4 +1,4 @@
-import { PrismaClient, SermonPostStatus } from '@prisma/client';
+import { Prisma, PrismaClient, SermonPostStatus } from '@prisma/client';
 import type { ClaimedSermonPost, SermonPostDraft, SermonPostRepository } from './sermon-post.js';
 
 export class PrismaSermonPostRepository implements SermonPostRepository {
@@ -33,6 +33,40 @@ export class PrismaSermonPostRepository implements SermonPostRepository {
       });
     }));
     return drafts.length;
+  }
+
+  public async editDraft(chatId: string, postId: string, content: string, userId: string, now: Date): Promise<boolean> {
+    const result = await this.prisma.sermonPost.updateMany({
+      where: { id: postId, churchGroup: { telegramChatId: chatId }, status: SermonPostStatus.DRAFT },
+      data: { content, editedByUserId: userId, editedAt: now },
+    });
+    return result.count === 1;
+  }
+
+  public async rejectDraft(chatId: string, postId: string, userId: string, now: Date): Promise<boolean> {
+    const result = await this.prisma.sermonPost.updateMany({
+      where: { id: postId, churchGroup: { telegramChatId: chatId }, status: SermonPostStatus.DRAFT },
+      data: { status: SermonPostStatus.REJECTED, rejectedByUserId: userId, rejectedAt: now },
+    });
+    return result.count === 1;
+  }
+
+  public async regenerate(chatId: string, sermonId: string, userId: string, now: Date): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const sermon = await tx.sermon.findFirst({ where: { id: sermonId, churchGroup: { telegramChatId: chatId } }, include: { posts: true } });
+      if (!sermon || sermon.transcriptionStatus !== 'COMPLETED' || sermon.posts.some((post) => post.status !== SermonPostStatus.DRAFT && post.status !== SermonPostStatus.REJECTED)) return false;
+      await tx.sermonPost.deleteMany({ where: { sermonId, status: { in: [SermonPostStatus.DRAFT, SermonPostStatus.REJECTED] } } });
+      await tx.sermonNotification.deleteMany({ where: { sermonId, kind: { in: ['content_ready', 'content_failed'] } } });
+      await tx.sermon.update({
+        where: { id: sermonId },
+        data: {
+          contentStatus: 'PENDING', contentAttempts: 0, contentAvailableAt: now, contentModel: null,
+          summary: null, keyThoughts: Prisma.DbNull, reflectionQuestions: Prisma.DbNull, followUpPosts: Prisma.DbNull,
+          contentError: null, contentGeneratedAt: null, regeneratedByUserId: userId, regeneratedAt: now,
+        },
+      });
+      return true;
+    });
   }
 
   public async recoverStale(now: Date, staleBefore: Date): Promise<number> {

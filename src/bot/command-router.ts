@@ -48,6 +48,9 @@ const HELP_TEXT = [
   '/sermon_status ID - проверить обработку проповеди',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
+  '/sermon_edit ID | ТЕКСТ - изменить черновик',
+  '/sermon_reject ID - отклонить черновик',
+  '/sermon_regenerate SERMON_ID - заново создать материалы',
   '/context_set ТЕКСТ - задать контекст общины',
   '/settings - настройки и состояние группы',
   '/admin_add ID - добавить администратора',
@@ -147,7 +150,7 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_link' || command === '/sermon_status') {
+    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_edit' || command === '/sermon_reject' || command === '/sermon_regenerate' || command === '/sermon_link' || command === '/sermon_status') {
       if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
@@ -227,12 +230,27 @@ export class CommandRouter {
       }
       if (callback.data === 'admin:sermons') {
         const drafts = await this.options.sermonPostService?.list(callback.chatId) ?? [];
-        await this.reply(callback.chatId, drafts.length ? `<b>Черновики проповедей</b>\n\n${drafts.map((post) => `<code>${post.id}</code> — ${escapeHtml(post.content.slice(0, 100))}`).join('\n\n')}` : 'Черновиков для проверки пока нет.', [[{ text: 'Обновить', callbackData: 'admin:sermons' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
+        await this.reply(callback.chatId, drafts.length ? `<b>Черновики проповедей</b>\n\n${drafts.map((post) => `<code>${post.id}</code> — ${escapeHtml(post.content.slice(0, 100))}`).join('\n\n')}` : 'Черновиков для проверки пока нет.', [...drafts.slice(0, 8).map((post) => [{ text: `Проверить #${post.sequence + 1}`, callbackData: `post:review:${post.id}` }]), [{ text: 'Обновить', callbackData: 'admin:sermons' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
       }
       if (callback.data === 'admin:settings') {
         const status = await this.options.adminService.dashboard(callback.chatId);
         const admins = await this.options.adminService.list(callback.chatId);
         await this.reply(callback.chatId, ['<b>Состояние группы</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Контекст AI: ${status.contextConfigured ? 'настроен' : 'не настроен'}`, `Администраторы: ${admins.map((id) => `<code>${id}</code>`).join(', ')}`].join('\n'), [[{ text: 'Панель', callbackData: 'admin:home' }]]); return;
+      }
+      const postAction = /^post:(review|approve|reject):(.+)$/.exec(callback.data);
+      if (postAction && this.options.sermonPostService) {
+        const [, action, postId] = postAction;
+        if (action === 'review') {
+          const post = await this.options.sermonPostService.review(callback.chatId, postId!);
+          await this.reply(callback.chatId, post ? `<b>Черновик</b>\n\n${escapeHtml(post.content)}\n\nID: <code>${post.id}</code>` : 'Черновик не найден.', post ? [[{ text: 'Одобрить серию', callbackData: `post:approve:${post.id}` }, { text: 'Отклонить', callbackData: `post:reject:${post.id}` }], [{ text: 'К списку', callbackData: 'admin:sermons' }]] : undefined);
+          return;
+        }
+        if (action === 'approve') {
+          const count = await this.options.sermonPostService.approve(callback.chatId, postId!, callback.userId);
+          await this.reply(callback.chatId, count ? `Одобрено и запланировано публикаций: ${count}.` : 'Черновик не найден или уже обработан.'); return;
+        }
+        const rejected = await this.options.sermonPostService.reject(callback.chatId, postId!, callback.userId);
+        await this.reply(callback.chatId, rejected ? 'Черновик отклонён.' : 'Черновик не найден или уже обработан.'); return;
       }
       await this.options.sender.answerCallback?.(callback.id, 'Кнопка устарела');
     } catch {
@@ -255,8 +273,14 @@ export class CommandRouter {
       const drafts = await service.list(message.chatId);
       await this.reply(message.chatId, drafts.length
         ? ['<b>Черновики проповедей</b>', ...drafts.map((post) => `<code>${post.id}</code> — ${escapeHtml(post.content.slice(0, 100))}`)].join('\n\n')
-        : 'Черновиков для проверки пока нет.');
+        : 'Черновиков для проверки пока нет.', drafts.length ? drafts.slice(0, 8).map((post) => [{ text: `Проверить #${post.sequence + 1}`, callbackData: `post:review:${post.id}` }]) : undefined);
       return;
+    }
+    if (command === '/sermon_edit') {
+      const match = /^\/sermon_edit(?:@\w+)?\s+(\S+)\s*\|\s*([\s\S]+)$/i.exec(message.text);
+      if (!match || !match[2]?.trim() || match[2].trim().length > 4_000) { await this.reply(message.chatId, 'Формат: /sermon_edit ID | новый текст (до 4000 символов)'); return; }
+      const edited = await service.edit(message.chatId, match[1]!, match[2].trim(), message.userId);
+      await this.reply(message.chatId, edited ? 'Черновик обновлён.' : 'Черновик не найден или уже обработан.'); return;
     }
     const postId = message.text.split(/\s+/, 2)[1];
     if (!postId) { await this.reply(message.chatId, `Формат: ${command} ID`); return; }
@@ -264,8 +288,16 @@ export class CommandRouter {
       const post = await service.review(message.chatId, postId);
       await this.reply(message.chatId, post
         ? `<b>Черновик</b>\n\n${escapeHtml(post.content)}\n\nID: <code>${post.id}</code>`
-        : 'Черновик не найден.');
+        : 'Черновик не найден.', post ? [[{ text: 'Одобрить серию', callbackData: `post:approve:${post.id}` }, { text: 'Отклонить', callbackData: `post:reject:${post.id}` }]] : undefined);
       return;
+    }
+    if (command === '/sermon_reject') {
+      const rejected = await service.reject(message.chatId, postId, message.userId);
+      await this.reply(message.chatId, rejected ? 'Черновик отклонён.' : 'Черновик не найден или уже обработан.'); return;
+    }
+    if (command === '/sermon_regenerate') {
+      const regenerated = await service.regenerate(message.chatId, postId, message.userId);
+      await this.reply(message.chatId, regenerated ? 'Материалы поставлены на повторную генерацию.' : 'Перегенерация невозможна: проповедь не найдена или серия уже запланирована/опубликована.'); return;
     }
     const count = await service.approve(message.chatId, postId, message.userId);
     await this.reply(message.chatId, count ? `Одобрено и запланировано публикаций: ${count}.` : 'Черновик не найден или уже обработан.');
