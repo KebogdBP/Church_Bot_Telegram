@@ -26,7 +26,7 @@ await callTelegram('setMyCommands', {
 await callTelegram('setWebhook', {
   url: settings.TELEGRAM_WEBHOOK_URL,
   secret_token: settings.TELEGRAM_WEBHOOK_SECRET,
-  allowed_updates: ['message', 'channel_post'],
+  allowed_updates: ['message', 'channel_post', 'callback_query'],
   drop_pending_updates: false,
 });
 const webhook = await callTelegram<{ url: string; pending_update_count: number }>('getWebhookInfo');

@@ -73,6 +73,23 @@ model ChurchGroup {
   assistantContext String?
   assistantInteractions AssistantInteraction[]
   admins    GroupAdmin[]
+  adminFlows AdminFlow[]
+}
+
+model AdminFlow {
+  id             String      @id @default(cuid())
+  churchGroupId  String
+  churchGroup    ChurchGroup @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  telegramUserId String
+  kind           String
+  step           String
+  data           Json        @default("{}")
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([churchGroupId, telegramUserId])
+  @@index([expiresAt])
 }
 
 model GroupAdmin {

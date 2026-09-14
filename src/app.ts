@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import type { AppConfig } from './config.js';
 import { CommandRouter } from './bot/command-router.js';
 import type { MessageSender } from './messaging/message-sender.js';
-import { normalizeMessage, normalizeSermonAudio } from './telegram/normalize-update.js';
+import { normalizeCallback, normalizeMessage, normalizeSermonAudio } from './telegram/normalize-update.js';
 import { TelegramApiClient } from './telegram/telegram-api-client.js';
 import { telegramUpdateSchema } from './telegram/types.js';
 import type { EventRepository } from './events/event.js';
@@ -36,6 +36,7 @@ import { PrismaAdminRepository } from './admin/prisma-admin-repository.js';
 import { SafePublicAudioClient } from './sermons/public-audio-client.js';
 import { FfmpegAudioSegmenter } from './sermons/audio-segmenter.js';
 import { PrismaSermonStatusReader } from './sermons/sermon-status-service.js';
+import { GuidedEventService } from './admin/guided-event-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -66,6 +67,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     (chatId, userId) => adminService.isAdmin(chatId, userId),
     config.app.timezone,
   );
+  const guidedEvents = prisma ? new GuidedEventService(prisma, eventService, config.app.timezone) : undefined;
   const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
   const sermonPostService = options.sermonPostService ?? (sermonPostRepository ? new SermonPostService(sermonPostRepository) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
@@ -85,6 +87,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     adminService,
     sermonIntake,
     ...(prisma ? { sermonStatus: new PrismaSermonStatusReader(prisma) } : {}),
+    ...(guidedEvents ? { guidedEvents } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -206,6 +209,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     }
 
     const message = normalizeMessage(parsed.data);
+    const callback = normalizeCallback(parsed.data);
     const sermonAudio = normalizeSermonAudio(parsed.data);
     if (sermonAudio) {
       const result = await sermonIntake.receive(sermonAudio);
@@ -221,7 +225,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         });
       }
     }
-    if (message) {
+    if (callback) {
+      await router.handleCallback(callback);
+    } else if (message) {
       await router.handle(message);
     }
 

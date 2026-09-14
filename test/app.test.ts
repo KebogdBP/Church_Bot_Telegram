@@ -5,17 +5,22 @@ import type { MessageSender } from '../src/messaging/message-sender.js';
 
 function createTestApp(adminIds = '') {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
+  const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
     config: loadConfig({
       APP_ENV: 'test',
       TELEGRAM_WEBHOOK_SECRET: 'test-secret',
       TELEGRAM_ADMIN_USER_IDS: adminIds,
     }),
-    sender: { sendMessage },
+    sender: { sendMessage, answerCallback },
     logger: false,
   });
 
-  return { app, sendMessage };
+  return { app, sendMessage, answerCallback };
+}
+
+function callbackUpdate(data: string, userId = 42) {
+  return { update_id: 3, callback_query: { id: 'callback-1', from: { id: userId, is_bot: false, first_name: 'Test User' }, data, message: { message_id: 12, date: Math.floor(Date.now() / 1_000), chat: { id: 100, type: 'group' } } } };
 }
 
 function messageUpdate(text: string, userId = 42) {
@@ -126,6 +131,22 @@ describe('Telegram webhook', () => {
       chatId: '100',
       text: expect.stringContaining('Подключение к Telegram активно.'),
     });
+  });
+
+  it('shows an inline administration dashboard', async () => {
+    const { app, sendMessage } = createTestApp('42');
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/admin') });
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Панель администратора'),
+      keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: 'admin:event_new' })])]),
+    }));
+  });
+
+  it('rechecks administrator rights for callbacks', async () => {
+    const { app, answerCallback, sendMessage } = createTestApp('99');
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('admin:home') });
+    expect(answerCallback).toHaveBeenCalledWith('callback-1', 'Недостаточно прав');
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it('allows an admin to create and list an event', async () => {

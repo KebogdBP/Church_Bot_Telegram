@@ -28,12 +28,17 @@ export class TelegramApiClient implements MessageSender {
         text: input.text,
         parse_mode: 'HTML',
         disable_notification: !(input.notify ?? true),
+        ...(input.keyboard ? { reply_markup: { inline_keyboard: input.keyboard.map((row) => row.map((button) => ({ text: button.text, callback_data: button.callbackData }))) } } : {}),
       }),
     });
     const body = await readTelegramResponse(response);
     if (!response.ok || !body.ok) {
       throw new Error(`Telegram API returned ${body.error_code ?? response.status}: ${body.description ?? 'unknown error'}`);
     }
+  }
+
+  public async answerCallback(callbackId: string, text?: string): Promise<void> {
+    await this.call<true>('answerCallbackQuery', { callback_query_id: callbackId, ...(text ? { text } : {}) });
   }
 
   public async getFile(fileId: string): Promise<{ filePath: string; fileSize?: number }> {
@@ -61,7 +66,7 @@ export class TelegramApiClient implements MessageSender {
   public async getUpdates(offset: number | undefined): Promise<TelegramUpdate[]> {
     return this.call<TelegramUpdate[]>('getUpdates', {
       timeout: 0,
-      allowed_updates: ['message', 'channel_post'],
+      allowed_updates: ['message', 'channel_post', 'callback_query'],
       ...(offset === undefined ? {} : { offset }),
     });
   }

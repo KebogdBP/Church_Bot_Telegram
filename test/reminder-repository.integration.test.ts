@@ -4,6 +4,8 @@ import { PrismaReminderRepository } from '../src/reminders/prisma-reminder-repos
 import { PrismaEventRepository } from '../src/events/prisma-event-repository.js';
 import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.js';
 import { PrismaTranscriptionRepository } from '../src/sermons/prisma-transcription-repository.js';
+import { GuidedEventService } from '../src/admin/guided-event-service.js';
+import { EventService } from '../src/events/event-service.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -124,5 +126,20 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     expect(stored.transcript).toBe('Текст проповеди');
     expect(stored.transcriptionModel).toBe('test-model');
     expect(stored.transcribedAt).toEqual(completedAt);
+  });
+
+  it('persists and completes a guided event flow', async () => {
+    const events = new EventService(new PrismaEventRepository(prisma), () => new Date('2026-09-14T08:00:00Z'));
+    const flow = new GuidedEventService(prisma, events, 'Europe/Moscow', () => new Date('2026-09-14T08:00:00Z'));
+    await flow.start('guided-chat', '42');
+    expect((await flow.consume('guided-chat', '42', '2099-10-01'))?.text).toContain('время');
+    expect((await flow.consume('guided-chat', '42', '10:00'))?.text).toContain('название');
+    expect((await flow.consume('guided-chat', '42', 'Воскресное служение'))?.text).toContain('место');
+    expect((await flow.consume('guided-chat', '42', 'Главный зал'))?.text).toContain('минут');
+    const confirmation = await flow.consume('guided-chat', '42', '1020');
+    expect(confirmation?.keyboard?.[0]?.[0]?.callbackData).toBe('flow:confirm');
+    await expect(flow.confirm('guided-chat', '42')).resolves.toMatchObject({ text: expect.stringContaining('создано') });
+    expect(await prisma.event.count({ where: { churchGroup: { telegramChatId: 'guided-chat' } } })).toBe(1);
+    expect(await prisma.adminFlow.count({ where: { telegramUserId: '42' } })).toBe(0);
   });
 });

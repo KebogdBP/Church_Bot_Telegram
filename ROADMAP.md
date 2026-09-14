@@ -104,7 +104,7 @@ Deliverable: MVP is ready for a real group pilot.
 
 Goal: make the bot comfortable for everyday use and turn sermon transcripts into a useful, searchable church archive.
 
-- [ ] Add inline keyboards and guided administrator flows.
+- [x] Add inline keyboards and guided administrator flows.
 - [ ] Notify administrators as sermon processing advances.
 - [ ] Add draft editing, rejection, and AI regeneration.
 - [ ] Generate and deliver a moderated weekly digest.

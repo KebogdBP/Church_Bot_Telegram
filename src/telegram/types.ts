@@ -57,6 +57,12 @@ export const telegramUpdateSchema = z.object({
   update_id: z.number(),
   message: telegramMessageSchema.optional(),
   channel_post: telegramMessageSchema.optional(),
+  callback_query: z.object({
+    id: z.string(),
+    from: telegramUserSchema,
+    data: z.string().max(64).optional(),
+    message: telegramMessageSchema.optional(),
+  }).passthrough().optional(),
 }).passthrough();
 
 export type TelegramUpdate = z.infer<typeof telegramUpdateSchema>;
@@ -84,4 +90,12 @@ export interface IncomingSermonAudio {
   title?: string;
   performer?: string;
   caption?: string;
+}
+
+export interface IncomingCallback {
+  id: string;
+  chatId: string;
+  userId: string;
+  messageId: string;
+  data: string;
 }

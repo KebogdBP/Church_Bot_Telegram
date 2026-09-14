@@ -1,4 +1,10 @@
-import type { IncomingMessage, IncomingSermonAudio, TelegramUpdate } from './types.js';
+import type { IncomingCallback, IncomingMessage, IncomingSermonAudio, TelegramUpdate } from './types.js';
+
+export function normalizeCallback(update: TelegramUpdate): IncomingCallback | null {
+  const callback = update.callback_query;
+  if (!callback?.message || !callback.data) return null;
+  return { id: callback.id, chatId: String(callback.message.chat.id), userId: String(callback.from.id), messageId: String(callback.message.message_id), data: callback.data };
+}
 
 export function normalizeMessage(update: TelegramUpdate): IncomingMessage | null {
   const message = update.message ?? update.channel_post;
