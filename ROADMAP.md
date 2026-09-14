@@ -113,3 +113,16 @@ Goal: make the bot comfortable for everyday use and turn sermon transcripts into
 - [x] Complete production regression, security review, and operator documentation.
 
 Deliverable: leaders can operate the core workflows from buttons, members can register for events and search the sermon archive, and no AI-generated content is published without explicit approval.
+
+## Version 0.3: Pastoral Operations
+
+Goal: deepen the bot's usefulness while keeping personal and church communication reviewable, private, and accountable.
+
+- [ ] Ground optional AI answers in the current group's sermon archive with explicit sources.
+- [ ] Add moderated church announcements with scheduling and retryable delivery.
+- [ ] Add private prayer requests with explicit sharing consent and administrator moderation.
+- [ ] Add a durable administrator audit log and an operational activity view.
+- [ ] Add configurable retention and deletion tools for transcripts, audio, and private requests.
+- [ ] Complete production regression, privacy review, and operator documentation for v0.3.
+
+Deliverable: members can receive grounded answers and submit sensitive requests safely, while leaders can manage communication and data lifecycle with a clear audit trail.
