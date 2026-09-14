@@ -14,6 +14,7 @@
 - Gemini receives those excerpts as optional context and must cite sermon IDs used in the answer.
 - A deterministic source list is appended by the application; the model cannot invent its entries.
 - Existing `/ask` behavior and safety escalation remain unchanged.
+- Implemented with bounded keyword retrieval, prompt-injection isolation, and an application-validated source allowlist.
 
 ## Phase 2: Moderated Announcements
 

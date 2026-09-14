@@ -42,6 +42,7 @@ const HELP_TEXT = [
   '/admin - открыть панель администратора',
   '/events - ближайшие события',
   '/ask ВОПРОС - задать библейский вопрос',
+  '/ask_sermons ВОПРОС - спросить с учетом архива проповедей',
   '/sermon_search ЗАПРОС - найти мысль в архиве проповедей',
   '',
   '<b>Команды администратора</b>',
@@ -129,12 +130,14 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/ask') {
-      const question = message.text.replace(/^\/ask(?:@\w+)?\s*/i, '').trim();
-      if (!question) { await this.reply(message.chatId, 'Формат: /ask ваш вопрос'); return; }
+    if (command === '/ask' || command === '/ask_sermons') {
+      const question = message.text.replace(/^\/ask(?:_sermons)?(?:@\w+)?\s*/i, '').trim();
+      if (!question) { await this.reply(message.chatId, `Формат: ${command} ваш вопрос`); return; }
       if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
       try {
-        const answer = await this.options.bibleAssistant.ask(message.chatId, message.userId, question);
+        const answer = command === '/ask_sermons'
+          ? await this.options.bibleAssistant.askWithSermons(message.chatId, message.userId, question)
+          : await this.options.bibleAssistant.ask(message.chatId, message.userId, question);
         await this.reply(message.chatId, escapeHtml(answer.text));
       } catch {
         await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');

@@ -11,7 +11,7 @@ function setup() {
     log: vi.fn().mockResolvedValue(undefined),
   } satisfies AssistantRepository;
   const provider = {
-    answer: vi.fn().mockResolvedValue({ answer: 'Ответ', bibleReferences: ['Ин. 3:16'], needsPastor: false, category: 'bible', model: 'model' }),
+    answer: vi.fn().mockResolvedValue({ answer: 'Ответ', bibleReferences: ['Ин. 3:16'], needsPastor: false, category: 'bible', sermonSourceIds: [], model: 'model' }),
   } satisfies BibleAnswerProvider;
   return { repository, provider, service: new BibleAssistantService(repository, provider, 'privacy-secret-long', 'Europe/Moscow') };
 }
@@ -20,9 +20,22 @@ describe('BibleAssistantService', () => {
   it('answers ordinary questions with references and no raw conversation log', async () => {
     const { repository, provider, service } = setup();
     await expect(service.ask('chat', '42', 'Что такое благодать?')).resolves.toMatchObject({ text: 'Ответ\n\nБиблейские места: Ин. 3:16' });
-    expect(provider.answer).toHaveBeenCalledWith('Что такое благодать?', 'Евангельская община');
+    expect(provider.answer).toHaveBeenCalledWith('Что такое благодать?', 'Евангельская община', []);
     expect(repository.log).toHaveBeenCalledWith(expect.not.objectContaining({ question: expect.anything(), answer: expect.anything() }));
     expect(repository.log).toHaveBeenCalledWith(expect.objectContaining({ userHash: expect.stringMatching(/^[a-f0-9]{64}$/), outcome: 'answered' }));
+  });
+
+  it('uses only retrieved sermon IDs in a grounded answer', async () => {
+    const { repository, provider } = setup();
+    vi.mocked(provider.answer).mockResolvedValue({ answer: 'Ответ из архива', bibleReferences: [], needsPastor: false, category: 'sermon_archive', sermonSourceIds: ['sermon-1', 'invented'], model: 'model' });
+    const archive = { searchContext: vi.fn().mockResolvedValue([{ sermonId: 'sermon-1', title: 'О надежде', date: new Date(), excerpt: 'Надежда укрепляет.' }]) };
+    const service = new BibleAssistantService(repository, provider, 'privacy-secret-long', 'Europe/Moscow', archive);
+
+    const result = await service.askWithSermons('chat', '42', 'Что говорили о надежде?');
+
+    expect(archive.searchContext).toHaveBeenCalledWith('chat', 'Что говорили о надежде?', 3);
+    expect(result.text).toContain('Источники архива: [sermon-1]');
+    expect(result.text).not.toContain('invented');
   });
 
   it('escalates a self-harm message without sending it to AI', async () => {
@@ -44,7 +57,7 @@ describe('BibleAssistantService', () => {
 
 describe('GeminiBibleAnswerProvider', () => {
   it('uses strict structured output and disables response storage', async () => {
-    const answer = { answer: 'Ответ', bibleReferences: [], needsPastor: true, category: 'pastoral' };
+    const answer = { answer: 'Ответ', bibleReferences: [], needsPastor: true, category: 'pastoral', sermonSourceIds: [] };
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }), { status: 200 }));
     const provider = new GeminiBibleAnswerProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request });
     await expect(provider.answer('Вопрос')).resolves.toEqual({ ...answer, model: 'model' });
@@ -54,7 +67,7 @@ describe('GeminiBibleAnswerProvider', () => {
   });
 
   it('rejects an answer too long for one Telegram message', async () => {
-    const answer = { answer: 'A'.repeat(3201), bibleReferences: [], needsPastor: false, category: 'bible' };
+    const answer = { answer: 'A'.repeat(3201), bibleReferences: [], needsPastor: false, category: 'bible', sermonSourceIds: [] };
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }), { status: 200 }));
     await expect(new GeminiBibleAnswerProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request }).answer('Вопрос')).rejects.toThrow();
   });

@@ -90,6 +90,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl }),
         config.privacySecret,
         config.app.timezone,
+        sermonSearchService,
       )
     : undefined);
   const router = new CommandRouter({

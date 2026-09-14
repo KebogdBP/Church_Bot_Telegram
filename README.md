@@ -90,6 +90,8 @@ Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic we
 
 Members can search completed sermon transcripts with `/sermon_search QUERY`. Results are scoped to the current Telegram group and show the stored sermon title, date, ID, and a bounded verbatim excerpt around the match. This command does not ask an AI model to create or paraphrase citations.
 
+`/ask_sermons QUESTION` asks the Bible assistant with up to three bounded excerpts retrieved from completed transcripts in the current group. Archive text is treated as untrusted reference material, and the application appends only source IDs that were actually retrieved; model-invented IDs are discarded. Use `/ask` when archive context is not wanted.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

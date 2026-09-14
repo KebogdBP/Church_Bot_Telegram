@@ -272,6 +272,9 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     const results = await service.search(target.telegramChatId, 'НАДЕЖДА');
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ title: 'О надежде', excerpt: expect.stringContaining('надежда не постыжает') });
+    const context = await service.searchContext(target.telegramChatId, 'Как надежда укрепляет церковь?');
+    expect(context).toHaveLength(1);
+    expect(context[0]?.sermonId).toBe(results[0]?.sermonId);
 
     await prisma.churchGroup.deleteMany({ where: { id: { in: [target.id, other.id] } } });
   });

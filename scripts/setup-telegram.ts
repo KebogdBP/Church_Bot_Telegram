@@ -24,6 +24,7 @@ await callTelegram('setMyCommands', {
     { command: 'whoami', description: 'Показать ваш Telegram ID' },
     { command: 'events', description: 'Показать ближайшие события' },
     { command: 'ask', description: 'Задать библейский вопрос' },
+    { command: 'ask_sermons', description: 'Спросить по архиву проповедей' },
     { command: 'sermon_search', description: 'Поиск по архиву проповедей' },
     { command: 'admin', description: 'Открыть панель администратора' },
     { command: 'sermons', description: 'Проверить черновики проповедей' },

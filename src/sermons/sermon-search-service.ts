@@ -15,6 +15,22 @@ export class SermonSearchService {
     });
     return sermons.flatMap((sermon) => sermon.transcript ? [{ sermonId: sermon.id, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, query) }] : []);
   }
+
+  public async searchContext(chatId: string, question: string, limit = 3): Promise<SermonSearchResult[]> {
+    const terms = [...new Set(question.toLocaleLowerCase('ru').match(/[\p{L}\p{N}]{4,}/gu) ?? [])].sort((a, b) => b.length - a.length).slice(0, 8);
+    if (!terms.length) return [];
+    const sermons = await this.prisma.sermon.findMany({
+      where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, transcript: { not: null }, OR: terms.map((term) => ({ transcript: { contains: term, mode: 'insensitive' as const } })) },
+      orderBy: { createdAt: 'desc' }, take: 20,
+      select: { id: true, title: true, fileName: true, createdAt: true, transcript: true },
+    });
+    return sermons.flatMap((sermon) => {
+      if (!sermon.transcript) return [];
+      const lower = sermon.transcript.toLocaleLowerCase('ru');
+      const matched = terms.find((term) => lower.includes(term));
+      return matched ? [{ sermonId: sermon.id, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, matched, 220) }] : [];
+    }).slice(0, Math.min(Math.max(limit, 1), 3));
+  }
 }
 
 export function excerptAround(text: string, query: string, radius = 180): string {
