@@ -52,6 +52,11 @@ import { PrayerRequestWorker } from './prayers/prayer-request-worker.js';
 import { AuditService } from './audit/audit-service.js';
 import { PrismaAuditRepository } from './audit/prisma-audit-repository.js';
 import { RetentionService } from './retention/retention-service.js';
+import { GroqBibleAnswerProvider } from './assistant/groq-bible-answer-provider.js';
+import { GroqSermonContentProvider } from './ai/groq-sermon-content-provider.js';
+import { FallbackBibleAnswerProvider, FallbackSermonContentProvider } from './ai/fallback-providers.js';
+import type { BibleAnswerProvider } from './assistant/bible-answer-provider.js';
+import type { SermonContentProvider } from './ai/sermon-content-provider.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -101,10 +106,15 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const prayerRequestService = options.prayerRequestService ?? (prisma ? new PrayerRequestService(prisma) : undefined);
   const auditService = options.auditService ?? (prisma ? new AuditService(new PrismaAuditRepository(prisma, config.app.timezone)) : undefined);
   const retentionService = options.retentionService ?? (prisma ? new RetentionService(prisma) : undefined);
-  const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
+  const bibleProviders: BibleAnswerProvider[] = [
+    ...(config.ai.geminiApiKey ? [new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
+    ...(config.ai.groqApiKey ? [new GroqBibleAnswerProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
+  ];
+  const bibleProvider = bibleProviders.length === 2 ? new FallbackBibleAnswerProvider(bibleProviders[0]!, bibleProviders[1]!) : bibleProviders[0];
+  const bibleAssistant = options.bibleAssistant ?? (prisma && bibleProvider
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
-        new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl }),
+        bibleProvider,
         config.privacySecret,
         config.app.timezone,
         sermonSearchService,
@@ -182,10 +192,15 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         },
       })
     : null;
-  const sermonContentWorker = prisma && config.ai.geminiApiKey
+  const contentProviders: SermonContentProvider[] = [
+    ...(config.ai.geminiApiKey ? [new GeminiSermonContentProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
+    ...(config.ai.groqApiKey ? [new GroqSermonContentProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
+  ];
+  const contentProvider = contentProviders.length === 2 ? new FallbackSermonContentProvider(contentProviders[0]!, contentProviders[1]!) : contentProviders[0];
+  const sermonContentWorker = prisma && contentProvider
     ? new SermonContentWorker({
         repository: new PrismaContentGenerationRepository(prisma),
-        provider: new GeminiSermonContentProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl }),
+        provider: contentProvider,
         logger: app.log,
         intervalMs: config.ai.contentGenerationPollIntervalMs,
       })

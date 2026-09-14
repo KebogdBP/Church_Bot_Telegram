@@ -10,6 +10,8 @@ See [ROADMAP.md](ROADMAP.md) for the implementation path and [TASKS.md](TASKS.md
 
 Administrators can use `/activity` to inspect the latest 20 consequential actions and the total number of failed background jobs. Audit entries contain actor/action/entity identifiers and safe metadata only; announcement text, prayer requests, transcripts, and AI context are never copied into the audit log.
 
+AI text generation uses Gemini first and automatically falls back to Groq when Gemini is unavailable because of region, network, quota, or provider errors. Groq Whisper remains the transcription provider. Both providers use the isolated application proxy when `OUTBOUND_PROXY_URL` is configured.
+
 ### Data retention
 
 Retention is configured separately for stored sermon audio, transcripts, and private prayer requests. Defaults are 90 days for audio and 365 days for transcripts and prayer requests.
