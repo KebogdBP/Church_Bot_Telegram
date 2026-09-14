@@ -17,6 +17,7 @@ import type { WeeklyDigestService } from '../digests/weekly-digest-service.js';
 import type { EventRsvpService } from '../events/event-rsvp-service.js';
 import type { SermonSearchService } from '../sermons/sermon-search-service.js';
 import { DateTime } from 'luxon';
+import type { AnnouncementService } from '../announcements/announcement-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -31,6 +32,7 @@ export interface CommandRouterOptions {
   weeklyDigestService?: WeeklyDigestService;
   eventRsvpService?: EventRsvpService;
   sermonSearchService?: SermonSearchService;
+  announcementService?: AnnouncementService;
 }
 
 const HELP_TEXT = [
@@ -64,6 +66,11 @@ const HELP_TEXT = [
   '/digest_approve ID - одобрить и отправить дайджест',
   '/digest_enable 1-7 ЧЧ:ММ - включить еженедельные черновики',
   '/digest_disable - отключить еженедельные черновики',
+  '/announce_new ТЕКСТ - создать черновик объявления',
+  '/announcements - черновики объявлений',
+  '/announce_edit ID | ТЕКСТ - исправить объявление',
+  '/announce_approve ID [ГГГГ-ММ-ДД ЧЧ:ММ] - одобрить отправку',
+  '/announce_reject ID - отклонить объявление',
   '/context_set ТЕКСТ - задать контекст общины',
   '/settings - настройки и состояние группы',
   '/admin_add ID - добавить администратора',
@@ -250,6 +257,34 @@ export class CommandRouter {
       await service.configure(message.chatId, Number(match[1]), `${match[2]}:${match[3]}`);
       await this.reply(message.chatId, `Еженедельный черновик включён: день ${match[1]}, ${match[2]}:${match[3]}.`); return;
     }
+
+    if (command === '/announce_new' || command === '/announcements' || command === '/announce_preview' || command === '/announce_edit' || command === '/announce_approve' || command === '/announce_reject') {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      const service = this.options.announcementService;
+      if (!service) { await this.reply(message.chatId, 'Объявления сейчас недоступны.'); return; }
+      if (command === '/announce_new') {
+        const content = message.text.replace(/^\/announce_new(?:@\w+)?\s*/i, '').trim();
+        if (!content || content.length > 4_000) { await this.reply(message.chatId, 'Формат: /announce_new текст до 4000 символов'); return; }
+        const draft = await service.create(message.chatId, message.userId, content);
+        await this.sendAnnouncementPreview(message.chatId, draft); return;
+      }
+      if (command === '/announcements') {
+        const drafts = await service.list(message.chatId);
+        await this.reply(message.chatId, drafts.length ? ['<b>Черновики объявлений</b>', ...drafts.map((item) => `<code>${item.id}</code> — ${escapeHtml(item.content.slice(0, 120))}`)].join('\n\n') : 'Черновиков объявлений нет.', drafts.slice(0, 8).map((item) => [{ text: 'Проверить', callbackData: `announce:view:${item.id}` }])); return;
+      }
+      if (command === '/announce_edit') {
+        const match = /^\/announce_edit(?:@\w+)?\s+(\S+)\s*\|\s*([\s\S]+)$/i.exec(message.text);
+        if (!match || !match[2]?.trim() || match[2].trim().length > 4_000) { await this.reply(message.chatId, 'Формат: /announce_edit ID | новый текст'); return; }
+        const edited = await service.edit(message.chatId, match[1]!, message.userId, match[2].trim());
+        await this.reply(message.chatId, edited ? 'Объявление обновлено.' : 'Черновик не найден или уже обработан.'); return;
+      }
+      const [, id, schedule] = /^\/\w+(?:@\w+)?\s+(\S+)(?:\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}))?$/i.exec(message.text.trim()) ?? [];
+      if (!id) { await this.reply(message.chatId, `Формат: ${command} ID`); return; }
+      if (command === '/announce_preview') { const draft = await service.find(message.chatId, id); if (draft) await this.sendAnnouncementPreview(message.chatId, draft); else await this.reply(message.chatId, 'Объявление не найдено.'); return; }
+      if (command === '/announce_reject') { const rejected = await service.reject(message.chatId, id, message.userId); await this.reply(message.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return; }
+      const approved = await service.approve(message.chatId, id, message.userId, schedule);
+      await this.reply(message.chatId, approved ? 'Объявление одобрено и поставлено на отправку.' : 'Проверьте ID, статус и будущую дату ГГГГ-ММ-ДД ЧЧ:ММ.'); return;
+    }
   }
 
   public async handleCallback(callback: IncomingCallback): Promise<void> {
@@ -297,6 +332,17 @@ export class CommandRouter {
         const digest = await this.options.weeklyDigestService?.preview(callback.chatId);
         await this.reply(callback.chatId, digest ? `<b>Предпросмотр дайджеста</b>\n\n${digest.content}\n\nID: <code>${digest.id}</code>` : 'Дайджесты сейчас недоступны.', digest?.status === 'draft' ? [[{ text: 'Одобрить и отправить', callbackData: `digest:approve:${digest.id}` }, { text: 'Панель', callbackData: 'admin:home' }]] : [[{ text: 'Панель', callbackData: 'admin:home' }]]); return;
       }
+      if (callback.data === 'admin:announcements') {
+        const drafts = await this.options.announcementService?.list(callback.chatId) ?? [];
+        await this.reply(callback.chatId, drafts.length ? ['<b>Черновики объявлений</b>', ...drafts.map((item) => `<code>${item.id}</code> — ${escapeHtml(item.content.slice(0, 120))}`)].join('\n\n') : 'Черновиков объявлений нет.', [...drafts.slice(0, 8).map((item) => [{ text: 'Проверить', callbackData: `announce:view:${item.id}` }]), [{ text: 'Панель', callbackData: 'admin:home' }]]); return;
+      }
+      const announcementAction = /^announce:(view|approve|reject):(.+)$/.exec(callback.data);
+      if (announcementAction && this.options.announcementService) {
+        const [, action, id] = announcementAction;
+        if (action === 'view') { const draft = await this.options.announcementService.find(callback.chatId, id!); if (draft) await this.sendAnnouncementPreview(callback.chatId, draft); else await this.reply(callback.chatId, 'Объявление не найдено.'); return; }
+        if (action === 'approve') { const approved = await this.options.announcementService.approve(callback.chatId, id!, callback.userId); await this.reply(callback.chatId, approved ? 'Объявление одобрено и поставлено на отправку.' : 'Черновик не найден или уже обработан.'); return; }
+        const rejected = await this.options.announcementService.reject(callback.chatId, id!, callback.userId); await this.reply(callback.chatId, rejected ? 'Объявление отклонено.' : 'Черновик не найден или уже обработан.'); return;
+      }
       const postAction = /^post:(review|approve|reject):(.+)$/.exec(callback.data);
       if (postAction && this.options.sermonPostService) {
         const [, action, postId] = postAction;
@@ -329,6 +375,7 @@ export class CommandRouter {
       [{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'События', callbackData: 'admin:events' }],
       [{ text: 'Проповеди', callbackData: 'admin:sermons' }, { text: 'Настройки', callbackData: 'admin:settings' }],
       [{ text: 'Дайджест недели', callbackData: 'admin:digest' }],
+      [{ text: 'Объявления', callbackData: 'admin:announcements' }],
     ]);
   }
 
@@ -445,5 +492,9 @@ export class CommandRouter {
       [{ text: `Событие #${index + 1}: пойду`, callbackData: `rsvp:${event.id}:going` }],
       [{ text: 'Возможно', callbackData: `rsvp:${event.id}:maybe` }, { text: 'Не смогу', callbackData: `rsvp:${event.id}:not_going` }],
     ]);
+  }
+
+  private async sendAnnouncementPreview(chatId: string, draft: { id: string; content: string; status: string }): Promise<void> {
+    await this.reply(chatId, `<b>Предпросмотр объявления</b>\n\n${escapeHtml(draft.content)}\n\nID: <code>${draft.id}</code>\nСтатус: ${escapeHtml(draft.status)}`, draft.status === 'draft' ? [[{ text: 'Отправить сейчас', callbackData: `announce:approve:${draft.id}` }, { text: 'Отклонить', callbackData: `announce:reject:${draft.id}` }]] : undefined);
   }
 }

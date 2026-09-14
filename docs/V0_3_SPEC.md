@@ -21,6 +21,7 @@
 - Administrators create, preview, edit, reject, schedule, and approve announcements.
 - Delivery uses durable claims, stale recovery, bounded retries, and idempotent state transitions.
 - No draft is published without explicit approval.
+- Implemented with audited draft states, timezone-aware scheduling, conditional claims, stale recovery, and bounded retries.
 
 ## Phase 3: Private Prayer Requests
 

@@ -30,6 +30,7 @@ await callTelegram('setMyCommands', {
     { command: 'sermons', description: 'Проверить черновики проповедей' },
     { command: 'sermon_status', description: 'Статус обработки проповеди' },
     { command: 'digest_preview', description: 'Предпросмотр недельного дайджеста' },
+    { command: 'announcements', description: 'Черновики объявлений' },
     { command: 'settings', description: 'Настройки группы' },
     { command: 'status', description: 'Проверить состояние бота' },
   ],

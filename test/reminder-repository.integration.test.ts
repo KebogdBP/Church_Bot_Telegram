@@ -11,6 +11,7 @@ import { EventService } from '../src/events/event-service.js';
 import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-digest-repository.js';
 import { EventRsvpService } from '../src/events/event-rsvp-service.js';
 import { SermonSearchService } from '../src/sermons/sermon-search-service.js';
+import { PrismaAnnouncementRepository } from '../src/announcements/prisma-announcement-repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -277,5 +278,21 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(context[0]?.sermonId).toBe(results[0]?.sermonId);
 
     await prisma.churchGroup.deleteMany({ where: { id: { in: [target.id, other.id] } } });
+  });
+
+  it('moderates and durably claims an announcement', async () => {
+    const chatId = `announcement-${Date.now()}`;
+    const repository = new PrismaAnnouncementRepository(prisma);
+    const now = new Date('2026-09-15T10:00:00Z');
+    const draft = await repository.create(chatId, 'admin-1', 'Первоначальный текст', 'Europe/Moscow');
+    expect(await repository.edit(chatId, draft.id, 'admin-2', 'Исправленный текст', now)).toBe(true);
+    expect(await repository.approve(chatId, draft.id, 'admin-3', now, now)).toBe(true);
+    expect(await repository.edit(chatId, draft.id, 'admin-4', 'Поздняя правка', now)).toBe(false);
+    const claimed = await repository.claimDue(now, 10);
+    expect(claimed).toEqual([expect.objectContaining({ id: draft.id, chatId, content: 'Исправленный текст' })]);
+    await repository.markSent(draft.id, now);
+    const stored = await prisma.announcement.findUniqueOrThrow({ where: { id: draft.id } });
+    expect(stored).toMatchObject({ status: 'SENT', editedByUserId: 'admin-2', approvedByUserId: 'admin-3' });
+    await prisma.churchGroup.delete({ where: { telegramChatId: chatId } });
   });
 });

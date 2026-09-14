@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -19,6 +19,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(eventRsvpService ? { eventRsvpService } : {}),
     ...(sermonSearchService ? { sermonSearchService } : {}),
     ...(bibleAssistant ? { bibleAssistant } : {}),
+    ...(announcementService ? { announcementService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -225,6 +226,17 @@ describe('Telegram webhook', () => {
 
     expect(bibleAssistant.askWithSermons).toHaveBeenCalledWith('100', '77', 'Что говорили о надежде?');
     expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('[sermon-1]') });
+  });
+
+  it('creates and approves an announcement only for an administrator', async () => {
+    const announcements = { create: vi.fn().mockResolvedValue({ id: 'a1', content: 'Общее собрание', status: 'draft' }), find: vi.fn(), list: vi.fn(), edit: vi.fn(), reject: vi.fn(), approve: vi.fn().mockResolvedValue(true) } as unknown as import('../src/announcements/announcement-service.js').AnnouncementService;
+    const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, announcements);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/announce_new Общее собрание') });
+    expect(announcements.create).toHaveBeenCalledWith('100', '42', 'Общее собрание');
+    expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({ keyboard: [[expect.objectContaining({ callbackData: 'announce:approve:a1' }), expect.anything()]] }));
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('announce:approve:a1') });
+    expect(announcements.approve).toHaveBeenCalledWith('100', 'a1', '42');
   });
 
   it('allows an admin to create and list an event', async () => {

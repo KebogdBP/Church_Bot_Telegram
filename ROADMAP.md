@@ -119,7 +119,7 @@ Deliverable: leaders can operate the core workflows from buttons, members can re
 Goal: deepen the bot's usefulness while keeping personal and church communication reviewable, private, and accountable.
 
 - [x] Ground optional AI answers in the current group's sermon archive with explicit sources.
-- [ ] Add moderated church announcements with scheduling and retryable delivery.
+- [x] Add moderated church announcements with scheduling and retryable delivery.
 - [ ] Add private prayer requests with explicit sharing consent and administrator moderation.
 - [ ] Add a durable administrator audit log and an operational activity view.
 - [ ] Add configurable retention and deletion tools for transcripts, audio, and private requests.

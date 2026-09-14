@@ -76,6 +76,15 @@ enum EventRsvpResponse {
   NOT_GOING
 }
 
+enum AnnouncementStatus {
+  DRAFT
+  REJECTED
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -93,6 +102,32 @@ model ChurchGroup {
   digestEnabled Boolean @default(false)
   digestWeekday Int @default(5)
   digestLocalTime String @default("18:00")
+  announcements Announcement[]
+}
+
+model Announcement {
+  id               String             @id @default(cuid())
+  churchGroupId    String
+  churchGroup      ChurchGroup        @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  content          String
+  status           AnnouncementStatus @default(DRAFT)
+  scheduledFor     DateTime?
+  availableAt      DateTime            @default(now())
+  attempts         Int                 @default(0)
+  createdByUserId  String
+  editedByUserId   String?
+  editedAt         DateTime?
+  approvedByUserId String?
+  approvedAt       DateTime?
+  rejectedByUserId String?
+  rejectedAt       DateTime?
+  sentAt           DateTime?
+  lastError        String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([status, availableAt])
+  @@index([churchGroupId, status])
 }
 
 model WeeklyDigest {

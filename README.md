@@ -92,6 +92,8 @@ Members can search completed sermon transcripts with `/sermon_search QUERY`. Res
 
 `/ask_sermons QUESTION` asks the Bible assistant with up to three bounded excerpts retrieved from completed transcripts in the current group. Archive text is treated as untrusted reference material, and the application appends only source IDs that were actually retrieved; model-invented IDs are discarded. Use `/ask` when archive context is not wanted.
 
+Administrators create announcement drafts with `/announce_new TEXT`, list them with `/announcements`, and use `/announce_edit ID | TEXT`, `/announce_reject ID`, or `/announce_approve ID [YYYY-MM-DD HH:MM]`. Approval without a date sends as soon as the worker claims the draft. All moderator identities and timestamps are retained, and temporary Telegram failures retry durably according to `ANNOUNCEMENT_POLL_INTERVAL_MS`.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

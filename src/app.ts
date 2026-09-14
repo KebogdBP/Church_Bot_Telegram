@@ -44,6 +44,9 @@ import { WeeklyDigestService } from './digests/weekly-digest-service.js';
 import { WeeklyDigestWorker } from './digests/weekly-digest-worker.js';
 import { EventRsvpService } from './events/event-rsvp-service.js';
 import { SermonSearchService } from './sermons/sermon-search-service.js';
+import { PrismaAnnouncementRepository } from './announcements/prisma-announcement-repository.js';
+import { AnnouncementService } from './announcements/announcement-service.js';
+import { AnnouncementWorker } from './announcements/announcement-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -55,6 +58,7 @@ export interface BuildAppOptions {
   weeklyDigestService?: WeeklyDigestService;
   eventRsvpService?: EventRsvpService;
   sermonSearchService?: SermonSearchService;
+  announcementService?: AnnouncementService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -84,6 +88,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const weeklyDigestService = options.weeklyDigestService ?? (weeklyDigestRepository ? new WeeklyDigestService(weeklyDigestRepository) : undefined);
   const eventRsvpService = options.eventRsvpService ?? (prisma ? new EventRsvpService(prisma) : undefined);
   const sermonSearchService = options.sermonSearchService ?? (prisma ? new SermonSearchService(prisma) : undefined);
+  const announcementRepository = prisma ? new PrismaAnnouncementRepository(prisma) : null;
+  const announcementService = options.announcementService ?? (announcementRepository ? new AnnouncementService(announcementRepository, config.app.timezone) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -106,6 +112,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(weeklyDigestService ? { weeklyDigestService } : {}),
     ...(eventRsvpService ? { eventRsvpService } : {}),
     ...(sermonSearchService ? { sermonSearchService } : {}),
+    ...(announcementService ? { announcementService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -183,6 +190,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const weeklyDigestWorker = weeklyDigestRepository && config.telegram.botToken
     ? new WeeklyDigestWorker({ repository: weeklyDigestRepository, sender, logger: app.log, intervalMs: config.ai.weeklyDigestPollIntervalMs })
     : null;
+  const announcementWorker = announcementRepository && config.telegram.botToken
+    ? new AnnouncementWorker({ repository: announcementRepository, sender, logger: app.log, intervalMs: config.ai.announcementPollIntervalMs })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -202,6 +212,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonPostWorker?.start();
       sermonNotificationWorker?.start();
       weeklyDigestWorker?.start();
+      announcementWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -212,6 +223,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonPostWorker?.stop();
       sermonNotificationWorker?.stop();
       weeklyDigestWorker?.stop();
+      announcementWorker?.stop();
       await prisma.$disconnect();
     });
   }
