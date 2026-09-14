@@ -8,6 +8,7 @@ import { PrismaSermonNotificationRepository } from '../src/sermons/prisma-sermon
 import { PrismaSermonPostRepository } from '../src/sermons/prisma-sermon-post-repository.js';
 import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
+import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-digest-repository.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -214,6 +215,27 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(await prisma.sermon.findUniqueOrThrow({ where: { id: sermon.id } })).toMatchObject({
       contentStatus: 'PENDING', contentAttempts: 0, regeneratedByUserId: 'admin-3', regeneratedAt: now,
     });
+
+    await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
+  it('builds, approves, and claims one moderated weekly digest', async () => {
+    const chatId = `digest-${Date.now()}`;
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId, digestEnabled: true, digestWeekday: 1, digestLocalTime: '08:00' } });
+    await prisma.event.create({ data: { churchGroupId: group.id, title: 'Молитвенное собрание', startsAt: new Date('2026-09-16T16:00:00Z'), timezone: 'Europe/Moscow', reminderMinutesBefore: 60, createdByTelegramUserId: 'admin' } });
+    const sermon = await prisma.sermon.create({ data: { churchGroupId: group.id, sourceMessageId: 'digest-sermon', status: 'STORED', transcriptionStatus: 'COMPLETED', contentStatus: 'COMPLETED' } });
+    await prisma.sermonPost.create({ data: { sermonId: sermon.id, churchGroupId: group.id, sequence: 0, content: 'Храните надежду', status: 'SENT', approvedAt: new Date('2026-09-13T10:00:00Z') } });
+    const repository = new PrismaWeeklyDigestRepository(prisma);
+    const now = new Date('2026-09-14T12:00:00Z');
+
+    const draft = await repository.createOrRefreshDraft(chatId, now);
+    expect(draft.content).toContain('Молитвенное собрание');
+    expect(draft.content).toContain('Храните надежду');
+    expect(await repository.approve(chatId, draft.id, 'admin-1', now)).toBe(true);
+    const claimed = await repository.claimDue(now, 5);
+    expect(claimed).toEqual([expect.objectContaining({ id: draft.id, chatId })]);
+    await repository.markSent(draft.id, now);
+    expect((await repository.createOrRefreshDraft(chatId, now)).status).toBe('sent');
 
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });

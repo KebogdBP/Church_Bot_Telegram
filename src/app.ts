@@ -39,6 +39,9 @@ import { PrismaSermonStatusReader } from './sermons/sermon-status-service.js';
 import { GuidedEventService } from './admin/guided-event-service.js';
 import { PrismaSermonNotificationRepository } from './sermons/prisma-sermon-notification-repository.js';
 import { SermonNotificationWorker } from './sermons/sermon-notification-worker.js';
+import { PrismaWeeklyDigestRepository } from './digests/prisma-weekly-digest-repository.js';
+import { WeeklyDigestService } from './digests/weekly-digest-service.js';
+import { WeeklyDigestWorker } from './digests/weekly-digest-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -47,6 +50,7 @@ export interface BuildAppOptions {
   sermonRepository?: SermonRepository;
   sermonPostService?: SermonPostService;
   bibleAssistant?: BibleAssistantService;
+  weeklyDigestService?: WeeklyDigestService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -72,6 +76,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const guidedEvents = prisma ? new GuidedEventService(prisma, eventService, config.app.timezone) : undefined;
   const sermonPostRepository = prisma ? new PrismaSermonPostRepository(prisma) : null;
   const sermonPostService = options.sermonPostService ?? (sermonPostRepository ? new SermonPostService(sermonPostRepository) : undefined);
+  const weeklyDigestRepository = prisma ? new PrismaWeeklyDigestRepository(prisma) : null;
+  const weeklyDigestService = options.weeklyDigestService ?? (weeklyDigestRepository ? new WeeklyDigestService(weeklyDigestRepository) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -90,6 +96,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     sermonIntake,
     ...(prisma ? { sermonStatus: new PrismaSermonStatusReader(prisma) } : {}),
     ...(guidedEvents ? { guidedEvents } : {}),
+    ...(weeklyDigestService ? { weeklyDigestService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -164,6 +171,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         intervalMs: config.ai.sermonNotificationPollIntervalMs,
       })
     : null;
+  const weeklyDigestWorker = weeklyDigestRepository && config.telegram.botToken
+    ? new WeeklyDigestWorker({ repository: weeklyDigestRepository, sender, logger: app.log, intervalMs: config.ai.weeklyDigestPollIntervalMs })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -182,6 +192,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonContentWorker?.start();
       sermonPostWorker?.start();
       sermonNotificationWorker?.start();
+      weeklyDigestWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -191,6 +202,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       sermonContentWorker?.stop();
       sermonPostWorker?.stop();
       sermonNotificationWorker?.stop();
+      weeklyDigestWorker?.stop();
       await prisma.$disconnect();
     });
   }

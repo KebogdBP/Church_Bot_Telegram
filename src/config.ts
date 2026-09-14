@@ -35,6 +35,7 @@ const envSchema = z.object({
   CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_POST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_NOTIFICATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(15_000),
+  WEEKLY_DIGEST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
 }).superRefine((env, context) => {
   if (env.APP_ENV !== 'production') return;
   const required = ['DATABASE_URL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_WEBHOOK_SECRET', 'APP_PRIVACY_SECRET', 'GEMINI_API_KEY', 'GROQ_API_KEY'] as const;
@@ -91,6 +92,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       contentGenerationPollIntervalMs: parsed.CONTENT_GENERATION_POLL_INTERVAL_MS,
       sermonPostPollIntervalMs: parsed.SERMON_POST_POLL_INTERVAL_MS,
       sermonNotificationPollIntervalMs: parsed.SERMON_NOTIFICATION_POLL_INTERVAL_MS,
+      weeklyDigestPollIntervalMs: parsed.WEEKLY_DIGEST_POLL_INTERVAL_MS,
     },
     privacySecret: parsed.APP_PRIVACY_SECRET ?? parsed.TELEGRAM_WEBHOOK_SECRET ?? parsed.TELEGRAM_BOT_TOKEN ?? 'development-only-privacy-secret',
   };

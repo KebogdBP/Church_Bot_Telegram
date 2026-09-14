@@ -84,6 +84,8 @@ The administrator who submitted a sermon receives private milestone notification
 
 Administrators moderate AI drafts before publication. `/sermons` and `/sermon_review ID` expose approval and rejection buttons; `/sermon_edit ID | TEXT` edits a draft, `/sermon_reject ID` rejects it, and `/sermon_regenerate SERMON_ID` rebuilds an entirely unpublished series. Moderator IDs and timestamps are retained for audit. Regeneration is refused after any post in the series has been scheduled or published.
 
+Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic weekly draft creation in the group timezone, `/digest_preview` creates or refreshes the current draft, and `/digest_approve ID` authorizes delivery. `/digest_disable` turns off automatic drafting. Approved deliveries are durable and retry temporary Telegram failures; `WEEKLY_DIGEST_POLL_INTERVAL_MS` controls worker polling.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

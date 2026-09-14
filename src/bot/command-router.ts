@@ -13,6 +13,7 @@ import type { AdminService } from '../admin/admin-service.js';
 import type { SermonIntakeService } from '../sermons/sermon-intake-service.js';
 import type { SermonStatusReader } from '../sermons/sermon-status-service.js';
 import type { GuidedEventService } from '../admin/guided-event-service.js';
+import type { WeeklyDigestService } from '../digests/weekly-digest-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -24,6 +25,7 @@ export interface CommandRouterOptions {
   sermonIntake?: SermonIntakeService;
   sermonStatus?: SermonStatusReader;
   guidedEvents?: GuidedEventService;
+  weeklyDigestService?: WeeklyDigestService;
 }
 
 const HELP_TEXT = [
@@ -51,6 +53,10 @@ const HELP_TEXT = [
   '/sermon_edit ID | ТЕКСТ - изменить черновик',
   '/sermon_reject ID - отклонить черновик',
   '/sermon_regenerate SERMON_ID - заново создать материалы',
+  '/digest_preview - подготовить дайджест недели',
+  '/digest_approve ID - одобрить и отправить дайджест',
+  '/digest_enable 1-7 ЧЧ:ММ - включить еженедельные черновики',
+  '/digest_disable - отключить еженедельные черновики',
   '/context_set ТЕКСТ - задать контекст общины',
   '/settings - настройки и состояние группы',
   '/admin_add ID - добавить администратора',
@@ -201,6 +207,27 @@ export class CommandRouter {
         : await this.options.adminService.remove(message.chatId, userId);
       await this.reply(message.chatId, changed ? 'Роли администраторов обновлены.' : 'Изменений нет. Bootstrap-администратора нельзя удалить командой.');
     }
+
+    if (command === '/digest_preview' || command === '/digest_approve' || command === '/digest_enable' || command === '/digest_disable') {
+      if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) { await this.reply(message.chatId, 'Эта команда доступна только администраторам.'); return; }
+      const service = this.options.weeklyDigestService;
+      if (!service) { await this.reply(message.chatId, 'Дайджесты сейчас недоступны.'); return; }
+      if (command === '/digest_preview') {
+        const digest = await service.preview(message.chatId);
+        await this.reply(message.chatId, `<b>Предпросмотр дайджеста</b>\n\n${digest.content}\n\nID: <code>${digest.id}</code>`, digest.status === 'draft' ? [[{ text: 'Одобрить и отправить', callbackData: `digest:approve:${digest.id}` }]] : undefined); return;
+      }
+      if (command === '/digest_approve') {
+        const id = message.text.split(/\s+/, 2)[1];
+        if (!id) { await this.reply(message.chatId, 'Формат: /digest_approve ID'); return; }
+        const approved = await service.approve(message.chatId, id, message.userId);
+        await this.reply(message.chatId, approved ? 'Дайджест одобрен и поставлен на отправку.' : 'Черновик дайджеста не найден или уже обработан.'); return;
+      }
+      if (command === '/digest_disable') { await service.disable(message.chatId); await this.reply(message.chatId, 'Автоматические еженедельные черновики отключены.'); return; }
+      const match = /^\/digest_enable(?:@\w+)?\s+([1-7])\s+([01]\d|2[0-3]):([0-5]\d)$/i.exec(message.text.trim());
+      if (!match) { await this.reply(message.chatId, 'Формат: /digest_enable 1-7 ЧЧ:ММ'); return; }
+      await service.configure(message.chatId, Number(match[1]), `${match[2]}:${match[3]}`);
+      await this.reply(message.chatId, `Еженедельный черновик включён: день ${match[1]}, ${match[2]}:${match[3]}.`); return;
+    }
   }
 
   public async handleCallback(callback: IncomingCallback): Promise<void> {
@@ -237,6 +264,10 @@ export class CommandRouter {
         const admins = await this.options.adminService.list(callback.chatId);
         await this.reply(callback.chatId, ['<b>Состояние группы</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Контекст AI: ${status.contextConfigured ? 'настроен' : 'не настроен'}`, `Администраторы: ${admins.map((id) => `<code>${id}</code>`).join(', ')}`].join('\n'), [[{ text: 'Панель', callbackData: 'admin:home' }]]); return;
       }
+      if (callback.data === 'admin:digest') {
+        const digest = await this.options.weeklyDigestService?.preview(callback.chatId);
+        await this.reply(callback.chatId, digest ? `<b>Предпросмотр дайджеста</b>\n\n${digest.content}\n\nID: <code>${digest.id}</code>` : 'Дайджесты сейчас недоступны.', digest?.status === 'draft' ? [[{ text: 'Одобрить и отправить', callbackData: `digest:approve:${digest.id}` }, { text: 'Панель', callbackData: 'admin:home' }]] : [[{ text: 'Панель', callbackData: 'admin:home' }]]); return;
+      }
       const postAction = /^post:(review|approve|reject):(.+)$/.exec(callback.data);
       if (postAction && this.options.sermonPostService) {
         const [, action, postId] = postAction;
@@ -252,6 +283,11 @@ export class CommandRouter {
         const rejected = await this.options.sermonPostService.reject(callback.chatId, postId!, callback.userId);
         await this.reply(callback.chatId, rejected ? 'Черновик отклонён.' : 'Черновик не найден или уже обработан.'); return;
       }
+      const digestApproval = /^digest:approve:(.+)$/.exec(callback.data);
+      if (digestApproval && this.options.weeklyDigestService) {
+        const approved = await this.options.weeklyDigestService.approve(callback.chatId, digestApproval[1]!, callback.userId);
+        await this.reply(callback.chatId, approved ? 'Дайджест одобрен и поставлен на отправку.' : 'Черновик дайджеста не найден или уже обработан.'); return;
+      }
       await this.options.sender.answerCallback?.(callback.id, 'Кнопка устарела');
     } catch {
       await this.options.sender.answerCallback?.(callback.id, 'Не удалось выполнить действие');
@@ -263,6 +299,7 @@ export class CommandRouter {
     await this.reply(chatId, ['<b>Панель администратора</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Черновики: ${status.draftPosts}`, `Запланировано: ${status.scheduledPosts}`].join('\n'), [
       [{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'События', callbackData: 'admin:events' }],
       [{ text: 'Проповеди', callbackData: 'admin:sermons' }, { text: 'Настройки', callbackData: 'admin:settings' }],
+      [{ text: 'Дайджест недели', callbackData: 'admin:digest' }],
     ]);
   }
 

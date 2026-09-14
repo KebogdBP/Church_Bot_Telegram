@@ -62,6 +62,14 @@ enum AssistantOutcome {
   FAILED
 }
 
+enum WeeklyDigestStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -75,6 +83,30 @@ model ChurchGroup {
   assistantInteractions AssistantInteraction[]
   admins    GroupAdmin[]
   adminFlows AdminFlow[]
+  weeklyDigests WeeklyDigest[]
+  digestEnabled Boolean @default(false)
+  digestWeekday Int @default(5)
+  digestLocalTime String @default("18:00")
+}
+
+model WeeklyDigest {
+  id               String             @id @default(cuid())
+  churchGroupId    String
+  churchGroup      ChurchGroup        @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  weekStart        DateTime
+  content          String
+  status           WeeklyDigestStatus @default(DRAFT)
+  availableAt      DateTime            @default(now())
+  attempts         Int                 @default(0)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  sentAt           DateTime?
+  lastError        String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([churchGroupId, weekStart])
+  @@index([status, availableAt])
 }
 
 model AdminFlow {

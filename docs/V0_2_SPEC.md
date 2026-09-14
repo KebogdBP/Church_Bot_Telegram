@@ -32,6 +32,7 @@
 
 - Administrators can preview and approve a digest assembled from events and the latest approved sermon material.
 - Delivery is scheduled and retried durably.
+- Implemented with per-group weekday/time settings; automatic generation produces drafts only and never bypasses moderation.
 
 ## Phase 5: Event RSVP
 

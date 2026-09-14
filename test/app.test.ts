@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -15,6 +15,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     sender: { sendMessage, answerCallback },
     logger: false,
     ...(sermonPostService ? { sermonPostService } : {}),
+    ...(weeklyDigestService ? { weeklyDigestService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -176,6 +177,20 @@ describe('Telegram webhook', () => {
 
     expect(service.edit).toHaveBeenCalledWith('100', 'post-1', 'Новый безопасный текст', '42');
     expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: 'Черновик обновлён.' });
+  });
+
+  it('previews and approves a weekly digest through Telegram', async () => {
+    const digestService = {
+      preview: vi.fn().mockResolvedValue({ id: 'digest-1', content: '<b>Неделя</b>', status: 'draft' }),
+      approve: vi.fn().mockResolvedValue(true), configure: vi.fn(), disable: vi.fn(),
+    } as unknown as import('../src/digests/weekly-digest-service.js').WeeklyDigestService;
+    const { app, sendMessage } = createTestApp('42', undefined, digestService);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/digest_preview') });
+    expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({ keyboard: [[expect.objectContaining({ callbackData: 'digest:approve:digest-1' })]] }));
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('digest:approve:digest-1') });
+    expect(digestService.approve).toHaveBeenCalledWith('100', 'digest-1', '42');
   });
 
   it('allows an admin to create and list an event', async () => {
