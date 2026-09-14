@@ -46,6 +46,7 @@
 - Members search with `/sermon_search QUERY`.
 - Results include the sermon identifier, title/date, and a bounded transcript excerpt.
 - Search is scoped to the current church group and never invents citations.
+- Implemented as case-insensitive PostgreSQL transcript search with deterministic bounded excerpts.
 
 ## Definition Of Done
 

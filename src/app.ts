@@ -43,6 +43,7 @@ import { PrismaWeeklyDigestRepository } from './digests/prisma-weekly-digest-rep
 import { WeeklyDigestService } from './digests/weekly-digest-service.js';
 import { WeeklyDigestWorker } from './digests/weekly-digest-worker.js';
 import { EventRsvpService } from './events/event-rsvp-service.js';
+import { SermonSearchService } from './sermons/sermon-search-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -53,6 +54,7 @@ export interface BuildAppOptions {
   bibleAssistant?: BibleAssistantService;
   weeklyDigestService?: WeeklyDigestService;
   eventRsvpService?: EventRsvpService;
+  sermonSearchService?: SermonSearchService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -81,6 +83,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const weeklyDigestRepository = prisma ? new PrismaWeeklyDigestRepository(prisma) : null;
   const weeklyDigestService = options.weeklyDigestService ?? (weeklyDigestRepository ? new WeeklyDigestService(weeklyDigestRepository) : undefined);
   const eventRsvpService = options.eventRsvpService ?? (prisma ? new EventRsvpService(prisma) : undefined);
+  const sermonSearchService = options.sermonSearchService ?? (prisma ? new SermonSearchService(prisma) : undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && config.ai.geminiApiKey
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -101,6 +104,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(guidedEvents ? { guidedEvents } : {}),
     ...(weeklyDigestService ? { weeklyDigestService } : {}),
     ...(eventRsvpService ? { eventRsvpService } : {}),
+    ...(sermonSearchService ? { sermonSearchService } : {}),
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({

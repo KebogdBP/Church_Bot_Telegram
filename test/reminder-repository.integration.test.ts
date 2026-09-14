@@ -10,6 +10,7 @@ import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
 import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-digest-repository.js';
 import { EventRsvpService } from '../src/events/event-rsvp-service.js';
+import { SermonSearchService } from '../src/sermons/sermon-search-service.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -254,5 +255,20 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     await expect(service.respond('another-chat', event.id, 'member-3', 'going')).resolves.toBeNull();
 
     await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
+  it('searches only real transcripts from the current group', async () => {
+    const target = await prisma.churchGroup.create({ data: { telegramChatId: `search-target-${Date.now()}` } });
+    const other = await prisma.churchGroup.create({ data: { telegramChatId: `search-other-${Date.now()}` } });
+    const common = { status: 'STORED' as const, transcriptionStatus: 'COMPLETED' as const, contentStatus: 'PENDING' as const };
+    await prisma.sermon.create({ data: { churchGroupId: target.id, sourceMessageId: 'search-1', title: 'О надежде', transcript: 'Мы знаем, что надежда не постыжает и укрепляет церковь.', ...common } });
+    await prisma.sermon.create({ data: { churchGroupId: other.id, sourceMessageId: 'search-2', title: 'Чужая проповедь', transcript: 'Надежда в другой общине.', ...common } });
+    const service = new SermonSearchService(prisma);
+
+    const results = await service.search(target.telegramChatId, 'НАДЕЖДА');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ title: 'О надежде', excerpt: expect.stringContaining('надежда не постыжает') });
+
+    await prisma.churchGroup.deleteMany({ where: { id: { in: [target.id, other.id] } } });
   });
 });

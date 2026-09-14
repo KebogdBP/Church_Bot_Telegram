@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -17,6 +17,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(sermonPostService ? { sermonPostService } : {}),
     ...(weeklyDigestService ? { weeklyDigestService } : {}),
     ...(eventRsvpService ? { eventRsvpService } : {}),
+    ...(sermonSearchService ? { sermonSearchService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -203,6 +204,16 @@ describe('Telegram webhook', () => {
     expect(rsvpService.respond).toHaveBeenCalledWith('100', 'event-1', '42', 'going');
     expect(answerCallback).toHaveBeenCalledWith('callback-1', 'Ответ сохранён');
     expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('пойду — 2') });
+  });
+
+  it('returns sourced sermon search results to regular members', async () => {
+    const searchService = { search: vi.fn().mockResolvedValue([{ sermonId: 'sermon-1', title: 'О надежде', date: new Date('2026-09-13T10:00:00Z'), excerpt: 'надежда не постыжает' }]) } as unknown as import('../src/sermons/sermon-search-service.js').SermonSearchService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, searchService);
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/sermon_search надежда', 77) });
+
+    expect(searchService.search).toHaveBeenCalledWith('100', 'надежда');
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('Источник: <code>sermon-1</code>') });
   });
 
   it('allows an admin to create and list an event', async () => {

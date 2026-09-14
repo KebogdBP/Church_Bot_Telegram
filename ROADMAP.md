@@ -109,7 +109,7 @@ Goal: make the bot comfortable for everyday use and turn sermon transcripts into
 - [x] Add draft editing, rejection, and AI regeneration.
 - [x] Generate and deliver a moderated weekly digest.
 - [x] Add event RSVP with aggregate counts.
-- [ ] Search sermon transcripts and cite sermon/date excerpts.
+- [x] Search sermon transcripts and cite sermon/date excerpts.
 - [ ] Complete production regression, security review, and operator documentation.
 
 Deliverable: leaders can operate the core workflows from buttons, members can register for events and search the sermon archive, and no AI-generated content is published without explicit approval.

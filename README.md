@@ -88,6 +88,8 @@ Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic we
 
 `/events` includes RSVP buttons for every visible event. Any group member can choose "пойду", "возможно", or "не смогу" and change that choice later. The bot stores one current response per Telegram user and event, validates that the event belongs to the current chat, and posts aggregate counts without exposing a member list.
 
+Members can search completed sermon transcripts with `/sermon_search QUERY`. Results are scoped to the current Telegram group and show the stored sermon title, date, ID, and a bounded verbatim excerpt around the match. This command does not ask an AI model to create or paraphrase citations.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

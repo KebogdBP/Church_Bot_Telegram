@@ -15,6 +15,8 @@ import type { SermonStatusReader } from '../sermons/sermon-status-service.js';
 import type { GuidedEventService } from '../admin/guided-event-service.js';
 import type { WeeklyDigestService } from '../digests/weekly-digest-service.js';
 import type { EventRsvpService } from '../events/event-rsvp-service.js';
+import type { SermonSearchService } from '../sermons/sermon-search-service.js';
+import { DateTime } from 'luxon';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -28,6 +30,7 @@ export interface CommandRouterOptions {
   guidedEvents?: GuidedEventService;
   weeklyDigestService?: WeeklyDigestService;
   eventRsvpService?: EventRsvpService;
+  sermonSearchService?: SermonSearchService;
 }
 
 const HELP_TEXT = [
@@ -39,6 +42,7 @@ const HELP_TEXT = [
   '/admin - открыть панель администратора',
   '/events - ближайшие события',
   '/ask ВОПРОС - задать библейский вопрос',
+  '/sermon_search ЗАПРОС - найти мысль в архиве проповедей',
   '',
   '<b>Команды администратора</b>',
   '/event_add ГГГГ-ММ-ДД ЧЧ:ММ | Название | Место | Минут до напоминания',
@@ -135,6 +139,19 @@ export class CommandRouter {
       } catch {
         await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');
       }
+      return;
+    }
+
+    if (command === '/sermon_search') {
+      const query = message.text.replace(/^\/sermon_search(?:@\w+)?\s*/i, '').trim();
+      if (query.length < 2) { await this.reply(message.chatId, 'Формат: /sermon_search слова для поиска'); return; }
+      if (!this.options.sermonSearchService) { await this.reply(message.chatId, 'Архив проповедей сейчас недоступен.'); return; }
+      const results = await this.options.sermonSearchService.search(message.chatId, query);
+      await this.reply(message.chatId, results.length ? ['<b>Найдено в архиве</b>', ...results.map((result) => [
+        `<b>${escapeHtml(result.title)}</b> · ${DateTime.fromJSDate(result.date, { zone: this.options.timezone }).toFormat('dd.LL.yyyy')}`,
+        `«${escapeHtml(result.excerpt)}»`,
+        `Источник: <code>${result.sermonId}</code>`,
+      ].join('\n'))].join('\n\n') : 'В транскрипциях этой группы ничего не найдено.');
       return;
     }
 
