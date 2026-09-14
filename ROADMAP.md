@@ -99,3 +99,17 @@ Goal: make the bot dependable enough for real church use.
 - [ ] Run pilot in a test group.
 
 Deliverable: MVP is ready for a real group pilot.
+
+## Version 0.2: Community Experience
+
+Goal: make the bot comfortable for everyday use and turn sermon transcripts into a useful, searchable church archive.
+
+- [ ] Add inline keyboards and guided administrator flows.
+- [ ] Notify administrators as sermon processing advances.
+- [ ] Add draft editing, rejection, and AI regeneration.
+- [ ] Generate and deliver a moderated weekly digest.
+- [ ] Add event RSVP with aggregate counts.
+- [ ] Search sermon transcripts and cite sermon/date excerpts.
+- [ ] Complete production regression, security review, and operator documentation.
+
+Deliverable: leaders can operate the core workflows from buttons, members can register for events and search the sermon archive, and no AI-generated content is published without explicit approval.
