@@ -39,6 +39,7 @@
 - Members can answer Going, Maybe, or Not going using inline buttons.
 - One current response per Telegram user and event is stored.
 - Group messages show aggregate counts, not a public member list.
+- Implemented with chat-scoped event validation and idempotent per-user upserts.
 
 ## Phase 6: Sermon Archive Search
 

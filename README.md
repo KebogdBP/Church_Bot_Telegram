@@ -86,6 +86,8 @@ Administrators moderate AI drafts before publication. `/sermons` and `/sermon_re
 
 Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic weekly draft creation in the group timezone, `/digest_preview` creates or refreshes the current draft, and `/digest_approve ID` authorizes delivery. `/digest_disable` turns off automatic drafting. Approved deliveries are durable and retry temporary Telegram failures; `WEEKLY_DIGEST_POLL_INTERVAL_MS` controls worker polling.
 
+`/events` includes RSVP buttons for every visible event. Any group member can choose "пойду", "возможно", or "не смогу" and change that choice later. The bot stores one current response per Telegram user and event, validates that the event belongs to the current chat, and posts aggregate counts without exposing a member list.
+
 Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant

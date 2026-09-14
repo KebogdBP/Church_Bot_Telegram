@@ -9,6 +9,7 @@ import { PrismaSermonPostRepository } from '../src/sermons/prisma-sermon-post-re
 import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
 import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-digest-repository.js';
+import { EventRsvpService } from '../src/events/event-rsvp-service.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
@@ -236,6 +237,21 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(claimed).toEqual([expect.objectContaining({ id: draft.id, chatId })]);
     await repository.markSent(draft.id, now);
     expect((await repository.createOrRefreshDraft(chatId, now)).status).toBe('sent');
+
+    await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
+  it('stores one current RSVP per member and returns aggregate counts', async () => {
+    const chatId = `rsvp-${Date.now()}`;
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId } });
+    const event = await prisma.event.create({ data: { churchGroupId: group.id, title: 'Служение', startsAt: new Date('2099-09-20T07:00:00Z'), timezone: 'Europe/Moscow', reminderMinutesBefore: 60, createdByTelegramUserId: 'admin' } });
+    const service = new EventRsvpService(prisma);
+
+    expect(await service.respond(chatId, event.id, 'member-1', 'going')).toEqual({ going: 1, maybe: 0, notGoing: 0 });
+    expect(await service.respond(chatId, event.id, 'member-1', 'maybe')).toEqual({ going: 0, maybe: 1, notGoing: 0 });
+    expect(await service.respond(chatId, event.id, 'member-2', 'going')).toEqual({ going: 1, maybe: 1, notGoing: 0 });
+    expect(await prisma.eventRsvp.count({ where: { eventId: event.id } })).toBe(2);
+    await expect(service.respond('another-chat', event.id, 'member-3', 'going')).resolves.toBeNull();
 
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });

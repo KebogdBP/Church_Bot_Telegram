@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -16,6 +16,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     logger: false,
     ...(sermonPostService ? { sermonPostService } : {}),
     ...(weeklyDigestService ? { weeklyDigestService } : {}),
+    ...(eventRsvpService ? { eventRsvpService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -193,6 +194,17 @@ describe('Telegram webhook', () => {
     expect(digestService.approve).toHaveBeenCalledWith('100', 'digest-1', '42');
   });
 
+  it('accepts RSVP callbacks from a regular group member', async () => {
+    const rsvpService = { respond: vi.fn().mockResolvedValue({ going: 2, maybe: 1, notGoing: 0 }) } as unknown as import('../src/events/event-rsvp-service.js').EventRsvpService;
+    const { app, answerCallback, sendMessage } = createTestApp('99', undefined, undefined, rsvpService);
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('rsvp:event-1:going', 42) });
+
+    expect(rsvpService.respond).toHaveBeenCalledWith('100', 'event-1', '42', 'going');
+    expect(answerCallback).toHaveBeenCalledWith('callback-1', 'Ответ сохранён');
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('пойду — 2') });
+  });
+
   it('allows an admin to create and list an event', async () => {
     const { app, sendMessage } = createTestApp('42');
     const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
@@ -210,10 +222,11 @@ describe('Telegram webhook', () => {
       payload: messageUpdate('/events'),
     });
 
-    expect(sendMessage).toHaveBeenLastCalledWith({
+    expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
       chatId: '100',
       text: expect.stringContaining('Воскресное собрание'),
-    });
+      keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: expect.stringContaining('rsvp:') })])]),
+    }));
   });
 
   it('allows an admin to edit an event', async () => {

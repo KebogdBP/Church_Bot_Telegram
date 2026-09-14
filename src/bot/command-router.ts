@@ -14,6 +14,7 @@ import type { SermonIntakeService } from '../sermons/sermon-intake-service.js';
 import type { SermonStatusReader } from '../sermons/sermon-status-service.js';
 import type { GuidedEventService } from '../admin/guided-event-service.js';
 import type { WeeklyDigestService } from '../digests/weekly-digest-service.js';
+import type { EventRsvpService } from '../events/event-rsvp-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -26,6 +27,7 @@ export interface CommandRouterOptions {
   sermonStatus?: SermonStatusReader;
   guidedEvents?: GuidedEventService;
   weeklyDigestService?: WeeklyDigestService;
+  eventRsvpService?: EventRsvpService;
 }
 
 const HELP_TEXT = [
@@ -119,7 +121,7 @@ export class CommandRouter {
       const response = events.length === 0
         ? 'В расписании пока нет событий.'
         : ['<b>Ближайшие события</b>', '', ...events.map(formatEvent)].join('\n\n');
-      await this.reply(message.chatId, response);
+      await this.reply(message.chatId, response, events.length ? this.rsvpKeyboard(events) : undefined);
       return;
     }
 
@@ -232,6 +234,13 @@ export class CommandRouter {
 
   public async handleCallback(callback: IncomingCallback): Promise<void> {
     try {
+      const rsvp = /^rsvp:([^:]+):(going|maybe|not_going)$/.exec(callback.data);
+      if (rsvp && this.options.eventRsvpService) {
+        const counts = await this.options.eventRsvpService.respond(callback.chatId, rsvp[1]!, callback.userId, rsvp[2]! as import('../events/event-rsvp-service.js').RsvpChoice);
+        await this.options.sender.answerCallback?.(callback.id, counts ? 'Ответ сохранён' : 'Событие недоступно');
+        if (counts) await this.reply(callback.chatId, `Ответы на событие: пойду — ${counts.going}, возможно — ${counts.maybe}, не смогу — ${counts.notGoing}.`);
+        return;
+      }
       if (!(await this.options.adminService.isAdmin(callback.chatId, callback.userId))) {
         await this.options.sender.answerCallback?.(callback.id, 'Недостаточно прав');
         return;
@@ -253,7 +262,7 @@ export class CommandRouter {
       }
       if (callback.data === 'admin:events') {
         const events = await this.options.eventService.list(callback.chatId);
-        await this.reply(callback.chatId, events.length ? ['<b>Ближайшие события</b>', ...events.map(formatEvent)].join('\n\n') : 'В расписании пока нет событий.', [[{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
+        await this.reply(callback.chatId, events.length ? ['<b>Ближайшие события</b>', ...events.map(formatEvent)].join('\n\n') : 'В расписании пока нет событий.', [...this.rsvpKeyboard(events), [{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
       }
       if (callback.data === 'admin:sermons') {
         const drafts = await this.options.sermonPostService?.list(callback.chatId) ?? [];
@@ -409,5 +418,12 @@ export class CommandRouter {
 
   private async reply(chatId: string, text: string, keyboard?: import('../messaging/message-sender.js').InlineButton[][]): Promise<void> {
     await this.options.sender.sendMessage({ chatId, text, ...(keyboard ? { keyboard } : {}) });
+  }
+
+  private rsvpKeyboard(events: Array<{ id: string }>): import('../messaging/message-sender.js').InlineButton[][] {
+    return events.slice(0, 5).flatMap((event, index) => [
+      [{ text: `Событие #${index + 1}: пойду`, callbackData: `rsvp:${event.id}:going` }],
+      [{ text: 'Возможно', callbackData: `rsvp:${event.id}:maybe` }, { text: 'Не смогу', callbackData: `rsvp:${event.id}:not_going` }],
+    ]);
   }
 }

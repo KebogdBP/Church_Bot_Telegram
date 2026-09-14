@@ -70,6 +70,12 @@ enum WeeklyDigestStatus {
   FAILED
 }
 
+enum EventRsvpResponse {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -270,8 +276,22 @@ model Event {
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
   reminderDeliveries     ReminderDelivery[]
+  rsvps                  EventRsvp[]
 
   @@index([churchGroupId, active, startsAt])
+}
+
+model EventRsvp {
+  id             String            @id @default(cuid())
+  eventId        String
+  event          Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  telegramUserId String
+  response       EventRsvpResponse
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([eventId, telegramUserId])
+  @@index([eventId, response])
 }
 
 model ReminderDelivery {
