@@ -31,7 +31,7 @@ const envSchema = z.object({
   GROQ_API_KEY: optionalString(z.string().min(1)),
   GROQ_API_BASE_URL: z.url().default('https://api.groq.com/openai/v1'),
   GROQ_TRANSCRIPTION_MODEL: z.string().min(1).default('whisper-large-v3-turbo'),
-  GROQ_TEXT_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GROQ_TEXT_MODEL: z.string().min(1).default('openai/gpt-oss-20b'),
   TRANSCRIPTION_LANGUAGE: z.string().regex(/^[a-z]{2}$/).default('ru'),
   CONTENT_GENERATION_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
   SERMON_POST_POLL_INTERVAL_MS: z.coerce.number().int().min(1_000).max(300_000).default(30_000),
