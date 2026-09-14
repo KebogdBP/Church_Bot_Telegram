@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added natural private AI chat without slash commands; ordinary group conversation remains untouched.
+- Added optional archive-grounded AI answers, moderated announcements, and private prayer requests.
+
 ## 0.2.0 - 2026-09-14
 
 - Added an inline administrator dashboard and persistent guided event creation.

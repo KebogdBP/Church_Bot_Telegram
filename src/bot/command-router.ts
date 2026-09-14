@@ -40,6 +40,8 @@ export interface CommandRouterOptions {
 const HELP_TEXT = [
   '<b>Помощник церковной группы</b>',
   '',
+  'В личном чате просто напишите вопрос обычным сообщением.',
+  '',
   '/help - показать доступные команды',
   '/whoami - показать ваш Telegram ID',
   '/status - проверить состояние бота (для администраторов)',
@@ -126,6 +128,18 @@ export class CommandRouter {
     if (!message.text.startsWith('/') && this.options.guidedEvents && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
       const flowReply = await this.options.guidedEvents.consume(message.chatId, message.userId, message.text);
       if (flowReply) { await this.reply(message.chatId, flowReply.text, flowReply.keyboard); return; }
+    }
+
+    if (!message.text.startsWith('/') && message.chatType === 'private') {
+      if (message.text.length > 3_000) { await this.reply(message.chatId, 'Сообщение слишком длинное. Сократите вопрос до 3000 символов.'); return; }
+      if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
+      try {
+        const answer = await this.options.bibleAssistant.ask(message.chatId, message.userId, message.text);
+        await this.reply(message.chatId, escapeHtml(answer.text));
+      } catch {
+        await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');
+      }
+      return;
     }
 
     if (command === '/admin') {

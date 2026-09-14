@@ -229,6 +229,27 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('[sermon-1]') });
   });
 
+  it('answers ordinary private text without a slash command', async () => {
+    const bibleAssistant = { ask: vi.fn().mockResolvedValue({ text: 'Библейский ответ', escalated: false }), askWithSermons: vi.fn() } as unknown as import('../src/assistant/bible-assistant-service.js').BibleAssistantService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, bibleAssistant);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('Что такое благодать?', 77, 'private') });
+
+    expect(bibleAssistant.ask).toHaveBeenCalledWith('100', '77', 'Что такое благодать?');
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Библейский ответ' });
+  });
+
+  it('does not interrupt group conversation with unsolicited AI answers', async () => {
+    const bibleAssistant = { ask: vi.fn(), askWithSermons: vi.fn() } as unknown as import('../src/assistant/bible-assistant-service.js').BibleAssistantService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, bibleAssistant);
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('Обычное сообщение в группе', 77, 'group') });
+
+    expect(bibleAssistant.ask).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
   it('creates and approves an announcement only for an administrator', async () => {
     const announcements = { create: vi.fn().mockResolvedValue({ id: 'a1', content: 'Общее собрание', status: 'draft' }), find: vi.fn(), list: vi.fn(), edit: vi.fn(), reject: vi.fn(), approve: vi.fn().mockResolvedValue(true) } as unknown as import('../src/announcements/announcement-service.js').AnnouncementService;
     const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, announcements);

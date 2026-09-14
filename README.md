@@ -102,6 +102,8 @@ Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_a
 
 Members ask explicit questions with `/ask ВОПРОС`. The assistant returns a cautious Russian answer and a separate list of Bible references. Crisis, abuse, medical, legal, and financial-decision requests are redirected without calling AI. `/context_set ТЕКСТ` lets an administrator configure local church context. Conversation text is not retained in audit logs.
 
+In a private chat with the bot, members can also send an ordinary text question without a slash command. The same local safety checks, Gemini provider, privacy-preserving metadata log, and pastoral escalation rules apply. Free-form group messages are ignored so the bot does not interrupt normal conversation. Groq Whisper remains dedicated to sermon audio transcription.
+
 ## Administration
 
 The MVP uses Telegram commands rather than a separate web panel. Bootstrap administrators come from `TELEGRAM_ADMIN_USER_IDS`; `/admin_add ID` and `/admin_remove ID` manage persistent group-scoped roles. `/settings` shows group configuration and `/status` reports operational counts for events and sermon processing.

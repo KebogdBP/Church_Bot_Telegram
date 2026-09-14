@@ -10,6 +10,7 @@
 
 ## Phase 1: Archive-Grounded Answers
 
+- Ordinary private text is answered by the existing Bible assistant without requiring a slash command; ordinary group text is ignored.
 - `/ask_sermons QUESTION` retrieves bounded excerpts only from completed transcripts in the current group.
 - Gemini receives those excerpts as optional context and must cite sermon IDs used in the answer.
 - A deterministic source list is appended by the application; the model cannot invent its entries.
