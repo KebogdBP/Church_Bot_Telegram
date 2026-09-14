@@ -11,6 +11,9 @@
 - Audio size is limited and generated text is escaped before Telegram HTML rendering.
 - Linked audio requires HTTPS, refuses credentials, limits redirects, resolves DNS before every request, and blocks private/reserved networks.
 - The container runs as a non-root user and readiness checks include PostgreSQL.
+- RSVP callbacks validate the event against the current chat and expose aggregate counts only.
+- Digest and sermon AI content cannot enter a delivery queue without an authenticated administrator approval.
+- Archive search is group-scoped and returns bounded stored excerpts rather than AI-generated citations.
 
 ## Residual Risks
 

@@ -64,7 +64,7 @@ export class PrismaWeeklyDigestRepository implements WeeklyDigestRepository {
 
   private async compose(groupId: string, timezone: string, now: Date): Promise<string> {
     const [events, latestPost] = await Promise.all([
-      this.prisma.event.findMany({ where: { churchGroupId: groupId, active: true }, orderBy: { startsAt: 'asc' }, take: 5 }),
+      this.prisma.event.findMany({ where: { churchGroupId: groupId, active: true, OR: [{ recurrence: 'WEEKLY' }, { startsAt: { gte: now } }] }, orderBy: { startsAt: 'asc' }, take: 5 }),
       this.prisma.sermonPost.findFirst({ where: { churchGroupId: groupId, status: { in: [SermonPostStatus.SCHEDULED, SermonPostStatus.PROCESSING, SermonPostStatus.SENT] } }, orderBy: { approvedAt: 'desc' }, include: { sermon: true } }),
     ]);
     const lines = ['<b>Дайджест общины на неделю</b>', ''];

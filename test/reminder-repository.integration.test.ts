@@ -225,6 +225,7 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     const chatId = `digest-${Date.now()}`;
     const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId, digestEnabled: true, digestWeekday: 1, digestLocalTime: '08:00' } });
     await prisma.event.create({ data: { churchGroupId: group.id, title: 'Молитвенное собрание', startsAt: new Date('2026-09-16T16:00:00Z'), timezone: 'Europe/Moscow', reminderMinutesBefore: 60, createdByTelegramUserId: 'admin' } });
+    await prisma.event.create({ data: { churchGroupId: group.id, title: 'Прошедшее событие', startsAt: new Date('2026-09-01T16:00:00Z'), timezone: 'Europe/Moscow', reminderMinutesBefore: 60, createdByTelegramUserId: 'admin' } });
     const sermon = await prisma.sermon.create({ data: { churchGroupId: group.id, sourceMessageId: 'digest-sermon', status: 'STORED', transcriptionStatus: 'COMPLETED', contentStatus: 'COMPLETED' } });
     await prisma.sermonPost.create({ data: { sermonId: sermon.id, churchGroupId: group.id, sequence: 0, content: 'Храните надежду', status: 'SENT', approvedAt: new Date('2026-09-13T10:00:00Z') } });
     const repository = new PrismaWeeklyDigestRepository(prisma);
@@ -232,6 +233,7 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
 
     const draft = await repository.createOrRefreshDraft(chatId, now);
     expect(draft.content).toContain('Молитвенное собрание');
+    expect(draft.content).not.toContain('Прошедшее событие');
     expect(draft.content).toContain('Храните надежду');
     expect(await repository.approve(chatId, draft.id, 'admin-1', now)).toBe(true);
     const claimed = await repository.claimDue(now, 5);
@@ -253,6 +255,8 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(await service.respond(chatId, event.id, 'member-2', 'going')).toEqual({ going: 1, maybe: 1, notGoing: 0 });
     expect(await prisma.eventRsvp.count({ where: { eventId: event.id } })).toBe(2);
     await expect(service.respond('another-chat', event.id, 'member-3', 'going')).resolves.toBeNull();
+    const past = await prisma.event.create({ data: { churchGroupId: group.id, title: 'Прошло', startsAt: new Date('2020-01-01T00:00:00Z'), timezone: 'Europe/Moscow', reminderMinutesBefore: 60, createdByTelegramUserId: 'admin' } });
+    await expect(service.respond(chatId, past.id, 'member-3', 'going')).resolves.toBeNull();
 
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });

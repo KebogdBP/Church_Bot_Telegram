@@ -7,7 +7,7 @@ export class EventRsvpService {
   public constructor(private readonly prisma: PrismaClient) {}
 
   public async respond(chatId: string, eventId: string, userId: string, choice: RsvpChoice): Promise<RsvpCounts | null> {
-    const event = await this.prisma.event.findFirst({ where: { id: eventId, churchGroup: { telegramChatId: chatId }, active: true }, select: { id: true } });
+    const event = await this.prisma.event.findFirst({ where: { id: eventId, churchGroup: { telegramChatId: chatId }, active: true, OR: [{ recurrence: 'WEEKLY' }, { startsAt: { gt: new Date() } }] }, select: { id: true } });
     if (!event) return null;
     await this.prisma.eventRsvp.upsert({
       where: { eventId_telegramUserId: { eventId, telegramUserId: userId } },
