@@ -18,7 +18,7 @@ Current focus: production regression, privacy review, operator documentation, de
 - [ ] Verify the bot in a Telegram test channel and discussion group.
 - [ ] Add production deployment and backup configuration.
 - [ ] Add readiness monitoring and complete the security review.
-- [ ] Verify the isolated Xray route to `api.telegram.org` and complete the Raspberry Pi bot rollout.
+- [x] Verify the isolated Xray route to `api.telegram.org` and complete the Raspberry Pi bot rollout.
 - [x] Add group retention settings for audio, transcripts, and private prayer requests.
 - [x] Add an administrator-only retention dry run.
 - [x] Add retry-safe, audited deletion with explicit confirmation.
@@ -111,7 +111,7 @@ When handing off work, update:
 
 Last tested commands (2026-09-14): `npm test` (91 passed, 12 skipped), `npm run typecheck`, `npm run lint`, `npm run build`, `npm run db:deploy` against PostgreSQL 17, plus an isolated retention/database/filesystem smoke test.
 
-Deployment note: the Raspberry Pi deployment is installed at `/home/kebogd/apps/telegram-church-bot`; PostgreSQL starts successfully, but production polling is blocked until the host can reach `api.telegram.org:443`.
+Deployment note: the Raspberry Pi deployment is installed at `/home/kebogd/apps/telegram-church-bot`. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling runs through the sidecar while no proxy port is published. Docker autostart is enabled.
 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 

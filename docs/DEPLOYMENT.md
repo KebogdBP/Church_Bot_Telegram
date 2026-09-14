@@ -6,6 +6,13 @@
 
 Create `deploy/xray/config.json` from `deploy/xray/config.example.json` directly on the server. The real file is ignored by Git and must have mode `600`. Never commit or log the VLESS UUID, REALITY public key, or short ID.
 
+The official image runs as UID `65532`. If the host bind mount keeps mode `600`, grant that UID read access with an ACL while leaving access closed to everyone else:
+
+```sh
+setfacl -m u:65532:x deploy deploy/xray
+setfacl -m u:65532:r deploy/xray/config.json
+```
+
 Verify the proxy before starting the app:
 
 ```sh

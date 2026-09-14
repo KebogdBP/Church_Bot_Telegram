@@ -8,6 +8,7 @@
 - Added configurable retention for sermon audio, transcripts, and private prayer requests.
 - Added administrator-only dry-run and explicitly confirmed, idempotent cleanup commands.
 - Added an optional application-level outbound HTTP proxy and an isolated Xray sidecar for Raspberry Pi deployments.
+- Deployed and verified Telegram polling through the isolated Raspberry Pi VPN route.
 
 ## Unreleased
 
