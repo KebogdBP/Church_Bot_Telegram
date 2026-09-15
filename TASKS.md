@@ -23,7 +23,7 @@ Current focus: production regression, privacy review, operator documentation, de
 - [x] Add an administrator-only retention dry run.
 - [x] Add retry-safe, audited deletion with explicit confirmation.
 - [x] Complete the v0.3 code, security, timeout, and test-safety review.
-- [ ] Run the full PostgreSQL integration suite and deploy the review migrations to Raspberry Pi when SSH connectivity is restored.
+- [x] Run the full PostgreSQL integration suite and deploy the review migrations to Raspberry Pi.
 
 ## Done
 
@@ -111,9 +111,9 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands (2026-09-15): `npm test` (101 passed, 13 PostgreSQL integration tests skipped), `npm run typecheck`, `npm run lint`, `npm run build`, and `npm audit --audit-level=high`. The current network cannot reach the Raspberry Pi over LAN or Tailscale, so the new migrations and PostgreSQL integration suite still require deployment verification.
+Last tested commands (2026-09-15): `npm test` (101 unit and transport tests passed), the 13-test PostgreSQL integration suite against a dedicated server database, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm audit --audit-level=high`.
 
-Deployment note: the Raspberry Pi deployment is installed at `/home/kebogd/apps/telegram-church-bot`. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling runs through the sidecar while no proxy port is published. Docker autostart is enabled.
+Deployment note: commit `52f4769` is deployed at `/home/kebogd/apps/telegram-church-bot`. Both September 15 migrations are applied. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling and a real Groq health request were verified through the sidecar while no proxy port is published. Docker autostart is enabled.
 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 

@@ -19,7 +19,7 @@ The review covered application boundaries, external HTTP clients, AI fallback be
 
 - TypeScript typecheck: passed.
 - Unit and transport tests: 101 passed.
-- PostgreSQL integration tests: 13 skipped because no safe test database was reachable.
+- PostgreSQL integration tests: all 13 passed against a temporary dedicated Raspberry Pi database, which was removed after the run.
 - ESLint: passed.
 - Production build: passed.
 - High-severity dependency audit: zero vulnerabilities.
@@ -32,6 +32,6 @@ The review covered application boundaries, external HTTP clients, AI fallback be
 - Readiness currently proves database availability, not Telegram and AI-provider availability.
 - Delivery remains at-least-once and may duplicate a message if the process stops immediately after Telegram accepts it.
 
-## Deployment Gate
+## Deployment Verification
 
-Before release, apply both September 15 migrations to the Raspberry Pi database, run all PostgreSQL integration tests against a dedicated database whose name contains `test`, restart the bot, and verify private AI chat, audio transcription, and `/retention_dry_run` in Telegram.
+Commit `52f4769` was deployed to the Raspberry Pi after a database backup. Both September 15 migrations applied successfully, all containers became healthy, Telegram polling started through the isolated Xray sidecar, and a real Groq JSON request through the same route succeeded. Manual Telegram checks of private chat, audio transcription, and `/retention_dry_run` remain useful release acceptance checks.
