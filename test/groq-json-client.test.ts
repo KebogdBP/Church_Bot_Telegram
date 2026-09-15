@@ -14,4 +14,15 @@ describe('Groq JSON client', () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: { message: 'bad request' } }), { status: 400 }));
     await expect(generateGroqJson({ apiKey: 'secret', model: 'model', baseUrl: 'https://api.groq.com/openai/v1', request }, 'system', 'input')).rejects.toThrow('Groq returned 400: bad request');
   });
+
+  it('retries a Groq structured-output validation failure in prompt-only JSON mode', async () => {
+    const request = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Failed to validate JSON', code: 'failed_generation' } }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: '{"answer":"ok"}' } }] }), { status: 200 }));
+    await expect(generateGroqJson({ apiKey: 'key', model: 'model', baseUrl: 'https://api.groq.com/openai/v1', request }, 'system', 'input')).resolves.toEqual({ answer: 'ok' });
+    expect(request).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(String(request.mock.calls[1]?.[1]?.body));
+    expect(retryBody.response_format).toBeUndefined();
+    expect(retryBody.temperature).toBe(0);
+  });
 });
