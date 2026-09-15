@@ -42,5 +42,6 @@ describe('platform audio download', () => {
     const client = new YtDlpAudioClient('yt-dlp', 'http://proxy:1080', run, vi.fn().mockResolvedValue(undefined));
     await expect(client.download('https://rutube.ru/video/abc', 1_000)).resolves.toMatchObject({ fileName: 'sermon.mp3' });
     expect(run).toHaveBeenCalledWith(expect.arrayContaining(['--no-playlist', '--proxy', 'http://proxy:1080', 'https://rutube.ru/video/abc']));
+    expect(run.mock.calls[0]?.[0]).not.toContain('--max-downloads');
   });
 });

@@ -31,7 +31,7 @@ export class YtDlpAudioClient implements PublicAudioClient {
     try {
       const output = join(directory, 'sermon.%(ext)s');
       const commonArgs = [
-        '--no-playlist', '--max-downloads', '1', '--no-warnings', '--no-update', '--extract-audio', '--audio-format', 'mp3',
+        '--no-playlist', '--no-warnings', '--no-update', '--extract-audio', '--audio-format', 'mp3',
         '--audio-quality', '5', '--max-filesize', String(maxBytes), '--output', output,
         ...(this.proxyUrl ? ['--proxy', this.proxyUrl] : []),
       ];
