@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createPublicSermonId } from './public-sermon-id.js';
 import type { CreateSermon, Sermon, SermonRepository } from './sermon.js';
 
 export class InMemorySermonRepository implements SermonRepository {
@@ -11,6 +12,7 @@ export class InMemorySermonRepository implements SermonRepository {
 
     const sermon: Sermon = {
       id: randomUUID(),
+      publicId: createPublicSermonId(),
       ...input,
       status: 'received',
       attempts: 0,

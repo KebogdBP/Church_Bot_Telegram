@@ -99,6 +99,8 @@ After transcription, a content worker uses Gemini structured output to generate 
 
 Administrators can send a public YouTube, RuTube, VK Video, OK, MAX, or direct audio HTTPS link as a standalone message, or use `/sermon_link URL`. Platform links are processed by `yt-dlp` through the bot-only proxy; playlists, private media, DRM-protected media, and links requiring an account are intentionally unsupported. After download, the normal transcription and AI-analysis pipeline runs automatically.
 
+Every accepted audio or link receives a compact six-character code such as `A7K3P9`. Use it with `/sermon_status A7K3P9` and `/sermon_regenerate A7K3P9`. Commands still accept legacy long IDs for previously received sermons.
+
 Large sermons can be submitted with `/sermon_link HTTPS_URL`. Public linked files are accepted up to `SERMON_MAX_LINK_FILE_SIZE_BYTES` (500 MB by default), normalized to 16 kHz mono OGG/Opus with `ffmpeg`, split into one-hour segments, transcribed sequentially by Groq, and joined before Gemini analysis. Use `/sermon_status ID` to monitor every stage. Direct Telegram uploads remain subject to Telegram Cloud Bot API's 20 MB download limit.
 
 The administrator who submitted a sermon receives private milestone notifications when the file is stored, transcription finishes, generated materials become ready, or a processing stage reaches a terminal failure. Notifications contain no transcript text, are deduplicated in PostgreSQL, and retry after temporary Telegram errors. `SERMON_NOTIFICATION_POLL_INTERVAL_MS` controls the polling interval.

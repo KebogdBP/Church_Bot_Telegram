@@ -150,7 +150,7 @@ export class CommandRouter {
         ? 'Добавлять проповеди могут только администраторы.'
         : result.status === 'duplicate'
         ? 'Эта ссылка уже принята.'
-        : `Ссылка принята на транскрибацию. ID: <code>${result.sermon.id}</code>`);
+        : `Ссылка принята на транскрибацию. ID: <code>${result.sermon.publicId ?? result.sermon.id}</code>`);
       return;
     }
 
@@ -315,7 +315,7 @@ export class CommandRouter {
           const result = await this.options.sermonIntake.receiveLink({ chatId: message.chatId, messageId: message.messageId, userId: message.userId, url: rawUrl });
           await this.reply(message.chatId, result.status === 'forbidden'
             ? 'Добавлять проповеди могут только администраторы.'
-            : result.status === 'duplicate' ? 'Эта ссылка уже принята.' : `Ссылка принята. ID: <code>${result.sermon.id}</code>`);
+            : result.status === 'duplicate' ? 'Эта ссылка уже принята.' : `Ссылка принята. ID: <code>${result.sermon.publicId ?? result.sermon.id}</code>`);
         } catch { await this.reply(message.chatId, 'Нужна публичная HTTPS-ссылка на видео или аудио.'); }
         return;
       }

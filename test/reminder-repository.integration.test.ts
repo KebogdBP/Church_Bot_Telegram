@@ -16,6 +16,7 @@ import { PrayerRequestService } from '../src/prayers/prayer-request-service.js';
 import { PrayerRequestWorker } from '../src/prayers/prayer-request-worker.js';
 import { RetentionService } from '../src/retention/retention-service.js';
 import { PrismaAssistantRepository } from '../src/assistant/prisma-assistant-repository.js';
+import { PrismaSermonStatusReader } from '../src/sermons/sermon-status-service.js';
 import { access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -115,7 +116,12 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     expect(first.created).toBe(true);
     expect(duplicate.created).toBe(false);
     expect(duplicate.sermon.id).toBe(first.sermon.id);
+    expect(first.sermon.publicId).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
+    expect(duplicate.sermon.publicId).toBe(first.sermon.publicId);
     expect(duplicate.sermon.fileSize).toBe(4_096);
+    const status = new PrismaSermonStatusReader(prisma);
+    await expect(status.get(input.chatId, first.sermon.publicId!.toLowerCase())).resolves.toMatchObject({ id: first.sermon.publicId });
+    await expect(status.get(input.chatId, first.sermon.id)).resolves.toMatchObject({ id: first.sermon.publicId });
   });
 
   it('claims stored audio and persists its transcript', async () => {

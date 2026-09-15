@@ -15,20 +15,21 @@ export class PrismaSermonNotificationRepository implements SermonNotificationRep
     });
     const rows: Array<{ sermonId: string; kind: string; targetChatId: string; message: string; availableAt: Date }> = [];
     for (const sermon of sermons) {
+      const publicId = sermon.publicId;
       const existing = new Set(sermon.notifications.map((item) => item.kind));
       const targetChatId = sermon.submittedByUserId ?? sermon.churchGroup.telegramChatId;
       const add = (kind: string, message: string, availableAt = now) => { if (!existing.has(kind)) rows.push({ sermonId: sermon.id, kind, targetChatId, message, availableAt }); };
       const personal = sermon.purpose === SermonPurpose.PERSONAL_TRANSCRIPTION;
-      if (sermon.status === SermonStatus.STORED) add('stored', personal ? `Аудио ${sermon.id}: файл подготовлен, начинается транскрибация.` : `Проповедь ${sermon.id}: файл загружен и подготовлен.`);
-      if (sermon.status === SermonStatus.TOO_LARGE || (sermon.status === SermonStatus.FAILED && sermon.attempts >= 5)) add('download_failed', `Проповедь ${sermon.id}: не удалось загрузить файл. Проверьте /sermon_status ${sermon.id}`);
-      if (sermon.transcriptionStatus === TranscriptionStatus.COMPLETED && !personal) add('transcribed', `Проповедь ${sermon.id}: транскрибация завершена.`);
+      if (sermon.status === SermonStatus.STORED) add('stored', personal ? `Аудио ${publicId}: файл подготовлен, начинается транскрибация.` : `Проповедь ${publicId}: файл загружен и подготовлен.`);
+      if (sermon.status === SermonStatus.TOO_LARGE || (sermon.status === SermonStatus.FAILED && sermon.attempts >= 5)) add('download_failed', `Проповедь ${publicId}: не удалось загрузить файл. Проверьте /sermon_status ${publicId}`);
+      if (sermon.transcriptionStatus === TranscriptionStatus.COMPLETED && !personal) add('transcribed', `Проповедь ${publicId}: транскрибация завершена.`);
       if (sermon.transcriptionStatus === TranscriptionStatus.COMPLETED && personal && sermon.transcript) {
         const chunks = splitTelegramText(sermon.transcript);
-        chunks.forEach((chunk, index) => add(`transcript_${String(index).padStart(4, '0')}`, `${index === 0 ? `<b>Транскрибация готова</b>\nID: <code>${sermon.id}</code>\n\n` : ''}${chunk}${chunks.length > 1 ? `\n\nЧасть ${index + 1}/${chunks.length}` : ''}`, new Date(now.getTime() + index)));
+        chunks.forEach((chunk, index) => add(`transcript_${String(index).padStart(4, '0')}`, `${index === 0 ? `<b>Транскрибация готова</b>\nID: <code>${publicId}</code>\n\n` : ''}${chunk}${chunks.length > 1 ? `\n\nЧасть ${index + 1}/${chunks.length}` : ''}`, new Date(now.getTime() + index)));
       }
-      if (sermon.transcriptionStatus === TranscriptionStatus.FAILED && sermon.transcriptionAttempts >= 5) add('transcription_failed', `Проповедь ${sermon.id}: транскрибация не завершена. Проверьте /sermon_status ${sermon.id}`);
-      if (!personal && sermon.contentStatus === ContentGenerationStatus.COMPLETED) add('content_ready', `Материалы проповеди ${sermon.id} готовы к проверке: /sermons`);
-      if (!personal && sermon.contentStatus === ContentGenerationStatus.FAILED && sermon.contentAttempts >= 5) add('content_failed', `Проповедь ${sermon.id}: Gemini не подготовил материалы. Проверьте /sermon_status ${sermon.id}`);
+      if (sermon.transcriptionStatus === TranscriptionStatus.FAILED && sermon.transcriptionAttempts >= 5) add('transcription_failed', `Проповедь ${publicId}: транскрибация не завершена. Проверьте /sermon_status ${publicId}`);
+      if (!personal && sermon.contentStatus === ContentGenerationStatus.COMPLETED) add('content_ready', `Материалы проповеди ${publicId} готовы к проверке: /sermons`);
+      if (!personal && sermon.contentStatus === ContentGenerationStatus.FAILED && sermon.contentAttempts >= 5) add('content_failed', `Проповедь ${publicId}: AI не подготовил материалы. Проверьте /sermon_status ${publicId}`);
     }
     if (!rows.length) return 0;
     return (await this.prisma.sermonNotification.createMany({ data: rows, skipDuplicates: true })).count;

@@ -287,6 +287,7 @@ model AssistantConversationTurn {
 
 model Sermon {
   id                 String          @id @default(cuid())
+  publicId           String          @unique @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 6))"))
   churchGroupId      String
   churchGroup        ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
   purpose            SermonPurpose   @default(CHURCH_SERMON)

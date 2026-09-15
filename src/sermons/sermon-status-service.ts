@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { normalizePublicSermonId } from './public-sermon-id.js';
 
 export interface SermonStatusView {
   id: string;
@@ -18,15 +19,15 @@ export class PrismaSermonStatusReader implements SermonStatusReader {
   public constructor(private readonly prisma: PrismaClient) {}
   public async get(chatId: string, sermonId: string): Promise<SermonStatusView | null> {
     const sermon = await this.prisma.sermon.findFirst({
-      where: { id: sermonId, churchGroup: { telegramChatId: chatId } },
+      where: { churchGroup: { telegramChatId: chatId }, OR: [{ id: sermonId }, { publicId: normalizePublicSermonId(sermonId) }] },
       select: {
-        id: true, fileName: true, status: true, transcriptionStatus: true, contentStatus: true,
+        publicId: true, fileName: true, status: true, transcriptionStatus: true, contentStatus: true,
         lastError: true, transcriptionError: true, contentError: true, _count: { select: { posts: true } },
       },
     });
     if (!sermon) return null;
     return {
-      id: sermon.id,
+      id: sermon.publicId,
       ...(sermon.fileName ? { fileName: sermon.fileName } : {}),
       download: sermon.status,
       transcription: sermon.transcriptionStatus,

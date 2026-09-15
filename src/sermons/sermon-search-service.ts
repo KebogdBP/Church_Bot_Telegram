@@ -11,9 +11,9 @@ export class SermonSearchService {
     const sermons = await this.prisma.sermon.findMany({
       where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, transcript: { contains: query, mode: 'insensitive' } },
       orderBy: { createdAt: 'desc' }, take: Math.min(Math.max(limit, 1), 10),
-      select: { id: true, title: true, fileName: true, createdAt: true, transcript: true },
+      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true },
     });
-    return sermons.flatMap((sermon) => sermon.transcript ? [{ sermonId: sermon.id, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, query) }] : []);
+    return sermons.flatMap((sermon) => sermon.transcript ? [{ sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, query) }] : []);
   }
 
   public async searchContext(chatId: string, question: string, limit = 3): Promise<SermonSearchResult[]> {
@@ -22,13 +22,13 @@ export class SermonSearchService {
     const sermons = await this.prisma.sermon.findMany({
       where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, transcript: { not: null }, OR: terms.map((term) => ({ transcript: { contains: term, mode: 'insensitive' as const } })) },
       orderBy: { createdAt: 'desc' }, take: 20,
-      select: { id: true, title: true, fileName: true, createdAt: true, transcript: true },
+      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true },
     });
     return sermons.flatMap((sermon) => {
       if (!sermon.transcript) return [];
       const lower = sermon.transcript.toLocaleLowerCase('ru');
       const matched = terms.find((term) => lower.includes(term));
-      return matched ? [{ sermonId: sermon.id, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, matched, 220) }] : [];
+      return matched ? [{ sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, matched, 220) }] : [];
     }).slice(0, Math.min(Math.max(limit, 1), 3));
   }
 }

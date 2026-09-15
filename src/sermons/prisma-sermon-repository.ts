@@ -7,6 +7,7 @@ import {
   type Sermon as PrismaSermon,
 } from '@prisma/client';
 import type { CreateSermon, Sermon, SermonRepository } from './sermon.js';
+import { createPublicSermonId } from './public-sermon-id.js';
 
 export class PrismaSermonRepository implements SermonRepository {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -18,9 +19,11 @@ export class PrismaSermonRepository implements SermonRepository {
       create: { telegramChatId: input.chatId, timezone },
     });
 
-    try {
-      const sermon = await this.prisma.sermon.create({
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const sermon = await this.prisma.sermon.create({
         data: {
+          publicId: createPublicSermonId(),
           churchGroupId: group.id,
           purpose: input.purpose === 'personal_transcription' ? SermonPurpose.PERSONAL_TRANSCRIPTION : SermonPurpose.CHURCH_SERMON,
           sourceMessageId: input.sourceMessageId,
@@ -37,20 +40,23 @@ export class PrismaSermonRepository implements SermonRepository {
           performer: input.performer ?? null,
           caption: input.caption ?? null,
         },
-      });
-      return { sermon: toDomain(sermon, input.chatId), created: true };
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
-      const existing = await this.prisma.sermon.findUniqueOrThrow({
+        });
+        return { sermon: toDomain(sermon, input.chatId), created: true };
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+        const existing = await this.prisma.sermon.findUnique({
         where: {
           churchGroupId_sourceMessageId: {
             churchGroupId: group.id,
             sourceMessageId: input.sourceMessageId,
           },
         },
-      });
-      return { sermon: toDomain(existing, input.chatId), created: false };
+        });
+        if (existing) return { sermon: toDomain(existing, input.chatId), created: false };
+        if (attempt === 4) throw error;
+      }
     }
+    throw new Error('Could not allocate a public sermon ID');
   }
 
   public async recoverStale(now: Date, staleBefore: Date): Promise<number> {
@@ -139,6 +145,7 @@ function toPrismaKind(kind: CreateSermon['kind']): SermonAudioKind {
 function toDomain(sermon: PrismaSermon, chatId: string): Sermon {
   return {
     id: sermon.id,
+    publicId: sermon.publicId,
     chatId,
     purpose: sermon.purpose === SermonPurpose.PERSONAL_TRANSCRIPTION ? 'personal_transcription' : 'church_sermon',
     sourceMessageId: sermon.sourceMessageId,
@@ -161,6 +168,7 @@ function toDomain(sermon: PrismaSermon, chatId: string): Sermon {
     createdAt: sermon.createdAt,
   };
 }
+
 
 function toDomainStatus(status: PrismaSermonStatus): Sermon['status'] {
   return status.toLowerCase() as Sermon['status'];

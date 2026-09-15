@@ -4,6 +4,7 @@ export type SermonStatus = 'received' | 'downloading' | 'stored' | 'too_large' |
 
 export interface Sermon {
   id: string;
+  publicId?: string;
   chatId: string;
   purpose?: 'church_sermon' | 'personal_transcription';
   sourceMessageId: string;
@@ -24,7 +25,7 @@ export interface Sermon {
   createdAt: Date;
 }
 
-export type CreateSermon = Omit<Sermon, 'id' | 'status' | 'attempts' | 'createdAt'>;
+export type CreateSermon = Omit<Sermon, 'id' | 'publicId' | 'status' | 'attempts' | 'createdAt'>;
 
 export interface SermonRepository {
   createIfNew(input: CreateSermon, timezone: string): Promise<{ sermon: Sermon; created: boolean }>;

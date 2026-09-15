@@ -22,6 +22,7 @@
 - Added encrypted, user-scoped AI conversation memory with a 30-day expiry and `/new_chat` deletion command.
 - Added public video-platform audio extraction for sermon links with `yt-dlp`, proxy routing, host allowlisting, playlist blocking, and size limits.
 - Added standalone-link intake and 6–12 AI follow-up drafts scheduled at three collision-free group slots per day after administrator approval.
+- Added six-character public sermon IDs across intake, status, notifications, archive search, and regeneration while retaining compatibility with existing internal IDs.
 
 ## 0.2.0 - 2026-09-14
 

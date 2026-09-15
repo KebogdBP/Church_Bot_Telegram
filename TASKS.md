@@ -25,6 +25,7 @@ Current focus: production regression, privacy review, operator documentation, de
 - [x] Complete the v0.3 code, security, timeout, and test-safety review.
 - [x] Add bounded encrypted AI conversation memory and user-controlled deletion.
 - [x] Add public platform-link transcription and three-times-daily moderated sermon follow-ups.
+- [x] Replace user-facing sermon identifiers with compact six-character codes.
 - [x] Run the full PostgreSQL integration suite and deploy the review migrations to Raspberry Pi.
 
 ## Done

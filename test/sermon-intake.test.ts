@@ -3,6 +3,7 @@ import { InMemorySermonRepository } from '../src/sermons/in-memory-sermon-reposi
 import { SermonIntakeService } from '../src/sermons/sermon-intake-service.js';
 import { standaloneHttpsUrl } from '../src/bot/command-router.js';
 import type { IncomingSermonAudio } from '../src/telegram/types.js';
+import { createPublicSermonId } from '../src/sermons/public-sermon-id.js';
 
 const AUDIO: IncomingSermonAudio = {
   chatId: '-100500',
@@ -20,6 +21,9 @@ const AUDIO: IncomingSermonAudio = {
 };
 
 describe('SermonIntakeService', () => {
+  it('creates a compact unambiguous public ID', () => {
+    expect(createPublicSermonId()).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
+  });
   it('recognizes a standalone shared HTTPS link', () => {
     expect(standaloneHttpsUrl(' https://youtu.be/abc ')).toBe('https://youtu.be/abc');
     expect(standaloneHttpsUrl('Посмотрите https://youtu.be/abc')).toBeNull();
@@ -37,6 +41,7 @@ describe('SermonIntakeService', () => {
     expect(first.status).toBe('accepted');
     expect(duplicate.status).toBe('duplicate');
     if (first.status === 'accepted') {
+      expect(first.sermon.publicId).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
       expect(first.sermon.status).toBe('received');
       expect(first.sermon.fileName).toBe('sermon.mp3');
     }
