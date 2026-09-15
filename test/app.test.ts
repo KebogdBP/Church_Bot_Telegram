@@ -277,6 +277,16 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Библейский ответ' });
   });
 
+  it('clears private AI conversation history on command', async () => {
+    const bibleAssistant = { ask: vi.fn(), askWithSermons: vi.fn(), clearHistory: vi.fn().mockResolvedValue(undefined) } as unknown as import('../src/assistant/bible-assistant-service.js').BibleAssistantService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, bibleAssistant);
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/new_chat', 77, 'private') });
+
+    expect(bibleAssistant.clearHistory).toHaveBeenCalledWith('100', '77');
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: expect.stringContaining('Начинаем новый разговор') });
+  });
+
   it('does not interrupt group conversation with unsolicited AI answers', async () => {
     const bibleAssistant = { ask: vi.fn(), askWithSermons: vi.fn() } as unknown as import('../src/assistant/bible-assistant-service.js').BibleAssistantService;
     const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, bibleAssistant);

@@ -19,6 +19,7 @@
 - Prevented integration tests from running destructive cleanup against a non-test database.
 - Hardened Telegram HTML truncation and removed duplicate escaping implementations.
 - Added exponential retry delays and stale-job diagnostics to prayer-request publication.
+- Added encrypted, user-scoped AI conversation memory with a 30-day expiry and `/new_chat` deletion command.
 
 ## 0.2.0 - 2026-09-14
 

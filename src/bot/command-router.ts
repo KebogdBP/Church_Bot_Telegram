@@ -59,6 +59,7 @@ const HELP_TEXT = [
   '/admin - открыть панель администратора',
   '/events - ближайшие события',
   '/ask ВОПРОС - задать библейский вопрос',
+  '/new_chat - забыть историю диалога с AI',
   '/ask_sermons ВОПРОС - спросить с учетом архива проповедей',
   '/sermon_search ЗАПРОС - найти мысль в архиве проповедей',
   '/church_id - показать ID церковной группы',
@@ -236,6 +237,12 @@ export class CommandRouter {
       return;
     }
 
+    if (command === '/new_chat') {
+      if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
+      await this.options.bibleAssistant.clearHistory(message.chatId, message.userId);
+      await this.reply(message.chatId, 'История диалога удалена. Начинаем новый разговор.');
+      return;
+    }
     if (command === '/ask' || command === '/ask_sermons') {
       const question = message.text.replace(/^\/ask(?:_sermons)?(?:@\w+)?\s*/i, '').trim();
       if (!question) { await this.reply(message.chatId, `Формат: ${command} ваш вопрос`); return; }

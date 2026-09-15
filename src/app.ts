@@ -115,7 +115,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     : bibleProviders[0];
   const bibleAssistant = options.bibleAssistant ?? (prisma && bibleProvider
     ? new BibleAssistantService(
-        new PrismaAssistantRepository(prisma),
+        new PrismaAssistantRepository(prisma, config.privacySecret),
         bibleProvider,
         config.privacySecret,
         config.app.timezone,

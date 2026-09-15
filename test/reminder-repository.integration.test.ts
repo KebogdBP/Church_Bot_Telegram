@@ -15,6 +15,7 @@ import { PrismaAnnouncementRepository } from '../src/announcements/prisma-announ
 import { PrayerRequestService } from '../src/prayers/prayer-request-service.js';
 import { PrayerRequestWorker } from '../src/prayers/prayer-request-worker.js';
 import { RetentionService } from '../src/retention/retention-service.js';
+import { PrismaAssistantRepository } from '../src/assistant/prisma-assistant-repository.js';
 import { access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -351,5 +352,22 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(sender.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Личная исходная просьба') }));
     expect((await prisma.prayerRequest.findUniqueOrThrow({ where: { id: request!.id } })).status).toBe('PUBLISHED');
     await prisma.churchGroup.delete({ where: { telegramChatId: chatId } });
+  });
+
+  it('stores conversation history encrypted and clears it per user', async () => {
+    const chatId = `assistant-history-${Date.now()}`;
+    const repository = new PrismaAssistantRepository(prisma, 'integration-privacy-secret');
+    await repository.appendExchange(chatId, 'user-hash-1', 'Кто такой Павел?', 'Он был апостолом.', 'Europe/Moscow');
+    const group = await prisma.churchGroup.findUniqueOrThrow({ where: { telegramChatId: chatId } });
+    const stored = await prisma.assistantConversationTurn.findMany({ where: { churchGroupId: group.id }, orderBy: { createdAt: 'asc' } });
+    expect(stored).toHaveLength(2);
+    expect(stored.map((turn) => turn.contentEncrypted).join(' ')).not.toContain('Павел');
+    await expect(repository.getHistory(chatId, 'user-hash-1', 20)).resolves.toEqual([
+      { role: 'user', content: 'Кто такой Павел?' },
+      { role: 'assistant', content: 'Он был апостолом.' },
+    ]);
+    await repository.clearHistory(chatId, 'user-hash-1');
+    await expect(repository.getHistory(chatId, 'user-hash-1', 20)).resolves.toEqual([]);
+    await prisma.churchGroup.delete({ where: { id: group.id } });
   });
 });

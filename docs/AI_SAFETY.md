@@ -15,7 +15,8 @@ Gemini is the preferred text provider. Groq is an automatic fallback for Bible a
 - Redirect medical, legal, and financial decisions to qualified professionals.
 - Never store question or answer text in interaction logs.
 - Store only a keyed user hash, technical category, outcome, model, group, and timestamp.
-- `/ask` sends only the current question and configured church context to Gemini; stored interaction history is never sent.
+- `/ask` and private free-text chat send the current question, configured church context, and at most 20 recent turns for the same chat and user. The history is bounded to 12,000 characters.
+- Conversation turns are encrypted at rest with AES-256-GCM, expire after 30 days, and can be deleted immediately with `/new_chat`. They are not copied into logs or audit records.
 - `/ask_sermons` may additionally send up to three bounded transcript excerpts from the current group. Transcript text is treated as untrusted reference material, not instructions.
 - Archive source IDs shown to users are restricted to IDs retrieved by the application, even if the model returns other values.
 - Use Groq for audio transcription and as a bounded fallback when Gemini text generation fails.

@@ -116,6 +116,7 @@ model ChurchGroup {
   sermonPosts SermonPost[]
   assistantContext String?
   assistantInteractions AssistantInteraction[]
+  assistantConversationTurns AssistantConversationTurn[]
   admins    GroupAdmin[]
   adminFlows AdminFlow[]
   weeklyDigests WeeklyDigest[]
@@ -268,6 +269,20 @@ model AssistantInteraction {
   createdAt     DateTime         @default(now())
 
   @@index([churchGroupId, createdAt])
+}
+
+model AssistantConversationTurn {
+  id               String      @id @default(cuid())
+  churchGroupId    String
+  churchGroup      ChurchGroup @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  userHash         String
+  role             String
+  contentEncrypted String
+  createdAt        DateTime    @default(now())
+  expiresAt        DateTime
+
+  @@index([churchGroupId, userHash, createdAt])
+  @@index([expiresAt])
 }
 
 model Sermon {
