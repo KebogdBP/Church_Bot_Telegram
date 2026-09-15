@@ -73,7 +73,7 @@ const HELP_TEXT = [
   '',
   '<b>Материалы проповедей</b>',
   '/sermons - черновики публикаций',
-  '/sermon_link HTTPS_URL - добавить аудио по ссылке',
+  '/sermon_link HTTPS_URL - добавить аудио или видео по ссылке',
   '/sermon_status ID - проверить обработку проповеди',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
@@ -141,6 +141,17 @@ export class CommandRouter {
     if (!message.text.startsWith('/') && this.options.guidedEvents && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
       const flowReply = await this.options.guidedEvents.consume(message.chatId, message.userId, message.text);
       if (flowReply) { await this.reply(message.chatId, flowReply.text, flowReply.keyboard); return; }
+    }
+
+    const sharedSermonUrl = standaloneHttpsUrl(message.text);
+    if (sharedSermonUrl && this.options.sermonIntake && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
+      const result = await this.options.sermonIntake.receiveLink({ chatId: message.chatId, messageId: message.messageId, userId: message.userId, url: sharedSermonUrl });
+      await this.reply(message.chatId, result.status === 'forbidden'
+        ? 'Добавлять проповеди могут только администраторы.'
+        : result.status === 'duplicate'
+        ? 'Эта ссылка уже принята.'
+        : `Ссылка принята на транскрибацию. ID: <code>${result.sermon.id}</code>`);
+      return;
     }
 
     if (!message.text.startsWith('/') && message.chatType === 'private') {
@@ -299,13 +310,13 @@ export class CommandRouter {
       }
       if (command === '/sermon_link') {
         const rawUrl = message.text.split(/\s+/, 2)[1];
-        if (!rawUrl || !this.options.sermonIntake) { await this.reply(message.chatId, 'Формат: /sermon_link https://example.org/sermon.mp3'); return; }
+        if (!rawUrl || !this.options.sermonIntake) { await this.reply(message.chatId, 'Формат: /sermon_link HTTPS_URL (YouTube, RuTube, VK, OK, MAX или аудиофайл)'); return; }
         try {
           const result = await this.options.sermonIntake.receiveLink({ chatId: message.chatId, messageId: message.messageId, userId: message.userId, url: rawUrl });
           await this.reply(message.chatId, result.status === 'forbidden'
             ? 'Добавлять проповеди могут только администраторы.'
             : result.status === 'duplicate' ? 'Эта ссылка уже принята.' : `Ссылка принята. ID: <code>${result.sermon.id}</code>`);
-        } catch { await this.reply(message.chatId, 'Нужна публичная HTTPS-ссылка на аудиофайл.'); }
+        } catch { await this.reply(message.chatId, 'Нужна публичная HTTPS-ссылка на видео или аудио.'); }
         return;
       }
       if (command === '/sermon_status') {
@@ -629,4 +640,10 @@ export class CommandRouter {
 
 function errorMessage(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 500);
+}
+
+export function standaloneHttpsUrl(text: string): string | null {
+  const value = text.trim();
+  if (!/^https:\/\/\S+$/i.test(value)) return null;
+  try { return new URL(value).toString(); } catch { return null; }
 }

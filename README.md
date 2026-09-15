@@ -97,11 +97,15 @@ When `GROQ_API_KEY` is configured, a background worker sends stored sermon audio
 
 After transcription, a content worker uses Gemini structured output to generate a summary, key thoughts, reflection questions, and follow-up post drafts. Generated drafts remain unpublished until an administrator approves them. Gemini also powers `/ask`; urgent safety routing happens locally before any provider request.
 
+Administrators can send a public YouTube, RuTube, VK Video, OK, MAX, or direct audio HTTPS link as a standalone message, or use `/sermon_link URL`. Platform links are processed by `yt-dlp` through the bot-only proxy; playlists, private media, DRM-protected media, and links requiring an account are intentionally unsupported. After download, the normal transcription and AI-analysis pipeline runs automatically.
+
 Large sermons can be submitted with `/sermon_link HTTPS_URL`. Public linked files are accepted up to `SERMON_MAX_LINK_FILE_SIZE_BYTES` (500 MB by default), normalized to 16 kHz mono OGG/Opus with `ffmpeg`, split into one-hour segments, transcribed sequentially by Groq, and joined before Gemini analysis. Use `/sermon_status ID` to monitor every stage. Direct Telegram uploads remain subject to Telegram Cloud Bot API's 20 MB download limit.
 
 The administrator who submitted a sermon receives private milestone notifications when the file is stored, transcription finishes, generated materials become ready, or a processing stage reaches a terminal failure. Notifications contain no transcript text, are deduplicated in PostgreSQL, and retry after temporary Telegram errors. `SERMON_NOTIFICATION_POLL_INTERVAL_MS` controls the polling interval.
 
 Administrators moderate AI drafts before publication. `/sermons` and `/sermon_review ID` expose approval and rejection buttons; `/sermon_edit ID | TEXT` edits a draft, `/sermon_reject ID` rejects it, and `/sermon_regenerate SERMON_ID` rebuilds an entirely unpublished series. Moderator IDs and timestamps are retained for audit. Regeneration is refused after any post in the series has been scheduled or published.
+
+Each newly analyzed sermon produces 6–12 concise follow-up drafts. Approving any draft approves its sermon series and schedules up to three posts per day at 09:00, 14:00, and 19:00 in the group timezone, starting the next day. Existing scheduled posts reserve their slots, so multiple sermons do not create simultaneous bursts.
 
 Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic weekly draft creation in the group timezone, `/digest_preview` creates or refreshes the current draft, and `/digest_approve ID` authorizes delivery. `/digest_disable` turns off automatic drafting. Approved deliveries are durable and retry temporary Telegram failures; `WEEKLY_DIGEST_POLL_INTERVAL_MS` controls worker polling.
 
@@ -115,7 +119,7 @@ Administrators create announcement drafts with `/announce_new TEXT`, list them w
 
 Prayer requests are accepted only in a private chat. A member obtains the group ID with `/church_id` in the church group, then privately sends `/prayer_to GROUP_ID private | TEXT` for leaders only or `/prayer_to GROUP_ID share | TEXT` to permit a separately reviewed anonymous publication. Leaders use `/prayers GROUP_ID`, `/prayer_ack ID`, `/prayer_archive ID`, and `/prayer_publish ID | ANONYMOUS TEXT`. The original request is never published by the delivery worker.
 
-Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules one post per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
+Administrators review drafts with `/sermons` and `/sermon_review ID`. `/sermon_approve ID` approves the entire sermon series and schedules up to three posts per day. A durable worker sends only approved posts and retries temporary Telegram failures up to five times.
 
 ## Bible Assistant
 

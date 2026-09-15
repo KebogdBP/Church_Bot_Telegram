@@ -36,7 +36,7 @@ export class SafePublicAudioClient implements PublicAudioClient {
   }
 }
 
-async function assertPublicHttpsUrl(url: URL): Promise<void> {
+export async function assertPublicHttpsUrl(url: URL): Promise<void> {
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Only public HTTPS links are accepted');
   const addresses = await lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) throw new Error('Private network addresses are not allowed');

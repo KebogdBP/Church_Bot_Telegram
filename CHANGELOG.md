@@ -20,6 +20,8 @@
 - Hardened Telegram HTML truncation and removed duplicate escaping implementations.
 - Added exponential retry delays and stale-job diagnostics to prayer-request publication.
 - Added encrypted, user-scoped AI conversation memory with a 30-day expiry and `/new_chat` deletion command.
+- Added public video-platform audio extraction for sermon links with `yt-dlp`, proxy routing, host allowlisting, playlist blocking, and size limits.
+- Added standalone-link intake and 6–12 AI follow-up drafts scheduled at three collision-free group slots per day after administrator approval.
 
 ## 0.2.0 - 2026-09-14
 

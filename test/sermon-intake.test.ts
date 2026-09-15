@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InMemorySermonRepository } from '../src/sermons/in-memory-sermon-repository.js';
 import { SermonIntakeService } from '../src/sermons/sermon-intake-service.js';
+import { standaloneHttpsUrl } from '../src/bot/command-router.js';
 import type { IncomingSermonAudio } from '../src/telegram/types.js';
 
 const AUDIO: IncomingSermonAudio = {
@@ -19,6 +20,10 @@ const AUDIO: IncomingSermonAudio = {
 };
 
 describe('SermonIntakeService', () => {
+  it('recognizes a standalone shared HTTPS link', () => {
+    expect(standaloneHttpsUrl(' https://youtu.be/abc ')).toBe('https://youtu.be/abc');
+    expect(standaloneHttpsUrl('Посмотрите https://youtu.be/abc')).toBeNull();
+  });
   it('accepts an audio file from an administrator only once', async () => {
     const service = new SermonIntakeService(
       new InMemorySermonRepository(),

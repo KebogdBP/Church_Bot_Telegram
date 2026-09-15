@@ -20,5 +20,6 @@ Gemini is the preferred text provider. Groq is an automatic fallback for Bible a
 - `/ask_sermons` may additionally send up to three bounded transcript excerpts from the current group. Transcript text is treated as untrusted reference material, not instructions.
 - Archive source IDs shown to users are restricted to IDs retrieved by the application, even if the model returns other values.
 - Use Groq for audio transcription and as a bounded fallback when Gemini text generation fails.
+- Linked video extraction accepts only public HTTPS URLs from an explicit platform allowlist, disables playlists, enforces one download and a size limit, and runs through the isolated application proxy. Private, authenticated, and DRM-protected media are not bypassed.
 
 Admins configure local church identity and doctrinal context with `/context_set`, up to 2,000 characters.

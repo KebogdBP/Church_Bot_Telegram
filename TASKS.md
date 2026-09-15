@@ -24,6 +24,7 @@ Current focus: production regression, privacy review, operator documentation, de
 - [x] Add retry-safe, audited deletion with explicit confirmation.
 - [x] Complete the v0.3 code, security, timeout, and test-safety review.
 - [x] Add bounded encrypted AI conversation memory and user-controlled deletion.
+- [x] Add public platform-link transcription and three-times-daily moderated sermon follow-ups.
 - [x] Run the full PostgreSQL integration suite and deploy the review migrations to Raspberry Pi.
 
 ## Done

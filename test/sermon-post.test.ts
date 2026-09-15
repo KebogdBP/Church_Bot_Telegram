@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SermonPostRepository } from '../src/sermons/sermon-post.js';
 import { SermonPostService } from '../src/sermons/sermon-post-service.js';
 import { SermonPostWorker } from '../src/sermons/sermon-post-worker.js';
+import { followUpSchedule } from '../src/sermons/prisma-sermon-post-repository.js';
 
 function repository(): SermonPostRepository {
   return {
@@ -21,6 +22,19 @@ describe('sermon post review and delivery', () => {
     const service = new SermonPostService(repo, () => now);
     await expect(service.approve('-100', 'post-1', '42')).resolves.toBe(3);
     expect(repo.approveSeries).toHaveBeenCalledWith('-100', 'post-1', '42', now);
+  });
+
+  it('schedules three thoughts per day from the next local day', () => {
+    expect(followUpSchedule(new Date('2026-09-20T17:00:00Z'), 'Europe/Moscow', 5)).toEqual([
+      new Date('2026-09-21T06:00:00Z'), new Date('2026-09-21T11:00:00Z'), new Date('2026-09-21T16:00:00Z'),
+      new Date('2026-09-22T06:00:00Z'), new Date('2026-09-22T11:00:00Z'),
+    ]);
+  });
+
+  it('does not schedule two sermons into the same group slot', () => {
+    expect(followUpSchedule(new Date('2026-09-20T17:00:00Z'), 'Europe/Moscow', 2, [new Date('2026-09-21T06:00:00Z')])).toEqual([
+      new Date('2026-09-21T11:00:00Z'), new Date('2026-09-21T16:00:00Z'),
+    ]);
   });
 
   it('records moderation operations through the repository', async () => {

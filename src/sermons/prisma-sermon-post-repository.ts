@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient, SermonPostStatus } from '@prisma/client';
+import { DateTime } from 'luxon';
 import type { ClaimedSermonPost, SermonPostDraft, SermonPostRepository } from './sermon-post.js';
 
 export class PrismaSermonPostRepository implements SermonPostRepository {
@@ -18,21 +19,30 @@ export class PrismaSermonPostRepository implements SermonPostRepository {
   }
 
   public async approveSeries(chatId: string, postId: string, userId: string, now: Date): Promise<number> {
-    const selected = await this.prisma.sermonPost.findFirst({
-      where: { id: postId, churchGroup: { telegramChatId: chatId }, status: SermonPostStatus.DRAFT },
-    });
-    if (!selected) return 0;
-    const drafts = await this.prisma.sermonPost.findMany({
-      where: { sermonId: selected.sermonId, status: SermonPostStatus.DRAFT }, orderBy: { sequence: 'asc' },
-    });
-    await this.prisma.$transaction(drafts.map((post, index) => {
-      const scheduledFor = new Date(now.getTime() + (index + 1) * 24 * 60 * 60_000);
-      return this.prisma.sermonPost.update({
-        where: { id: post.id },
-        data: { status: SermonPostStatus.SCHEDULED, scheduledFor, availableAt: scheduledFor, approvedAt: now, approvedByUserId: userId },
+    return this.prisma.$transaction(async (tx) => {
+      const selected = await tx.sermonPost.findFirst({
+        where: { id: postId, churchGroup: { telegramChatId: chatId }, status: SermonPostStatus.DRAFT },
+        include: { churchGroup: { select: { timezone: true } } },
       });
-    }));
-    return drafts.length;
+      if (!selected) return 0;
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${selected.churchGroupId}))`;
+      const drafts = await tx.sermonPost.findMany({
+        where: { sermonId: selected.sermonId, status: SermonPostStatus.DRAFT }, orderBy: { sequence: 'asc' },
+      });
+      const occupied = await tx.sermonPost.findMany({
+        where: { churchGroupId: selected.churchGroupId, status: SermonPostStatus.SCHEDULED, scheduledFor: { not: null } },
+        select: { scheduledFor: true },
+      });
+      const schedule = followUpSchedule(now, selected.churchGroup.timezone, drafts.length, occupied.flatMap((post) => post.scheduledFor ? [post.scheduledFor] : []));
+      for (const [index, post] of drafts.entries()) {
+        const scheduledFor = schedule[index]!;
+        await tx.sermonPost.update({
+          where: { id: post.id },
+          data: { status: SermonPostStatus.SCHEDULED, scheduledFor, availableAt: scheduledFor, approvedAt: now, approvedByUserId: userId },
+        });
+      }
+      return drafts.length;
+    });
   }
 
   public async editDraft(chatId: string, postId: string, content: string, userId: string, now: Date): Promise<boolean> {
@@ -99,6 +109,18 @@ export class PrismaSermonPostRepository implements SermonPostRepository {
   public async markFailed(postId: string, error: string, retryAt: Date): Promise<void> {
     await this.prisma.sermonPost.update({ where: { id: postId }, data: { status: SermonPostStatus.FAILED, availableAt: retryAt, lastError: error.slice(0, 2_000) } });
   }
+}
+
+export function followUpSchedule(now: Date, timezone: string, count: number, occupied: Date[] = []): Date[] {
+  const slots = [9, 14, 19];
+  const firstDay = DateTime.fromJSDate(now, { zone: 'utc' }).setZone(timezone).plus({ days: 1 }).startOf('day');
+  const used = new Set(occupied.map((date) => date.getTime()));
+  const result: Date[] = [];
+  for (let index = 0; result.length < count; index += 1) {
+    const candidate = firstDay.plus({ days: Math.floor(index / slots.length), hours: slots[index % slots.length] }).toUTC().toJSDate();
+    if (!used.has(candidate.getTime())) result.push(candidate);
+  }
+  return result;
 }
 
 function toDomain(post: { id: string; sermonId: string; sequence: number; content: string; status: SermonPostStatus; scheduledFor: Date | null }): SermonPostDraft {

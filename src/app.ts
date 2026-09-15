@@ -34,6 +34,7 @@ import { BibleAssistantService } from './assistant/bible-assistant-service.js';
 import { AdminService } from './admin/admin-service.js';
 import { PrismaAdminRepository } from './admin/prisma-admin-repository.js';
 import { SafePublicAudioClient } from './sermons/public-audio-client.js';
+import { UniversalPublicAudioClient, YtDlpAudioClient } from './sermons/platform-audio-client.js';
 import { FfmpegAudioSegmenter } from './sermons/audio-segmenter.js';
 import { PrismaSermonStatusReader } from './sermons/sermon-status-service.js';
 import { GuidedEventService } from './admin/guided-event-service.js';
@@ -158,7 +159,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         intervalMs: config.sermon.downloadIntervalMs,
         maxFileSizeBytes: config.sermon.maxFileSizeBytes,
         maxLinkFileSizeBytes: config.sermon.maxLinkFileSizeBytes,
-        publicAudio: new SafePublicAudioClient(),
+        publicAudio: new UniversalPublicAudioClient(new SafePublicAudioClient(), new YtDlpAudioClient('yt-dlp', config.outboundProxyUrl)),
       })
     : null;
   const sermonTranscriptionWorker = prisma && config.ai.groqApiKey
