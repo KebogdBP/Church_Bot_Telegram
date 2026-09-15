@@ -264,6 +264,25 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     await prisma.churchGroup.delete({ where: { id: group.id } });
   });
 
+  it('schedules an approved sermon series three times per local day', async () => {
+    const chatId = `sermon-cadence-${Date.now()}`;
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId, timezone: 'Europe/Moscow' } });
+    const sermon = await prisma.sermon.create({
+      data: {
+        churchGroupId: group.id, sourceMessageId: 'cadence-1', status: 'STORED', transcriptionStatus: 'COMPLETED', contentStatus: 'COMPLETED',
+        posts: { create: Array.from({ length: 4 }, (_, sequence) => ({ sequence, content: `Мысль ${sequence + 1}`, churchGroupId: group.id })) },
+      },
+      include: { posts: { orderBy: { sequence: 'asc' } } },
+    });
+    const repository = new PrismaSermonPostRepository(prisma);
+    expect(await repository.approveSeries(chatId, sermon.posts[0]!.id, 'admin-1', new Date('2026-09-20T17:00:00Z'))).toBe(4);
+    const scheduled = await prisma.sermonPost.findMany({ where: { sermonId: sermon.id }, orderBy: { sequence: 'asc' }, select: { scheduledFor: true } });
+    expect(scheduled.map((post) => post.scheduledFor)).toEqual([
+      new Date('2026-09-21T06:00:00Z'), new Date('2026-09-21T11:00:00Z'), new Date('2026-09-21T16:00:00Z'), new Date('2026-09-22T06:00:00Z'),
+    ]);
+    await prisma.churchGroup.delete({ where: { id: group.id } });
+  });
+
   it('builds, approves, and claims one moderated weekly digest', async () => {
     const chatId = `digest-${Date.now()}`;
     const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId, digestEnabled: true, digestWeekday: 1, digestLocalTime: '08:00' } });
