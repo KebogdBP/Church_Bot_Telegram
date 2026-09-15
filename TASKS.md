@@ -114,9 +114,9 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands (2026-09-15): `npm test` (109 unit and transport tests passed), the 15-test PostgreSQL integration suite against a dedicated server database, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm audit --audit-level=high`.
+Last tested commands (2026-09-15): `npm test` (111 unit and transport tests passed), the 15-test PostgreSQL integration suite against a dedicated server database, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm audit --audit-level=high`.
 
-Deployment note: commit `61e5fd9` is deployed at `/home/kebogd/apps/telegram-church-bot`. All 23 migrations are applied. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling, Groq, and real YouTube metadata extraction with `yt-dlp` were verified through the sidecar while no proxy port is published. Docker autostart is enabled.
+Deployment note: commit `709d0ec` is deployed at `/home/kebogd/apps/telegram-church-bot`. All 24 migrations are applied, and every existing sermon has a unique six-character public ID. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling, Groq, and real YouTube metadata extraction with `yt-dlp` were verified through the sidecar while no proxy port is published. Docker autostart is enabled.
 
 Implementation note: Telegram delivery uses webhook at `POST /webhooks/telegram`; requests are checked against `X-Telegram-Bot-Api-Secret-Token` when `TELEGRAM_WEBHOOK_SECRET` is configured.
 
