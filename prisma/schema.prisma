@@ -125,9 +125,23 @@ model ChurchGroup {
   announcements Announcement[]
   prayerRequests PrayerRequest[]
   auditEntries AuditEntry[]
+  retentionFileDeletions RetentionFileDeletion[]
   audioRetentionDays Int @default(90)
   transcriptRetentionDays Int @default(365)
   prayerRetentionDays Int @default(365)
+}
+
+model RetentionFileDeletion {
+  id            String      @id @default(cuid())
+  churchGroupId String
+  churchGroup   ChurchGroup @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  path          String      @unique
+  attempts      Int         @default(0)
+  lastError     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([churchGroupId, createdAt])
 }
 
 model AuditEntry {
@@ -279,6 +293,7 @@ model Sermon {
   availableAt        DateTime        @default(now())
   telegramFilePath   String?
   storedPath         String?
+  storedAt           DateTime?
   lastError          String?
   transcriptionStatus TranscriptionStatus @default(PENDING)
   transcriptionAttempts Int                @default(0)
@@ -308,6 +323,7 @@ model Sermon {
   @@index([status, availableAt])
   @@index([status, transcriptionStatus, transcriptionAvailableAt])
   @@index([transcriptionStatus, contentStatus, contentAvailableAt])
+  @@index([churchGroupId, storedAt])
 }
 
 model SermonNotification {

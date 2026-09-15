@@ -1,6 +1,7 @@
 import { PrismaClient, SermonPostStatus, WeeklyDigestStatus } from '@prisma/client';
 import { DateTime } from 'luxon';
 import type { DueWeeklyDigest, WeeklyDigestDraft, WeeklyDigestRepository } from './weekly-digest.js';
+import { escapeHtml, escapeHtmlWithin } from '../messaging/html.js';
 
 export class PrismaWeeklyDigestRepository implements WeeklyDigestRepository {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -73,13 +74,12 @@ export class PrismaWeeklyDigestRepository implements WeeklyDigestRepository {
       for (const event of events) lines.push(`• ${event.recurrence === 'WEEKLY' ? 'Еженедельно' : DateTime.fromJSDate(event.startsAt, { zone: timezone }).toFormat('dd.LL HH:mm')} — ${escapeHtml(event.title)}${event.location ? `, ${escapeHtml(event.location)}` : ''}`);
       lines.push('');
     }
-    if (latestPost) lines.push('<b>Из последней проповеди</b>', escapeHtml(latestPost.content));
+    if (latestPost) lines.push('<b>Из последней проповеди</b>', escapeHtmlWithin(latestPost.content, 2_400));
     if (!events.length && !latestPost) lines.push('На этой неделе пока нет новых событий и одобренных материалов.');
     lines.push('', `Подготовлено ${DateTime.fromJSDate(now, { zone: timezone }).toFormat('dd.LL.yyyy')}`);
-    return lines.join('\n').slice(0, 4_000);
+    return lines.join('\n');
   }
 }
 
 function startOfWeek(now: Date, timezone: string): Date { return DateTime.fromJSDate(now, { zone: timezone }).startOf('week').toUTC().toJSDate(); }
-function escapeHtml(value: string): string { return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
 function toDomain(row: { id: string; content: string; status: WeeklyDigestStatus }): WeeklyDigestDraft { return { id: row.id, content: row.content, status: row.status.toLowerCase() as WeeklyDigestDraft['status'] }; }

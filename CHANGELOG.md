@@ -10,12 +10,15 @@
 - Added an optional application-level outbound HTTP proxy and an isolated Xray sidecar for Raspberry Pi deployments.
 - Deployed and verified Telegram polling through the isolated Raspberry Pi VPN route.
 - Added automatic Gemini-to-Groq fallback for Bible answers and sermon content generation.
-
-## Unreleased
-
 - Added natural private AI chat without slash commands; ordinary group conversation remains untouched.
 - Added automatic private audio and voice-message transcription with transcript delivery in chat.
 - Added optional archive-grounded AI answers, moderated announcements, and private prayer requests.
+- Added bounded timeouts and privacy-safe diagnostics for Telegram, Gemini, Groq, and transcription requests.
+- Corrected retention age calculation to use actual storage and transcription timestamps.
+- Added a durable retry queue for physical audio-file deletion.
+- Prevented integration tests from running destructive cleanup against a non-test database.
+- Hardened Telegram HTML truncation and removed duplicate escaping implementations.
+- Added exponential retry delays and stale-job diagnostics to prayer-request publication.
 
 ## 0.2.0 - 2026-09-14
 

@@ -10,7 +10,7 @@ export class GroqTranscriptionProvider implements TranscriptionProvider {
     form.set('model', this.model);
     form.set('language', this.language);
     form.set('response_format', 'json');
-    const response = await this.request(`${this.baseUrl}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${this.apiKey}` }, body: form });
+    const response = await this.request(`${this.baseUrl}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${this.apiKey}` }, body: form, signal: AbortSignal.timeout(10 * 60_000) });
     const raw = await response.text();
     let body: { text?: string; error?: { message?: string } };
     try { body = JSON.parse(raw) as typeof body; } catch { body = { error: { message: raw.slice(0, 500) } }; }

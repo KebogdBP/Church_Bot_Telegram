@@ -110,7 +110,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(config.ai.geminiApiKey ? [new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
     ...(config.ai.groqApiKey ? [new GroqBibleAnswerProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
   ];
-  const bibleProvider = bibleProviders.length === 2 ? new FallbackBibleAnswerProvider(bibleProviders[0]!, bibleProviders[1]!) : bibleProviders[0];
+  const bibleProvider = bibleProviders.length === 2
+    ? new FallbackBibleAnswerProvider(bibleProviders[0]!, bibleProviders[1]!, (error) => app.log.warn({ error: errorMessage(error) }, 'Primary Bible AI failed; using fallback'))
+    : bibleProviders[0];
   const bibleAssistant = options.bibleAssistant ?? (prisma && bibleProvider
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma),
@@ -137,6 +139,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(prayerRequestService ? { prayerRequestService } : {}),
     ...(auditService ? { auditService } : {}),
     ...(retentionService ? { retentionService } : {}),
+    logger: app.log,
   });
   const reminderWorker = prisma && config.telegram.botToken
     ? new ReminderWorker({
@@ -196,7 +199,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(config.ai.geminiApiKey ? [new GeminiSermonContentProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
     ...(config.ai.groqApiKey ? [new GroqSermonContentProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
   ];
-  const contentProvider = contentProviders.length === 2 ? new FallbackSermonContentProvider(contentProviders[0]!, contentProviders[1]!) : contentProviders[0];
+  const contentProvider = contentProviders.length === 2
+    ? new FallbackSermonContentProvider(contentProviders[0]!, contentProviders[1]!, (error) => app.log.warn({ error: errorMessage(error) }, 'Primary sermon AI failed; using fallback'))
+    : contentProviders[0];
   const sermonContentWorker = prisma && contentProvider
     ? new SermonContentWorker({
         repository: new PrismaContentGenerationRepository(prisma),
@@ -314,4 +319,8 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   });
 
   return app;
+}
+
+function errorMessage(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }

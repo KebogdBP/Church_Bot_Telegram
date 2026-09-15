@@ -30,6 +30,7 @@ export class TelegramApiClient implements MessageSender {
         disable_notification: !(input.notify ?? true),
         ...(input.keyboard ? { reply_markup: { inline_keyboard: input.keyboard.map((row) => row.map((button) => ({ text: button.text, callback_data: button.callbackData }))) } } : {}),
       }),
+      signal: AbortSignal.timeout(35_000),
     });
     const body = await readTelegramResponse(response);
     if (!response.ok || !body.ok) {
@@ -54,7 +55,7 @@ export class TelegramApiClient implements MessageSender {
     if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to download files');
     if (filePath.split('/').includes('..')) throw new Error('Telegram returned an unsafe file path');
 
-    const response = await this.request(`${this.baseUrl}/file/bot${this.token}/${filePath}`);
+    const response = await this.request(`${this.baseUrl}/file/bot${this.token}/${filePath}`, { signal: AbortSignal.timeout(10 * 60_000) });
     if (!response.ok) throw new Error(`Telegram file download returned ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
@@ -65,7 +66,7 @@ export class TelegramApiClient implements MessageSender {
 
   public async getUpdates(offset: number | undefined): Promise<TelegramUpdate[]> {
     return this.call<TelegramUpdate[]>('getUpdates', {
-      timeout: 0,
+      timeout: 25,
       allowed_updates: ['message', 'channel_post', 'callback_query'],
       ...(offset === undefined ? {} : { offset }),
     });
@@ -77,6 +78,7 @@ export class TelegramApiClient implements MessageSender {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(method === 'getUpdates' ? 35_000 : 60_000),
     });
     const body = await readTelegramResponse(response) as TelegramApiResponse<T>;
     if (!response.ok || !body.ok || body.result === undefined) {

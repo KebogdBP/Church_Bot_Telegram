@@ -14,8 +14,15 @@ import { SermonSearchService } from '../src/sermons/sermon-search-service.js';
 import { PrismaAnnouncementRepository } from '../src/announcements/prisma-announcement-repository.js';
 import { PrayerRequestService } from '../src/prayers/prayer-request-service.js';
 import { PrayerRequestWorker } from '../src/prayers/prayer-request-worker.js';
+import { RetentionService } from '../src/retention/retention-service.js';
+import { access, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
+if (databaseUrl && !new URL(databaseUrl).pathname.toLowerCase().includes('test')) {
+  throw new Error('TEST_DATABASE_URL must point to a database whose name contains "test"');
+}
 const describeWithDatabase = databaseUrl ? describe : describe.skip;
 
 describeWithDatabase('PrismaReminderRepository integration', () => {
@@ -134,6 +141,25 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     expect(stored.transcript).toBe('Текст проповеди');
     expect(stored.transcriptionModel).toBe('test-model');
     expect(stored.transcribedAt).toEqual(completedAt);
+  });
+
+  it('retains newly processed data even when the sermon was received long ago', async () => {
+    const suffix = Date.now().toString();
+    const chatId = `retention-integration-${suffix}`;
+    const now = new Date('2026-09-15T12:00:00Z');
+    const old = new Date('2026-01-01T00:00:00Z');
+    const recent = new Date('2026-09-15T11:00:00Z');
+    const path = join(tmpdir(), `church-bot-retention-${suffix}.audio`);
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: chatId, audioRetentionDays: 30, transcriptRetentionDays: 30, prayerRetentionDays: 30 } });
+    const sermon = await prisma.sermon.create({ data: { churchGroupId: group.id, sourceMessageId: suffix, createdAt: old, storedPath: path, storedAt: recent, transcript: 'свежий текст', transcribedAt: recent } });
+    await writeFile(path, 'audio');
+    const service = new RetentionService(prisma, () => now);
+
+    await expect(service.preview(chatId)).resolves.toEqual({ audio: 0, transcripts: 0, prayers: 0, pendingAudioFiles: 0 });
+    await prisma.sermon.update({ where: { id: sermon.id }, data: { storedAt: old, transcribedAt: old } });
+    await expect(service.execute(chatId)).resolves.toEqual({ audio: 1, transcripts: 1, prayers: 0, pendingAudioFiles: 0 });
+    await expect(service.execute(chatId)).resolves.toEqual({ audio: 0, transcripts: 0, prayers: 0, pendingAudioFiles: 0 });
+    await expect(access(path)).rejects.toThrow();
   });
 
   it('persists and completes a guided event flow', async () => {
@@ -319,7 +345,7 @@ describeWithDatabase('PrismaSermonNotificationRepository integration', () => {
     expect(request).not.toBeNull();
     expect(await service.approveAnonymous(request!.id, 'admin-1', 'Просьба о поддержке семьи')).toBe(true);
     const sender = { sendMessage: vi.fn().mockResolvedValue(undefined) };
-    const worker = new PrayerRequestWorker({ prisma, sender, now: () => new Date('2026-09-15T10:00:00Z'), intervalMs: 15_000, logger: { error: vi.fn() } });
+    const worker = new PrayerRequestWorker({ prisma, sender, now: () => new Date('2026-09-15T10:00:00Z'), intervalMs: 15_000, logger: { error: vi.fn(), warn: vi.fn() } });
     await worker.tick();
     expect(sender.sendMessage).toHaveBeenCalledWith({ chatId, text: expect.stringContaining('Просьба о поддержке семьи') });
     expect(sender.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Личная исходная просьба') }));

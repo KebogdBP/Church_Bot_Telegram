@@ -21,6 +21,7 @@ import type { AnnouncementService } from '../announcements/announcement-service.
 import type { PrayerRequestService } from '../prayers/prayer-request-service.js';
 import type { AuditService } from '../audit/audit-service.js';
 import { parseRetentionSetting, type RetentionService } from '../retention/retention-service.js';
+import type { FastifyBaseLogger } from 'fastify';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -39,6 +40,7 @@ export interface CommandRouterOptions {
   prayerRequestService?: PrayerRequestService;
   auditService?: AuditService;
   retentionService?: RetentionService;
+  logger?: Pick<FastifyBaseLogger, 'error'>;
 }
 
 const HELP_TEXT = [
@@ -146,7 +148,8 @@ export class CommandRouter {
       try {
         const answer = await this.options.bibleAssistant.ask(message.chatId, message.userId, message.text);
         await this.reply(message.chatId, escapeHtml(answer.text));
-      } catch {
+      } catch (error) {
+        this.options.logger?.error({ chatId: message.chatId, error: errorMessage(error) }, 'Private AI answer failed');
         await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');
       }
       return;
@@ -216,12 +219,12 @@ export class CommandRouter {
       }
       if (command === '/retention_dry_run') {
         const preview = await service.preview(message.chatId);
-        await this.reply(message.chatId, preview ? `<b>Предварительная очистка</b>\nАудио: ${preview.audio}\nТранскрипты: ${preview.transcripts}\nМолитвенные просьбы: ${preview.prayers}\n\nДанны не удалены. Для запуска: <code>/retention_run CONFIRM</code>` : 'Группа не найдена.'); return;
+        await this.reply(message.chatId, preview ? `<b>Предварительная очистка</b>\nАудио: ${preview.audio}\nТранскрипты: ${preview.transcripts}\nМолитвенные просьбы: ${preview.prayers}\nФайлы, ожидающие удаления: ${preview.pendingAudioFiles}\n\nДанные не удалены. Для запуска: <code>/retention_run CONFIRM</code>` : 'Группа не найдена.'); return;
       }
       if (message.text.trim() !== '/retention_run CONFIRM') { await this.reply(message.chatId, 'Очистка не запущена. Точная команда: /retention_run CONFIRM'); return; }
       const removed = await service.execute(message.chatId);
       if (removed) await this.audit(message.chatId, message.userId, 'retention.executed', 'retention_cleanup', undefined, { ...removed });
-      await this.reply(message.chatId, removed ? `Очистка завершена. Аудио: ${removed.audio}, транскрипты: ${removed.transcripts}, просьбы: ${removed.prayers}.` : 'Группа не найдена.'); return;
+      await this.reply(message.chatId, removed ? `Очистка завершена. Аудио: ${removed.audio}, транскрипты: ${removed.transcripts}, просьбы: ${removed.prayers}. Ожидают удаления с диска: ${removed.pendingAudioFiles}.` : 'Группа не найдена.'); return;
     }
 
     if (command === '/events') {
@@ -242,7 +245,8 @@ export class CommandRouter {
           ? await this.options.bibleAssistant.askWithSermons(message.chatId, message.userId, question)
           : await this.options.bibleAssistant.ask(message.chatId, message.userId, question);
         await this.reply(message.chatId, escapeHtml(answer.text));
-      } catch {
+      } catch (error) {
+        this.options.logger?.error({ chatId: message.chatId, error: errorMessage(error) }, 'AI command failed');
         await this.reply(message.chatId, 'Не удалось подготовить ответ. Попробуйте позже или обратитесь к пастору.');
       }
       return;
@@ -469,7 +473,8 @@ export class CommandRouter {
         await this.reply(callback.chatId, approved ? 'Дайджест одобрен и поставлен на отправку.' : 'Черновик дайджеста не найден или уже обработан.'); return;
       }
       await this.options.sender.answerCallback?.(callback.id, 'Кнопка устарела');
-    } catch {
+    } catch (error) {
+      this.options.logger?.error({ err: errorMessage(error), chatId: callback.chatId }, 'callback_action_failed');
       await this.options.sender.answerCallback?.(callback.id, 'Не удалось выполнить действие');
     }
   }
@@ -613,4 +618,8 @@ export class CommandRouter {
   private async sendAnnouncementPreview(chatId: string, draft: { id: string; content: string; status: string }): Promise<void> {
     await this.reply(chatId, `<b>Предпросмотр объявления</b>\n\n${escapeHtml(draft.content)}\n\nID: <code>${draft.id}</code>\nСтатус: ${escapeHtml(draft.status)}`, draft.status === 'draft' ? [[{ text: 'Отправить сейчас', callbackData: `announce:approve:${draft.id}` }, { text: 'Отклонить', callbackData: `announce:reject:${draft.id}` }]] : undefined);
   }
+}
+
+function errorMessage(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }

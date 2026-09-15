@@ -15,6 +15,7 @@ export async function generateGroqJson(options: GroqJsonClientOptions, systemIns
       response_format: { type: 'json_object' },
       temperature: 0.2,
     }),
+    signal: AbortSignal.timeout(90_000),
   });
   const raw = await response.text();
   let body: { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };

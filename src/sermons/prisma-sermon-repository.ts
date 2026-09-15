@@ -101,6 +101,7 @@ export class PrismaSermonRepository implements SermonRepository {
         status: PrismaSermonStatus.STORED,
         telegramFilePath,
         storedPath,
+        storedAt: new Date(),
         lastError: null,
       },
     });

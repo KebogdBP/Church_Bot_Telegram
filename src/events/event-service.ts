@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { ChurchEvent, EventRepository } from './event.js';
+import { escapeHtml } from '../messaging/html.js';
 
 export interface CreateOneTimeEventInput {
   chatId: string;
@@ -169,10 +170,6 @@ export function formatEvent(event: ChurchEvent): string {
     `Напоминание: за ${reminder}`,
     `ID: <code>${escapeHtml(event.id)}</code>`,
   ].filter(Boolean).join('\n');
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 function formatReminderOffset(minutes: number): string {

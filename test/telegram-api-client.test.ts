@@ -16,6 +16,7 @@ describe('TelegramApiClient', () => {
       'https://api.telegram.org/botsecret-token/sendMessage',
       expect.objectContaining({
         method: 'POST',
+        signal: expect.any(AbortSignal),
         body: JSON.stringify({
           chat_id: '-100123',
           text: '<b>Напоминание</b>',
@@ -24,6 +25,15 @@ describe('TelegramApiClient', () => {
         }),
       }),
     );
+  });
+
+  it('uses long polling with a bounded network timeout', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ ok: true, result: [] }), { status: 200 }));
+    const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
+    await client.getUpdates(123);
+    const options = request.mock.calls[0]?.[1];
+    expect(JSON.parse(String(options?.body))).toMatchObject({ offset: 123, timeout: 25 });
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('reports Telegram API errors', async () => {

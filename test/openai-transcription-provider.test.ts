@@ -30,6 +30,7 @@ describe('GroqTranscriptionProvider', () => {
     expect(form.get('language')).toBe('ru');
     expect(form.get('response_format')).toBe('json');
     expect((form.get('file') as File).name).toBe('sermon.mp3');
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('surfaces an API error without exposing the key', async () => {

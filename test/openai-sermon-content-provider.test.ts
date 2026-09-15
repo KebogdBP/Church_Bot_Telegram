@@ -13,6 +13,7 @@ describe('GeminiSermonContentProvider', () => {
     expect(body.generationConfig.responseMimeType).toBe('application/json');
     expect(body.generationConfig.responseSchema.type).toBe('OBJECT');
     expect(options?.headers).toEqual({ 'x-goog-api-key': 'key', 'Content-Type': 'application/json' });
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('rejects a post too long for Telegram', async () => {

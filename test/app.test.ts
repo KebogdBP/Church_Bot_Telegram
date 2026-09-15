@@ -163,13 +163,13 @@ describe('Telegram webhook', () => {
   });
 
   it('previews retention without deletion and requires exact confirmation', async () => {
-    const retention = { getPolicy: vi.fn(), setPolicy: vi.fn(), preview: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4 }), execute: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4 }) } as unknown as import('../src/retention/retention-service.js').RetentionService;
+    const retention = { getPolicy: vi.fn(), setPolicy: vi.fn(), preview: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4, pendingAudioFiles: 0 }), execute: vi.fn().mockResolvedValue({ audio: 2, transcripts: 3, prayers: 4, pendingAudioFiles: 0 }) } as unknown as import('../src/retention/retention-service.js').RetentionService;
     const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, retention);
     const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/retention_dry_run') });
     expect(retention.preview).toHaveBeenCalledWith('100');
     expect(retention.execute).not.toHaveBeenCalled();
-    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: expect.stringContaining('Данны не удалены') });
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: expect.stringContaining('Данные не удалены') });
 
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('/retention_run confirm') });
     expect(retention.execute).not.toHaveBeenCalled();

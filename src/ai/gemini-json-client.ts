@@ -20,6 +20,7 @@ export async function generateGeminiJson(
       contents: [{ role: 'user', parts: [{ text: input }] }],
       generationConfig: { responseMimeType: 'application/json', responseSchema },
     }),
+    signal: AbortSignal.timeout(90_000),
   });
   const raw = await response.text();
   let body: { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } };

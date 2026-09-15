@@ -8,8 +8,10 @@ describe('AI provider fallback', () => {
     const primary = { answer: vi.fn().mockRejectedValue(new Error('regional block')) } satisfies BibleAnswerProvider;
     const expected = { answer: 'Ответ', bibleReferences: [], needsPastor: false, category: 'bible', sermonSourceIds: [], model: 'groq' };
     const fallback = { answer: vi.fn().mockResolvedValue(expected) } satisfies BibleAnswerProvider;
-    await expect(new FallbackBibleAnswerProvider(primary, fallback).answer('Вопрос')).resolves.toEqual(expected);
+    const onFallback = vi.fn();
+    await expect(new FallbackBibleAnswerProvider(primary, fallback, onFallback).answer('Вопрос')).resolves.toEqual(expected);
     expect(fallback.answer).toHaveBeenCalledOnce();
+    expect(onFallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'regional block' }));
   });
 
   it('uses the secondary sermon provider when the primary fails', async () => {

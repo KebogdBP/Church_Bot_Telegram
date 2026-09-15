@@ -7,6 +7,7 @@ describe('Groq JSON client', () => {
     await expect(generateGroqJson({ apiKey: 'key', model: 'model', baseUrl: 'https://api.groq.com/openai/v1', request }, 'system', 'input')).resolves.toEqual({ answer: 'ok' });
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
     expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(request.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('does not include the API key in provider errors', async () => {
