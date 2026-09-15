@@ -24,17 +24,24 @@ export class YtDlpAudioClient implements PublicAudioClient {
   ) {}
 
   public async download(rawUrl: string, maxBytes: number): Promise<{ bytes: Uint8Array; fileName: string }> {
-    const url = new URL(rawUrl);
+    const url = normalizePlatformUrl(new URL(rawUrl));
     await this.validate(url);
     if (!isPlatformMediaUrl(url.toString())) throw new Error('Unsupported media platform');
     const directory = await mkdtemp(join(tmpdir(), 'church-bot-media-'));
     try {
       const output = join(directory, 'sermon.%(ext)s');
-      await this.run([
+      const commonArgs = [
         '--no-playlist', '--max-downloads', '1', '--no-warnings', '--no-update', '--extract-audio', '--audio-format', 'mp3',
         '--audio-quality', '5', '--max-filesize', String(maxBytes), '--output', output,
-        ...(this.proxyUrl ? ['--proxy', this.proxyUrl] : []), url.toString(),
-      ]);
+        ...(this.proxyUrl ? ['--proxy', this.proxyUrl] : []),
+      ];
+      try {
+        await this.run([...commonArgs, url.toString()]);
+      } catch (error) {
+        if (!isYouTubeUrl(url) || !/403|forbidden/i.test(error instanceof Error ? error.message : String(error))) throw error;
+        for (const file of await readdir(directory)) await rm(join(directory, file), { force: true });
+        await this.run([...commonArgs, '--extractor-args', 'youtube:player_client=mweb', '--format', '18/best[height<=360]', url.toString()]);
+      }
       const files = await readdir(directory);
       const fileName = files.find((name) => name.startsWith('sermon.'));
       if (!fileName) throw new Error('Platform did not provide downloadable audio');
@@ -45,6 +52,17 @@ export class YtDlpAudioClient implements PublicAudioClient {
       await rm(directory, { recursive: true, force: true });
     }
   }
+}
+
+function isYouTubeUrl(url: URL): boolean {
+  const host = url.hostname.toLowerCase().replace(/^www\.|^m\./, '');
+  return host === 'youtube.com' || host === 'youtu.be';
+}
+
+export function normalizePlatformUrl(url: URL): URL {
+  if (!isYouTubeUrl(url)) return url;
+  const videoId = url.hostname.toLowerCase().includes('youtu.be') ? url.pathname.split('/').filter(Boolean)[0] : url.searchParams.get('v');
+  return videoId && /^[\w-]{6,20}$/.test(videoId) ? new URL(`https://www.youtube.com/watch?v=${videoId}`) : url;
 }
 
 export function isPlatformMediaUrl(rawUrl: string): boolean {

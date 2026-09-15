@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { describe, expect, it, vi } from 'vitest';
-import { isPlatformMediaUrl, UniversalPublicAudioClient, YtDlpAudioClient } from '../src/sermons/platform-audio-client.js';
+import { isPlatformMediaUrl, normalizePlatformUrl, UniversalPublicAudioClient, YtDlpAudioClient } from '../src/sermons/platform-audio-client.js';
 import type { PublicAudioClient } from '../src/sermons/public-audio-client.js';
 
 describe('platform audio download', () => {
@@ -8,6 +8,19 @@ describe('platform audio download', () => {
     expect(isPlatformMediaUrl('https://youtu.be/video')).toBe(true);
     expect(isPlatformMediaUrl('https://rutube.ru/video/id')).toBe(true);
     expect(isPlatformMediaUrl('https://youtube.com.evil.example/video')).toBe(false);
+    expect(normalizePlatformUrl(new URL('https://m.youtube.com/watch?v=EGJo_TpufvU&pp=noise')).toString()).toBe('https://www.youtube.com/watch?v=EGJo_TpufvU');
+  });
+
+  it('falls back to a compatible YouTube mobile stream after a 403', async () => {
+    const run = vi.fn(async (args: string[]) => {
+      if (run.mock.calls.length === 1) throw new Error('HTTP Error 403: Forbidden');
+      const output = args[args.indexOf('--output') + 1]!;
+      await writeFile(output.replace('%(ext)s', 'mp3'), 'audio');
+    });
+    const client = new YtDlpAudioClient('yt-dlp', 'http://proxy:1080', run, vi.fn().mockResolvedValue(undefined));
+    await expect(client.download('https://m.youtube.com/watch?v=EGJo_TpufvU&pp=noise', 1_000)).resolves.toMatchObject({ fileName: 'sermon.mp3' });
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls[1]?.[0]).toEqual(expect.arrayContaining(['youtube:player_client=mweb', '18/best[height<=360]', 'https://www.youtube.com/watch?v=EGJo_TpufvU']));
   });
 
   it('routes platform links to yt-dlp and direct links to the guarded HTTP client', async () => {
