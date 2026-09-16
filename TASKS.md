@@ -4,9 +4,9 @@ This file is the shared handoff point for all developers. Update it whenever wor
 
 ## Current Status
 
-Phase: Version 0.3 - Release Audit
+Phase: Version 0.4 - Expansion Foundation
 
-Current focus: production regression, privacy review, operator documentation, deployment verification, and the v0.3 release.
+Current focus: processing observability, long-sermon regression coverage, and grounded sermon archive search.
 
 ## Active Tasks
 
@@ -27,6 +27,9 @@ Current focus: production regression, privacy review, operator documentation, de
 - [x] Add public platform-link transcription and three-times-daily moderated sermon follow-ups.
 - [x] Replace user-facing sermon identifiers with compact six-character codes.
 - [x] Run the full PostgreSQL integration suite and deploy the review migrations to Raspberry Pi.
+- [ ] Start Version 0.4 expansion roadmap and keep each phase independently deployable.
+- [ ] Add a processing timeline and safe diagnostics for media and AI stages.
+- [ ] Add structured archive metadata and selected-sermon grounded questions.
 
 ## Done
 
@@ -114,7 +117,7 @@ When handing off work, update:
 - last tested command;
 - important implementation notes.
 
-Last tested commands (2026-09-15): `npm test` (111 unit and transport tests passed), the 15-test PostgreSQL integration suite against a dedicated server database, `npm run typecheck`, `npm run lint`, `npm run build`, and `npm audit --audit-level=high`.
+Last tested commands (2026-09-16): `npm test` (112 unit and transport tests passed), `npm run typecheck`, `npm run lint`, and `npm run build`.
 
 Deployment note: commit `709d0ec` is deployed at `/home/kebogd/apps/telegram-church-bot`. All 24 migrations are applied, and every existing sermon has a unique six-character public ID. The app, PostgreSQL, and isolated Xray sidecar are healthy; Telegram polling, Groq, and real YouTube metadata extraction with `yt-dlp` were verified through the sidecar while no proxy port is published. Docker autostart is enabled.
 
