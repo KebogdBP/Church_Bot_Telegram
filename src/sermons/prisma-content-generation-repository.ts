@@ -42,6 +42,7 @@ export class PrismaContentGenerationRepository implements ContentGenerationRepos
         data: {
         contentStatus: ContentGenerationStatus.COMPLETED,
         summary: content.summary,
+        outline: content.outline,
         keyThoughts: content.keyThoughts,
         reflectionQuestions: content.reflectionQuestions,
         followUpPosts: content.followUpPosts,

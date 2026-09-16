@@ -3,11 +3,11 @@ import { GeminiSermonContentProvider } from '../src/ai/gemini-sermon-content-pro
 
 describe('GeminiSermonContentProvider', () => {
   it('requests and validates structured content', async () => {
-    const output = { summary: 'Кратко', keyThoughts: ['1', '2', '3'], reflectionQuestions: ['1?', '2?'], followUpPosts: ['A', 'B', 'C', 'D', 'E', 'F'] };
+    const output = { summary: 'Кратко', outline: [{ title: 'Пункт', points: ['Тезис'] }], keyThoughts: ['1', '2', '3'], reflectionQuestions: ['1?', '2?'], followUpPosts: ['A', 'B', 'C', 'D', 'E', 'F'].map((thought) => ({ thought, practice: 'Сделать сегодня', imagePrompt: 'Тихая тематическая иллюстрация' })) };
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(output) }] } }] }), { status: 200 }));
     const provider = new GeminiSermonContentProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request });
 
-    await expect(provider.generate('транскрипт')).resolves.toEqual({ ...output, model: 'model' });
+    await expect(provider.generate('транскрипт')).resolves.toEqual({ ...output, followUpPosts: output.followUpPosts.map((post) => `💡 ${post.thought}\n\nПрактика: ${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: 'model' });
     const options = request.mock.calls[0]?.[1];
     const body = JSON.parse(String(options?.body));
     expect(body.generationConfig.responseMimeType).toBe('application/json');
@@ -17,7 +17,7 @@ describe('GeminiSermonContentProvider', () => {
   });
 
   it('rejects a post too long for Telegram', async () => {
-    const output = { summary: 'Кратко', keyThoughts: ['1', '2', '3'], reflectionQuestions: ['1?', '2?'], followUpPosts: ['A'.repeat(1501), 'B', 'C', 'D', 'E', 'F'] };
+    const output = { summary: 'Кратко', outline: [{ title: 'Пункт', points: ['Тезис'] }], keyThoughts: ['1', '2', '3'], reflectionQuestions: ['1?', '2?'], followUpPosts: [{ thought: 'A'.repeat(1501), practice: 'Сделать', imagePrompt: 'Иллюстрация' }, ...['B', 'C', 'D', 'E', 'F'].map((thought) => ({ thought, practice: 'Сделать', imagePrompt: 'Иллюстрация' }))] };
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(output) }] } }] }), { status: 200 }));
     await expect(new GeminiSermonContentProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request }).generate('текст')).rejects.toThrow();
   });

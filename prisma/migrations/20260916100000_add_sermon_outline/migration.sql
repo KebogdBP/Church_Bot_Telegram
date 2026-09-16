@@ -1,0 +1,1 @@
+ALTER TABLE "Sermon" ADD COLUMN "outline" JSONB;

@@ -13,6 +13,7 @@ describe('SermonContentWorker', () => {
     } satisfies ContentGenerationRepository;
     const generated = {
       summary: 'Кратко',
+      outline: [{ title: 'Пункт', points: ['Тезис'] }],
       keyThoughts: ['Один', 'Два', 'Три'],
       reflectionQuestions: ['Вопрос 1', 'Вопрос 2'],
       followUpPosts: ['Пост 1', 'Пост 2'],

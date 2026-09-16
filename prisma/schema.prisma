@@ -323,6 +323,7 @@ model Sermon {
   contentAvailableAt  DateTime                @default(now())
   contentModel        String?
   summary             String?
+  outline             Json?
   keyThoughts         Json?
   reflectionQuestions Json?
   followUpPosts       Json?
