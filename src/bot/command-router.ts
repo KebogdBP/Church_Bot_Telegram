@@ -75,6 +75,7 @@ const HELP_TEXT = [
   '/sermons - черновики публикаций',
   '/sermon_link HTTPS_URL - добавить аудио или видео по ссылке',
   '/sermon_status ID - проверить обработку проповеди',
+  '/sermon_show ID - показать структуру и полный транскрипт',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
   '/sermon_edit ID | ТЕКСТ - изменить черновик',
@@ -270,6 +271,16 @@ export class CommandRouter {
       return;
     }
 
+    if (command === '/sermon_show') {
+      const sermonId = message.text.split(/\s+/, 2)[1];
+      if (!sermonId || !this.options.sermonSearchService) { await this.reply(message.chatId, 'Формат: /sermon_show ID'); return; }
+      const sermon = await this.options.sermonSearchService.get(message.chatId, sermonId);
+      if (!sermon) { await this.reply(message.chatId, 'Проповедь не найдена или ещё не транскрибирована.'); return; }
+      const outline = sermon.outline.length ? `\n<b>Структура</b>\n${sermon.outline.map((part, index) => `${index + 1}. ${escapeHtml(part.title)}\n${part.points.map((point) => `• ${escapeHtml(point)}`).join('\n')}`).join('\n')}` : '';
+      await this.reply(message.chatId, `<b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>${outline}`);
+      for (const chunk of splitTelegramText(sermon.transcript)) await this.reply(message.chatId, escapeHtml(chunk));
+      return;
+    }
     if (command === '/sermon_search') {
       const query = message.text.replace(/^\/sermon_search(?:@\w+)?\s*/i, '').trim();
       if (query.length < 2) { await this.reply(message.chatId, 'Формат: /sermon_search слова для поиска'); return; }
@@ -303,7 +314,7 @@ export class CommandRouter {
       return;
     }
 
-    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_edit' || command === '/sermon_reject' || command === '/sermon_regenerate' || command === '/sermon_link' || command === '/sermon_status') {
+    if (command === '/sermons' || command === '/sermon_review' || command === '/sermon_approve' || command === '/sermon_edit' || command === '/sermon_reject' || command === '/sermon_regenerate' || command === '/sermon_link' || command === '/sermon_status' || command === '/sermon_show') {
       if (!(await this.options.adminService.isAdmin(message.chatId, message.userId))) {
         await this.reply(message.chatId, 'Эта команда доступна только администраторам.');
         return;
@@ -637,6 +648,12 @@ export class CommandRouter {
   private async sendAnnouncementPreview(chatId: string, draft: { id: string; content: string; status: string }): Promise<void> {
     await this.reply(chatId, `<b>Предпросмотр объявления</b>\n\n${escapeHtml(draft.content)}\n\nID: <code>${draft.id}</code>\nСтатус: ${escapeHtml(draft.status)}`, draft.status === 'draft' ? [[{ text: 'Отправить сейчас', callbackData: `announce:approve:${draft.id}` }, { text: 'Отклонить', callbackData: `announce:reject:${draft.id}` }]] : undefined);
   }
+}
+
+function splitTelegramText(text: string, limit = 3800): string[] {
+  const chunks: string[] = [];
+  for (let offset = 0; offset < text.length; offset += limit) chunks.push(text.slice(offset, offset + limit));
+  return chunks;
 }
 
 function errorMessage(error: unknown): string {

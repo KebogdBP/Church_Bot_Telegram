@@ -1,6 +1,7 @@
 import { PrismaClient, TranscriptionStatus } from '@prisma/client';
 
 export interface SermonSearchResult { sermonId: string; title: string; date: Date; excerpt: string }
+export interface SermonArchiveEntry { sermonId: string; title: string; date: Date; transcript: string; outline: Array<{ title: string; points: string[] }> }
 
 export class SermonSearchService {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -30,6 +31,15 @@ export class SermonSearchService {
       const matched = terms.find((term) => lower.includes(term));
       return matched ? [{ sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, excerpt: excerptAround(sermon.transcript, matched, 220) }] : [];
     }).slice(0, Math.min(Math.max(limit, 1), 3));
+  }
+
+  public async get(chatId: string, sermonId: string): Promise<SermonArchiveEntry | null> {
+    const sermon = await this.prisma.sermon.findFirst({
+      where: { churchGroup: { telegramChatId: chatId }, publicId: sermonId.toUpperCase(), transcriptionStatus: TranscriptionStatus.COMPLETED },
+      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true, outline: true },
+    });
+    if (!sermon?.transcript) return null;
+    return { sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, transcript: sermon.transcript, outline: Array.isArray(sermon.outline) ? sermon.outline as Array<{ title: string; points: string[] }> : [] };
   }
 }
 

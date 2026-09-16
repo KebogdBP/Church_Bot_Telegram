@@ -12,7 +12,8 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 ## Phase 1: Sermon archive and grounded search
 
 - [ ] Store sermon title, speaker, date, themes, Bible references, outline, and full transcript.
-- [ ] Add `/sermon_search`, `/sermon_show`, and questions against a selected sermon.
+- [x] Add `/sermon_show` with structured outline and Telegram-safe full transcript chunks.
+- [ ] Add questions against a selected sermon.
 - [ ] Return bounded verbatim excerpts with sermon ID and section context.
 - [ ] Add PostgreSQL full-text search; evaluate embeddings only after measuring workload.
 - [ ] Keep group isolation and never invent citations.
