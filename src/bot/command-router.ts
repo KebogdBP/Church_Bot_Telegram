@@ -285,7 +285,7 @@ export class CommandRouter {
     if (command === '/sermon_show') {
       const sermonId = message.text.split(/\s+/, 2)[1];
       if (!sermonId || !this.options.sermonSearchService) { await this.reply(message.chatId, 'Формат: /sermon_show ID'); return; }
-      const sermon = await this.options.sermonSearchService.get(message.chatId, sermonId);
+      const sermon = await this.options.sermonSearchService.get(message.chatId, sermonId, true);
       if (!sermon) { await this.reply(message.chatId, 'Проповедь не найдена или ещё не транскрибирована.'); return; }
       const outline = sermon.outline.length ? `\n<b>Структура</b>\n${sermon.outline.map((part, index) => `${index + 1}. ${escapeHtml(part.title)}\n${part.points.map((point) => `• ${escapeHtml(point)}`).join('\n')}`).join('\n')}` : '';
       await this.reply(message.chatId, `<b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>${outline}`);

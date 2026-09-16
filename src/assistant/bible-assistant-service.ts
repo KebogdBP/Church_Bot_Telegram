@@ -9,7 +9,7 @@ const PROFESSIONAL = /диагноз|лекарств|лечение|юрист|
 const HISTORY_TURNS = 20;
 const HISTORY_CHARACTER_BUDGET = 12_000;
 
-export interface SermonArchiveRetriever { searchContext(chatId: string, question: string, limit?: number): Promise<SermonSearchResult[]>; get?(chatId: string, sermonId: string): Promise<SermonArchiveEntry | null> }
+export interface SermonArchiveRetriever { searchContext(chatId: string, question: string, limit?: number): Promise<SermonSearchResult[]>; get?(chatId: string, sermonId: string, allowAdminArchive?: boolean): Promise<SermonArchiveEntry | null> }
 
 export class BibleAssistantService {
   public constructor(private readonly repository: AssistantRepository, private readonly provider: BibleAnswerProvider, private readonly privacySecret: string, private readonly timezone: string, private readonly archive?: SermonArchiveRetriever) {}
@@ -17,7 +17,7 @@ export class BibleAssistantService {
   public askWithSermons(chatId: string, userId: string, question: string) { return this.answer(chatId, userId, question, true); }
   public async askSelectedSermon(chatId: string, userId: string, sermonId: string, question: string) {
     if (!this.archive?.get) throw new Error('Sermon archive is unavailable');
-    const sermon = await this.archive.get(chatId, sermonId);
+    const sermon = await this.archive.get(chatId, sermonId, true);
     if (!sermon) throw new Error('Sermon not found');
     const excerpts = sermon.transcript.length > 6_000 ? `${sermon.transcript.slice(0, 3_000)}\n…\n${sermon.transcript.slice(-3_000)}` : sermon.transcript;
     return this.answer(chatId, userId, question, false, [{ sermonId: sermon.sermonId, title: sermon.title, excerpt: excerpts }]);

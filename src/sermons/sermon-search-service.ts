@@ -33,9 +33,9 @@ export class SermonSearchService {
     }).slice(0, Math.min(Math.max(limit, 1), 3));
   }
 
-  public async get(chatId: string, sermonId: string): Promise<SermonArchiveEntry | null> {
+  public async get(chatId: string, sermonId: string, allowAdminArchive = false): Promise<SermonArchiveEntry | null> {
     const sermon = await this.prisma.sermon.findFirst({
-      where: { churchGroup: { telegramChatId: chatId }, publicId: sermonId.toUpperCase(), transcriptionStatus: TranscriptionStatus.COMPLETED },
+      where: { ...(allowAdminArchive ? {} : { churchGroup: { telegramChatId: chatId } }), publicId: sermonId.toUpperCase(), transcriptionStatus: TranscriptionStatus.COMPLETED },
       select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true, outline: true },
     });
     if (!sermon?.transcript) return null;
