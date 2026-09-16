@@ -15,6 +15,7 @@ services:
     environment:
       APP_ENV: production
       TELEGRAM_UPDATE_MODE: polling
+      TELEGRAM_API_BASE_URL: http://telegram-api:8081
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/telegram_church_bot
       SERMON_STORAGE_DIR: /app/data/sermons
       OUTBOUND_PROXY_URL: http://vpn:10809
@@ -23,6 +24,8 @@ services:
         condition: service_healthy
       vpn:
         condition: service_started
+      telegram-api:
+        condition: service_started
     volumes:
       - sermon_data:/app/data/sermons
     healthcheck:
@@ -30,6 +33,17 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+
+  telegram-api:
+    image: aiogram/telegram-bot-api:latest
+    restart: unless-stopped
+    command: ["--local"]
+    env_file: .env
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH}
+    volumes:
+      - telegram_api_data:/var/lib/telegram-bot-api
 
   postgres:
     image: postgres:17-alpine
@@ -49,3 +63,4 @@ services:
 volumes:
   postgres_data:
   sermon_data:
+  telegram_api_data:
