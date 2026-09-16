@@ -31,6 +31,7 @@ Current focus: processing observability, long-sermon regression coverage, and gr
 - [ ] Add a processing timeline and safe diagnostics for media and AI stages.
 - [ ] Add structured archive metadata and selected-sermon grounded questions.
 - [x] Add administrator-only `/sermon_show ID` with structured outline and Telegram-safe full transcript chunks.
+- [x] Add `/ask_sermon ID QUESTION` with selected-sermon-only AI context.
 
 ## Done
 

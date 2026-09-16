@@ -76,6 +76,7 @@ const HELP_TEXT = [
   '/sermon_link HTTPS_URL - добавить аудио или видео по ссылке',
   '/sermon_status ID - проверить обработку проповеди',
   '/sermon_show ID - показать структуру и полный транскрипт',
+  '/ask_sermon ID ВОПРОС - спросить по конкретной проповеди',
   '/sermon_review ID - посмотреть черновик',
   '/sermon_approve ID - одобрить серию',
   '/sermon_edit ID | ТЕКСТ - изменить черновик',
@@ -253,6 +254,16 @@ export class CommandRouter {
       if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
       await this.options.bibleAssistant.clearHistory(message.chatId, message.userId);
       await this.reply(message.chatId, 'История диалога удалена. Начинаем новый разговор.');
+      return;
+    }
+    if (command === '/ask_sermon') {
+      const parts = message.text.split(/\s+/);
+      const sermonId = parts[1];
+      const question = parts.slice(2).join(' ').trim();
+      if (!sermonId || !question) { await this.reply(message.chatId, 'Формат: /ask_sermon ID ваш вопрос'); return; }
+      if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
+      try { const answer = await this.options.bibleAssistant.askSelectedSermon(message.chatId, message.userId, sermonId, question); await this.reply(message.chatId, escapeHtml(answer.text)); }
+      catch (error) { this.options.logger?.error({ chatId: message.chatId, error: errorMessage(error) }, 'Selected sermon AI command failed'); await this.reply(message.chatId, 'Не удалось найти проповедь или подготовить ответ.'); }
       return;
     }
     if (command === '/ask' || command === '/ask_sermons') {

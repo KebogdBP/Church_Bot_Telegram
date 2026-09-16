@@ -1,24 +1,32 @@
 import { createHmac } from 'node:crypto';
 import type { AssistantRepository } from './assistant-repository.js';
 import type { BibleAnswerProvider } from './bible-answer-provider.js';
-import type { SermonSearchResult } from '../sermons/sermon-search-service.js';
+import type { SermonArchiveEntry, SermonSearchResult } from '../sermons/sermon-search-service.js';
+import type { SermonAnswerContext } from './bible-answer-provider.js';
 
 const URGENT = /самоубий|суицид|убить себя|не хочу жить|насили|избива|угрожа/i;
 const PROFESSIONAL = /диагноз|лекарств|лечение|юрист|законн|инвестиц|долг/i;
 const HISTORY_TURNS = 20;
 const HISTORY_CHARACTER_BUDGET = 12_000;
 
-export interface SermonArchiveRetriever { searchContext(chatId: string, question: string, limit?: number): Promise<SermonSearchResult[]> }
+export interface SermonArchiveRetriever { searchContext(chatId: string, question: string, limit?: number): Promise<SermonSearchResult[]>; get?(chatId: string, sermonId: string): Promise<SermonArchiveEntry | null> }
 
 export class BibleAssistantService {
   public constructor(private readonly repository: AssistantRepository, private readonly provider: BibleAnswerProvider, private readonly privacySecret: string, private readonly timezone: string, private readonly archive?: SermonArchiveRetriever) {}
   public ask(chatId: string, userId: string, question: string) { return this.answer(chatId, userId, question, false); }
   public askWithSermons(chatId: string, userId: string, question: string) { return this.answer(chatId, userId, question, true); }
+  public async askSelectedSermon(chatId: string, userId: string, sermonId: string, question: string) {
+    if (!this.archive?.get) throw new Error('Sermon archive is unavailable');
+    const sermon = await this.archive.get(chatId, sermonId);
+    if (!sermon) throw new Error('Sermon not found');
+    const excerpts = sermon.transcript.length > 6_000 ? `${sermon.transcript.slice(0, 3_000)}\n…\n${sermon.transcript.slice(-3_000)}` : sermon.transcript;
+    return this.answer(chatId, userId, question, false, [{ sermonId: sermon.sermonId, title: sermon.title, excerpt: excerpts }]);
+  }
   public clearHistory(chatId: string, userId: string) {
     return this.repository.clearHistory(chatId, this.userHash(userId));
   }
 
-  private async answer(chatId: string, userId: string, question: string, withSermons: boolean) {
+  private async answer(chatId: string, userId: string, question: string, withSermons: boolean, selectedContext?: SermonSearchResult[] | SermonAnswerContext[]) {
     const userHash = this.userHash(userId);
     if (URGENT.test(question)) {
       await this.repository.log({ chatId, userHash, outcome: 'escalated', category: 'urgent_safety', timezone: this.timezone });
@@ -29,7 +37,7 @@ export class BibleAssistantService {
       return { text: 'Этот вопрос требует помощи профильного специалиста. Я могу помочь найти библейские принципы для размышления, но не заменяю врача, юриста или финансового консультанта. Обсудите ситуацию со специалистом и пастором.', escalated: true };
     }
     try {
-      const sermonContext = withSermons && this.archive ? await this.archive.searchContext(chatId, question, 3) : [];
+      const sermonContext = selectedContext ?? (withSermons && this.archive ? await this.archive.searchContext(chatId, question, 3) : []);
       const history = trimHistory(await this.repository.getHistory(chatId, userHash, HISTORY_TURNS), HISTORY_CHARACTER_BUDGET);
       const result = await this.provider.answer(question, await this.repository.getContext(chatId), sermonContext.map((item) => ({ sermonId: item.sermonId, title: item.title, excerpt: item.excerpt })), history);
       await this.repository.appendExchange(chatId, userHash, question, result.answer, this.timezone);
