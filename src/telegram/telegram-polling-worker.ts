@@ -18,7 +18,12 @@ export class TelegramPollingWorker {
 
   public async start(): Promise<void> {
     if (this.timer) return;
-    await this.options.client.deleteWebhook();
+    try {
+      await this.options.client.deleteWebhook();
+    } catch (error) {
+      // A local Bot API server may close this cleanup request while still serving polling.
+      this.options.logger.error({ error }, 'Telegram webhook cleanup failed; continuing with polling');
+    }
     this.options.logger.info('Telegram polling started');
     void this.tick();
     this.timer = setInterval(() => void this.tick(), this.options.intervalMs);
