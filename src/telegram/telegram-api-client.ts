@@ -1,5 +1,6 @@
 import type { MessageSender, SendMessageInput } from '../messaging/message-sender.js';
 import type { TelegramUpdate } from './types.js';
+import { Agent } from 'undici';
 
 interface TelegramApiResponse<T> {
   ok: boolean;
@@ -9,6 +10,7 @@ interface TelegramApiResponse<T> {
 }
 
 export class TelegramApiClient implements MessageSender {
+  private readonly directAgent = new Agent();
   public constructor(
     private readonly token: string | undefined,
     private readonly baseUrl: string,
@@ -30,8 +32,8 @@ export class TelegramApiClient implements MessageSender {
         disable_notification: !(input.notify ?? true),
         ...(input.keyboard ? { reply_markup: { inline_keyboard: input.keyboard.map((row) => row.map((button) => ({ text: button.text, callback_data: button.callbackData }))) } } : {}),
       }),
-      signal: AbortSignal.timeout(35_000),
-    });
+      signal: AbortSignal.timeout(35_000), dispatcher: this.directAgent,
+    } as RequestInit & { dispatcher: Agent });
     const body = await readTelegramResponse(response);
     if (!response.ok || !body.ok) {
       throw new Error(`Telegram API returned ${body.error_code ?? response.status}: ${body.description ?? 'unknown error'}`);
@@ -55,7 +57,7 @@ export class TelegramApiClient implements MessageSender {
     if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to download files');
     if (filePath.split('/').includes('..')) throw new Error('Telegram returned an unsafe file path');
 
-    const response = await this.request(`${this.baseUrl}/file/bot${this.token}/${filePath}`, { signal: AbortSignal.timeout(10 * 60_000) });
+    const response = await this.request(`${this.baseUrl}/file/bot${this.token}/${filePath}`, { signal: AbortSignal.timeout(10 * 60_000), dispatcher: this.directAgent } as RequestInit & { dispatcher: Agent });
     if (!response.ok) throw new Error(`Telegram file download returned ${response.status}`);
     return new Uint8Array(await response.arrayBuffer());
   }
@@ -78,8 +80,8 @@ export class TelegramApiClient implements MessageSender {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(method === 'getUpdates' ? 35_000 : 60_000),
-    });
+    signal: AbortSignal.timeout(method === 'getUpdates' ? 35_000 : 60_000), dispatcher: this.directAgent,
+    } as RequestInit & { dispatcher: Agent });
     const body = await readTelegramResponse(response) as TelegramApiResponse<T>;
     if (!response.ok || !body.ok || body.result === undefined) {
       throw new Error(`Telegram API returned ${body.error_code ?? response.status}: ${body.description ?? 'unknown error'}`);
