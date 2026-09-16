@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { SermonContentProvider } from './sermon-content-provider.js';
 import { generateGroqJson, type GroqJsonClientOptions } from './groq-json-client.js';
 
-const schema = z.object({ summary: z.string().min(1).max(4_000), outline: z.array(z.object({ title: z.string().min(1), points: z.array(z.string().min(1)).min(1) })).default([]), keyThoughts: z.array(z.string().min(1).max(1_000)).min(3).max(7), reflectionQuestions: z.array(z.string().min(1).max(1_000)).min(2).max(5), followUpPosts: z.array(z.object({ thought: z.string().min(1), practice: z.string().min(1), imagePrompt: z.string().min(1) })).length(6).optional() });
+const stringArray = z.preprocess((value) => typeof value === 'string' ? [value] : value, z.array(z.string().min(1)));
+const schema = z.object({ summary: z.string().min(1).max(4_000), outline: z.array(z.object({ title: z.string().min(1), points: stringArray })).default([]), keyThoughts: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(3).max(7)), reflectionQuestions: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(2).max(5)), followUpPosts: z.array(z.object({ thought: z.string().min(1), practice: z.string().min(1), imagePrompt: z.string().min(1) })).length(6).optional() });
 
 const MAX_ANALYSIS_CHARS = 18_000;
 
