@@ -1,7 +1,7 @@
 import { PrismaClient, TranscriptionStatus } from '@prisma/client';
 
 export interface SermonSearchResult { sermonId: string; title: string; date: Date; excerpt: string }
-export interface SermonArchiveEntry { sermonId: string; title: string; date: Date; transcript: string; outline: Array<{ title: string; points: string[] }> }
+export interface SermonArchiveEntry { sermonId: string; title: string; date: Date; transcript: string; summary?: string; outline: Array<{ title: string; points: string[] }>; keyThoughts: string[]; reflectionQuestions: string[] }
 
 export class SermonSearchService {
   public constructor(private readonly prisma: PrismaClient) {}
@@ -36,10 +36,10 @@ export class SermonSearchService {
   public async get(chatId: string, sermonId: string, allowAdminArchive = false): Promise<SermonArchiveEntry | null> {
     const sermon = await this.prisma.sermon.findFirst({
       where: { ...(allowAdminArchive ? {} : { churchGroup: { telegramChatId: chatId } }), publicId: sermonId.toUpperCase(), transcriptionStatus: TranscriptionStatus.COMPLETED },
-      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true, outline: true },
+      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true, summary: true, outline: true, keyThoughts: true, reflectionQuestions: true },
     });
     if (!sermon?.transcript) return null;
-    return { sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, transcript: sermon.transcript, outline: Array.isArray(sermon.outline) ? sermon.outline as Array<{ title: string; points: string[] }> : [] };
+    return { sermonId: sermon.publicId, title: sermon.title ?? sermon.fileName ?? 'Проповедь', date: sermon.createdAt, transcript: sermon.transcript, ...(sermon.summary ? { summary: sermon.summary } : {}), outline: Array.isArray(sermon.outline) ? sermon.outline as Array<{ title: string; points: string[] }> : [], keyThoughts: Array.isArray(sermon.keyThoughts) ? sermon.keyThoughts.filter((item): item is string => typeof item === 'string') : [], reflectionQuestions: Array.isArray(sermon.reflectionQuestions) ? sermon.reflectionQuestions.filter((item): item is string => typeof item === 'string') : [] };
   }
 }
 

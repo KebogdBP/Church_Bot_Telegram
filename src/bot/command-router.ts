@@ -287,8 +287,11 @@ export class CommandRouter {
       if (!sermonId || !this.options.sermonSearchService) { await this.reply(message.chatId, 'Формат: /sermon_show ID'); return; }
       const sermon = await this.options.sermonSearchService.get(message.chatId, sermonId, true);
       if (!sermon) { await this.reply(message.chatId, 'Проповедь не найдена или ещё не транскрибирована.'); return; }
-      const outline = sermon.outline.length ? `\n<b>Структура</b>\n${sermon.outline.map((part, index) => `${index + 1}. ${escapeHtml(part.title)}\n${part.points.map((point) => `• ${escapeHtml(point)}`).join('\n')}`).join('\n')}` : '';
-      await this.reply(message.chatId, `<b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>${outline}`);
+      const summary = sermon.summary ? `\n\n<b>Кратко</b>\n${escapeHtml(sermon.summary)}` : '';
+      const outline = sermon.outline.length ? `\n\n<b>Структура</b>\n${sermon.outline.map((part, index) => `${index + 1}. ${escapeHtml(part.title)}\n${part.points.map((point) => `• ${escapeHtml(point)}`).join('\n')}`).join('\n')}` : '';
+      const thoughts = sermon.keyThoughts.length ? `\n\n<b>Ключевые мысли</b>\n${sermon.keyThoughts.map((thought) => `• ${escapeHtml(thought)}`).join('\n')}` : '';
+      const questions = sermon.reflectionQuestions.length ? `\n\n<b>Вопросы</b>\n${sermon.reflectionQuestions.map((question) => `• ${escapeHtml(question)}`).join('\n')}` : '';
+      await this.reply(message.chatId, `<b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>${summary}${outline}${thoughts}${questions}`);
       for (const chunk of splitTelegramText(sermon.transcript)) await this.reply(message.chatId, escapeHtml(chunk));
       return;
     }

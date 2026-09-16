@@ -32,6 +32,7 @@ Current focus: processing observability, long-sermon regression coverage, and gr
 - [ ] Add structured archive metadata and selected-sermon grounded questions.
 - [x] Add administrator-only `/sermon_show ID` with structured outline and Telegram-safe full transcript chunks.
 - [x] Add `/ask_sermon ID QUESTION` with selected-sermon-only AI context.
+- [x] Show summary, key thoughts, and reflection questions in `/sermon_show`.
 - [x] Allow administrator archive lookup from private chat when a sermon belongs to another church chat.
 
 ## Done
