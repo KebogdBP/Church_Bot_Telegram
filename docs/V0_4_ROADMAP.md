@@ -11,6 +11,8 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 ## Phase 1: Sermon archive and grounded search
 
+- [ ] Optional: use Telegram Local Bot API Server to accept direct audio above the hosted 20 MB download limit.
+
 - [ ] Store sermon title, speaker, date, themes, Bible references, outline, and full transcript.
 - [x] Add `/sermon_show` with structured outline and Telegram-safe full transcript chunks.
 - [x] Add `/ask_sermon ID QUESTION` against a selected sermon.

@@ -30,6 +30,7 @@ Current focus: processing observability, long-sermon regression coverage, and gr
 - [ ] Start Version 0.4 expansion roadmap and keep each phase independently deployable.
 - [ ] Add a processing timeline and safe diagnostics for media and AI stages.
 - [ ] Add structured archive metadata and selected-sermon grounded questions.
+- [ ] Connect Telegram Local Bot API Server for direct Telegram audio files larger than 20 MB (requires API ID and API hash).
 - [x] Add administrator-only `/sermon_show ID` with structured outline and Telegram-safe full transcript chunks.
 - [x] Add `/ask_sermon ID QUESTION` with selected-sermon-only AI context.
 - [x] Show summary, key thoughts, and reflection questions in `/sermon_show`.

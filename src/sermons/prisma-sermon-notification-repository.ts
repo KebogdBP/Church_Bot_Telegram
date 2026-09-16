@@ -21,7 +21,8 @@ export class PrismaSermonNotificationRepository implements SermonNotificationRep
       const add = (kind: string, message: string, availableAt = now) => { if (!existing.has(kind)) rows.push({ sermonId: sermon.id, kind, targetChatId, message, availableAt }); };
       const personal = sermon.purpose === SermonPurpose.PERSONAL_TRANSCRIPTION;
       if (sermon.status === SermonStatus.STORED) add('stored', personal ? `Аудио ${publicId}: файл подготовлен, начинается транскрибация.` : `Проповедь ${publicId}: файл загружен и подготовлен.`);
-      if (sermon.status === SermonStatus.TOO_LARGE || (sermon.status === SermonStatus.FAILED && sermon.attempts >= 5)) add('download_failed', `Проповедь ${publicId}: не удалось загрузить файл. Проверьте /sermon_status ${publicId}`);
+      if (sermon.status === SermonStatus.TOO_LARGE) add('download_failed', `Проповедь ${publicId}: файл больше лимита Telegram 20 МБ. Отправьте публичную ссылку через /sermon_link URL или сожмите MP3.`);
+      else if (sermon.status === SermonStatus.FAILED && sermon.attempts >= 5) add('download_failed', `Проповедь ${publicId}: не удалось загрузить файл. Проверьте /sermon_status ${publicId}`);
       if (sermon.transcriptionStatus === TranscriptionStatus.COMPLETED && !personal) add('transcribed', `Проповедь ${publicId}: транскрибация завершена.`);
       if (sermon.transcriptionStatus === TranscriptionStatus.COMPLETED && personal && sermon.transcript) {
         const chunks = splitTelegramText(sermon.transcript);
