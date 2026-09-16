@@ -8,6 +8,7 @@ export interface SermonStatusView {
   transcription: string;
   content: string;
   posts: number;
+  timings: { downloadMinutes?: number; transcriptionMinutes?: number; analysisMinutes?: number };
   error?: string;
 }
 
@@ -22,7 +23,7 @@ export class PrismaSermonStatusReader implements SermonStatusReader {
       where: { churchGroup: { telegramChatId: chatId }, OR: [{ id: sermonId }, { publicId: normalizePublicSermonId(sermonId) }] },
       select: {
         publicId: true, fileName: true, status: true, transcriptionStatus: true, contentStatus: true,
-        lastError: true, transcriptionError: true, contentError: true, _count: { select: { posts: true } },
+        lastError: true, transcriptionError: true, contentError: true, createdAt: true, storedAt: true, transcribedAt: true, contentGeneratedAt: true, _count: { select: { posts: true } },
       },
     });
     if (!sermon) return null;
@@ -33,7 +34,16 @@ export class PrismaSermonStatusReader implements SermonStatusReader {
       transcription: sermon.transcriptionStatus,
       content: sermon.contentStatus,
       posts: sermon._count.posts,
+      timings: {
+        ...(sermon.storedAt ? { downloadMinutes: minutesBetween(sermon.createdAt, sermon.storedAt) } : {}),
+        ...(sermon.transcribedAt && sermon.storedAt ? { transcriptionMinutes: minutesBetween(sermon.storedAt, sermon.transcribedAt) } : {}),
+        ...(sermon.contentGeneratedAt && sermon.transcribedAt ? { analysisMinutes: minutesBetween(sermon.transcribedAt, sermon.contentGeneratedAt) } : {}),
+      },
       ...((sermon.contentError ?? sermon.transcriptionError ?? sermon.lastError) ? { error: (sermon.contentError ?? sermon.transcriptionError ?? sermon.lastError)! } : {}),
     };
   }
+}
+
+function minutesBetween(start: Date, end: Date): number {
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000));
 }

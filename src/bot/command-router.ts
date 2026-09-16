@@ -331,6 +331,7 @@ export class CommandRouter {
           `Транскрибация: ${status.transcription}`,
           `Материалы Gemini: ${status.content}`,
           `Черновики: ${status.posts}`,
+          ...(Object.keys(status.timings).length ? [`Время этапов: загрузка ${status.timings.downloadMinutes ?? '...'} мин, транскрибация ${status.timings.transcriptionMinutes ?? '...'} мин, анализ ${status.timings.analysisMinutes ?? '...'} мин`] : []),
           ...(status.error ? [`Ошибка: ${escapeHtml(status.error)}`] : []),
         ].join('\n'));
         return;
