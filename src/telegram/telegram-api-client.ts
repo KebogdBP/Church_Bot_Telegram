@@ -68,7 +68,7 @@ export class TelegramApiClient implements MessageSender {
 
   public async getUpdates(offset: number | undefined): Promise<TelegramUpdate[]> {
     return this.call<TelegramUpdate[]>('getUpdates', {
-      timeout: 25,
+      timeout: this.baseUrl.includes('://telegram-api:') ? 0 : 25,
       allowed_updates: ['message', 'channel_post', 'callback_query'],
       ...(offset === undefined ? {} : { offset }),
     });
