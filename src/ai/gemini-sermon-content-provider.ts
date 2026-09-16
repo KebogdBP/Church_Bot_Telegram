@@ -7,7 +7,7 @@ const contentSchema = z.object({
   outline: z.array(z.object({ title: z.string().min(1).max(300), points: z.array(z.string().min(1).max(1_000)).min(1).max(8) })).min(1).max(12),
   keyThoughts: z.array(z.string().min(1).max(1_000)).min(3).max(7),
   reflectionQuestions: z.array(z.string().min(1).max(1_000)).min(2).max(5),
-  followUpPosts: z.array(z.object({ thought: z.string().min(1).max(1_500), practice: z.string().min(1).max(1_000), imagePrompt: z.string().min(1).max(500) })).min(6).max(12),
+  followUpPosts: z.array(z.object({ thought: z.string().min(1).max(1_500), practice: z.string().min(1).max(1_000), imagePrompt: z.string().min(1).max(500) })).min(6).max(6),
 });
 
 const responseSchema = {
@@ -17,7 +17,7 @@ const responseSchema = {
     outline: { type: 'ARRAY', items: { type: 'OBJECT', properties: { title: { type: 'STRING', maxLength: 300 }, points: { type: 'ARRAY', items: { type: 'STRING', maxLength: 1000 }, minItems: 1, maxItems: 8 } }, required: ['title', 'points'] }, minItems: 1, maxItems: 12 },
     keyThoughts: { type: 'ARRAY', items: { type: 'STRING', maxLength: 1000 }, minItems: 3, maxItems: 7 },
     reflectionQuestions: { type: 'ARRAY', items: { type: 'STRING', maxLength: 1000 }, minItems: 2, maxItems: 5 },
-    followUpPosts: { type: 'ARRAY', items: { type: 'OBJECT', properties: { thought: { type: 'STRING', maxLength: 1500 }, practice: { type: 'STRING', maxLength: 1000 }, imagePrompt: { type: 'STRING', maxLength: 500 } }, required: ['thought', 'practice', 'imagePrompt'] }, minItems: 6, maxItems: 12 },
+    followUpPosts: { type: 'ARRAY', items: { type: 'OBJECT', properties: { thought: { type: 'STRING', maxLength: 1500 }, practice: { type: 'STRING', maxLength: 1000 }, imagePrompt: { type: 'STRING', maxLength: 500 } }, required: ['thought', 'practice', 'imagePrompt'] }, minItems: 6, maxItems: 6 },
   },
   required: ['summary', 'outline', 'keyThoughts', 'reflectionQuestions', 'followUpPosts'],
 };
