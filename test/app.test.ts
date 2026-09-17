@@ -327,6 +327,24 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: 'Ответ в группе' });
   });
 
+  it('shows the sermon archive catalog and opens a sermon by its public ID', async () => {
+    const sermonSearchService = {
+      list: vi.fn().mockResolvedValue([{ sermonId: 'LAXE9T', title: 'Вера в испытаниях', date: new Date('2026-09-15T10:00:00Z'), excerpt: 'Текст' }]),
+      get: vi.fn().mockResolvedValue({ sermonId: 'LAXE9T', title: 'Вера в испытаниях', date: new Date('2026-09-15T10:00:00Z'), transcript: 'Полный текст', summary: 'Главная мысль', outline: [], keyThoughts: [], reflectionQuestions: [] }),
+      search: vi.fn(),
+    } as unknown as import('../src/sermons/sermon-search-service.js').SermonSearchService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, sermonSearchService);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('menu:archive') });
+    expect(sermonSearchService.list).toHaveBeenCalledWith('100');
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Вера в испытаниях') }));
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('archive:view:LAXE9T') });
+    expect(sermonSearchService.get).toHaveBeenCalledWith('100', 'LAXE9T');
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Полная транскрипция') }));
+  });
+
   it('creates and approves an announcement only for an administrator', async () => {
     const announcements = { create: vi.fn().mockResolvedValue({ id: 'a1', content: 'Общее собрание', status: 'draft' }), find: vi.fn(), list: vi.fn(), edit: vi.fn(), reject: vi.fn(), approve: vi.fn().mockResolvedValue(true) } as unknown as import('../src/announcements/announcement-service.js').AnnouncementService;
     const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, announcements);

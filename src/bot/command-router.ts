@@ -103,6 +103,7 @@ const HELP_TEXT = [
 
 export class CommandRouter {
   private readonly pendingQuestions = new Set<string>();
+  private readonly pendingArchiveSearch = new Set<string>();
 
   public constructor(private readonly options: CommandRouterOptions) {}
 
@@ -160,6 +161,12 @@ export class CommandRouter {
     }
 
     const questionKey = `${message.chatId}:${message.userId}`;
+    if (!message.text.startsWith('/') && this.pendingArchiveSearch.delete(questionKey)) {
+      if (!this.options.sermonSearchService) { await this.reply(message.chatId, 'Архив проповедей сейчас недоступен.'); return; }
+      const results = await this.options.sermonSearchService.search(message.chatId, message.text);
+      await this.reply(message.chatId, results.length ? ['<b>🔎 Найдено в архиве</b>', ...results.map((result) => `<b>${escapeHtml(result.title)}</b> · <code>${result.sermonId}</code>\n${escapeHtml(result.excerpt)}`)].join('\n\n') : 'По этому запросу ничего не найдено.', [[{ text: '🗂 К архиву', callbackData: 'menu:archive' }], [{ text: '🏠 Главное меню', callbackData: 'menu:home' }]]);
+      return;
+    }
     if (!message.text.startsWith('/') && (message.chatType === 'private' || this.pendingQuestions.delete(questionKey))) {
       if (message.text.length > 3_000) { await this.reply(message.chatId, 'Сообщение слишком длинное. Сократите вопрос до 3000 символов.'); return; }
       if (!this.options.bibleAssistant) { await this.reply(message.chatId, 'AI-помощник пока не настроен.'); return; }
@@ -446,7 +453,28 @@ export class CommandRouter {
       if (callback.data === 'menu:home') { await this.options.sender.answerCallback?.(callback.id); await this.sendMainMenu(callback.chatId); return; }
       if (callback.data === 'menu:ask') { await this.options.sender.answerCallback?.(callback.id); this.pendingQuestions.add(`${callback.chatId}:${callback.userId}`); await this.reply(callback.chatId, '<b>📖 Задать вопрос</b>\n\nНапишите вопрос следующим сообщением. Команды не нужны.\n\nНапример: «Что Библия говорит о прощении?»', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:sermon') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>🎙 Работа с проповедью</b>\n\nОтправьте аудио или ссылку на проповедь прямо в этот чат. Я полностью транскрибирую её, сохраню в архиве и подготовлю основные мысли.', [[{ text: '🗂 Архив проповедей', callbackData: 'menu:archive' }], [{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
-      if (callback.data === 'menu:archive') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>🗂 Архив проповедей</b>\n\nДля поиска напишите тему или ключевое слово.\n\nЧтобы задать вопрос по конкретной проповеди, используйте её короткий ID в сообщении, например: <code>/ask_sermon LAXE9T ваш вопрос</code>.', [[{ text: '🎙 Добавить проповедь', callbackData: 'menu:sermon' }], [{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
+      if (callback.data === 'menu:archive') {
+        await this.options.sender.answerCallback?.(callback.id);
+        if (!this.options.sermonSearchService) { await this.reply(callback.chatId, 'Архив проповедей сейчас недоступен.', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
+        const sermons = await this.options.sermonSearchService.list(callback.chatId);
+        await this.reply(callback.chatId, sermons.length
+          ? ['<b>🗂 Архив проповедей</b>', '', ...sermons.map((sermon, index) => `${index + 1}. <b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>\n${DateTime.fromJSDate(sermon.date, { zone: this.options.timezone }).toFormat('dd.LL.yyyy')}`)].join('\n\n')
+          : '<b>🗂 Архив проповедей</b>\n\nОбработанных проповедей пока нет.', [
+          ...sermons.map((sermon) => [{ text: `📖 ${sermon.title.slice(0, 28)}`, callbackData: `archive:view:${sermon.sermonId}` }]),
+          [{ text: '🔎 Найти по теме', callbackData: 'menu:archive_search' }],
+          [{ text: '◀ Назад', callbackData: 'menu:home' }],
+        ]);
+        return;
+      }
+      if (callback.data === 'menu:archive_search') { await this.options.sender.answerCallback?.(callback.id); this.pendingArchiveSearch.add(`${callback.chatId}:${callback.userId}`); await this.reply(callback.chatId, '<b>🔎 Поиск в архиве</b>\n\nНапишите тему или ключевое слово следующим сообщением.\nНапример: <i>прощение</i>.', [[{ text: '◀ К архиву', callbackData: 'menu:archive' }]]); return; }
+      const archiveView = /^archive:view:([A-Z0-9]{6})$/i.exec(callback.data);
+      if (archiveView && this.options.sermonSearchService) {
+        await this.options.sender.answerCallback?.(callback.id);
+        const sermon = await this.options.sermonSearchService.get(callback.chatId, archiveView[1]!.toUpperCase());
+        if (!sermon) { await this.reply(callback.chatId, 'Проповедь не найдена или ещё не обработана.', [[{ text: '◀ К архиву', callbackData: 'menu:archive' }]]); return; }
+        await this.sendSermonArchiveEntry(callback.chatId, sermon);
+        return;
+      }
       if (callback.data === 'menu:prayer') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>🙏 Молитвенная просьба</b>\n\nНапишите свою просьбу следующим сообщением. В личном чате я передам её служителям конфиденциально.', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:thought') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>💡 Мысль дня</b>\n\nМысли и практические применения публикуются из обработанных проповедей по расписанию.', [[{ text: '🗂 Архив проповедей', callbackData: 'menu:archive' }], [{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:help') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>❓ Помощь</b>\n\n• Вопросы можно писать обычным сообщением.\n• Аудио проповеди отправляйте как MP3 или голосовое сообщение.\n• Ссылку на видео или аудио можно отправить отдельным сообщением.\n• Для возврата используйте кнопку ниже.', [[{ text: '🏠 Главное меню', callbackData: 'menu:home' }]]); return; }
@@ -557,6 +585,15 @@ export class CommandRouter {
       [{ text: '🙏 Молитва', callbackData: 'menu:prayer' }, { text: '💡 Мысль дня', callbackData: 'menu:thought' }],
       [{ text: '❓ Помощь', callbackData: 'menu:help' }],
     ]);
+  }
+
+  private async sendSermonArchiveEntry(chatId: string, sermon: import('../sermons/sermon-search-service.js').SermonArchiveEntry): Promise<void> {
+    const summary = sermon.summary ? `\n\n<b>Кратко</b>\n${escapeHtml(sermon.summary)}` : '';
+    const outline = sermon.outline.length ? `\n\n<b>Структура</b>\n${sermon.outline.map((part, index) => `${index + 1}. ${escapeHtml(part.title)}\n${part.points.map((point) => `• ${escapeHtml(point)}`).join('\n')}`).join('\n')}` : '';
+    const thoughts = sermon.keyThoughts.length ? `\n\n<b>Ключевые мысли</b>\n${sermon.keyThoughts.map((thought) => `• ${escapeHtml(thought)}`).join('\n')}` : '';
+    await this.reply(chatId, `<b>${escapeHtml(sermon.title)}</b> · <code>${sermon.sermonId}</code>${summary}${outline}${thoughts}`, [[{ text: '💬 Задать вопрос по ID', callbackData: 'menu:ask' }], [{ text: '◀ К архиву', callbackData: 'menu:archive' }]]);
+    await this.reply(chatId, '<b>Полная транскрипция</b>');
+    for (const chunk of splitTelegramText(sermon.transcript)) await this.reply(chatId, escapeHtml(chunk));
   }
 
   private async handleSermonCommand(command: string, message: IncomingMessage): Promise<void> {

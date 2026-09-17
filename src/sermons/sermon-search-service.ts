@@ -6,6 +6,20 @@ export interface SermonArchiveEntry { sermonId: string; title: string; date: Dat
 export class SermonSearchService {
   public constructor(private readonly prisma: PrismaClient) {}
 
+  public async list(chatId: string, limit = 8): Promise<SermonSearchResult[]> {
+    const sermons = await this.prisma.sermon.findMany({
+      where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, transcript: { not: null } },
+      orderBy: { createdAt: 'desc' }, take: Math.min(Math.max(limit, 1), 20),
+      select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true },
+    });
+    return sermons.map((sermon) => ({
+      sermonId: sermon.publicId,
+      title: sermon.title ?? sermon.fileName ?? 'Проповедь',
+      date: sermon.createdAt,
+      excerpt: sermon.transcript?.slice(0, 180).trim() ?? '',
+    }));
+  }
+
   public async search(chatId: string, rawQuery: string, limit = 5): Promise<SermonSearchResult[]> {
     const query = rawQuery.trim().replace(/\s+/g, ' ').slice(0, 100);
     if (query.length < 2) return [];
