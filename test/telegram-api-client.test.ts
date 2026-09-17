@@ -46,6 +46,17 @@ describe('TelegramApiClient', () => {
     await expect(client.sendMessage({ chatId: '1', text: 'hello' }))
       .rejects.toThrow('Telegram API returned 403: bot was blocked');
   });
+
+  it('uploads transcript documents and audio files', async () => {
+    const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+    const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
+
+    await client.sendDocument({ chatId: '1', fileName: 'LAXE9T-transcript.txt', bytes: new TextEncoder().encode('Текст') });
+    await client.sendAudio({ chatId: '1', fileName: 'LAXE9T.mp3', bytes: new Uint8Array([1, 2, 3]) });
+
+    expect(request).toHaveBeenNthCalledWith(1, 'https://api.telegram.org/botsecret-token/sendDocument', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
+    expect(request).toHaveBeenNthCalledWith(2, 'https://api.telegram.org/botsecret-token/sendAudio', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
+  });
 });
 
 describe('normalizeMessage', () => {

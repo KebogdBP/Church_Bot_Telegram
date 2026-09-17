@@ -1,4 +1,4 @@
-import type { MessageSender, SendMessageInput } from '../messaging/message-sender.js';
+import type { MessageSender, SendFileInput, SendMessageInput } from '../messaging/message-sender.js';
 import type { TelegramUpdate } from './types.js';
 import { Agent } from 'undici';
 
@@ -44,6 +44,14 @@ export class TelegramApiClient implements MessageSender {
     await this.call<true>('answerCallbackQuery', { callback_query_id: callbackId, ...(text ? { text } : {}) });
   }
 
+  public sendAudio(input: SendFileInput): Promise<void> {
+    return this.sendMultipart('sendAudio', 'audio', input);
+  }
+
+  public sendDocument(input: SendFileInput): Promise<void> {
+    return this.sendMultipart('sendDocument', 'document', input);
+  }
+
   public async getFile(fileId: string): Promise<{ filePath: string; fileSize?: number }> {
     const body = await this.call<{ file_path?: string; file_size?: number }>('getFile', { file_id: fileId });
     if (!body.file_path) throw new Error('Telegram getFile response did not contain file_path');
@@ -87,6 +95,17 @@ export class TelegramApiClient implements MessageSender {
       throw new Error(`Telegram API returned ${body.error_code ?? response.status}: ${body.description ?? 'unknown error'}`);
     }
     return body.result;
+  }
+
+  private async sendMultipart(method: string, field: 'audio' | 'document', input: SendFileInput): Promise<void> {
+    if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to send files');
+    const form = new FormData();
+    form.set('chat_id', input.chatId);
+    if (input.caption) form.set('caption', input.caption);
+    form.set(field, new Blob([input.bytes as unknown as BlobPart]), input.fileName);
+    const response = await this.request(`${this.baseUrl}/bot${this.token}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(10 * 60_000), dispatcher: this.directAgent } as RequestInit & { dispatcher: Agent });
+    const body = await readTelegramResponse(response);
+    if (!response.ok || !body.ok) throw new Error(`Telegram API returned ${body.error_code ?? response.status}: ${body.description ?? 'unknown error'}`);
   }
 }
 
