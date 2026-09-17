@@ -24,7 +24,7 @@ export class SermonSearchService {
     const query = rawQuery.trim().replace(/\s+/g, ' ').slice(0, 100);
     if (query.length < 2) return [];
     const sermons = await this.prisma.sermon.findMany({
-      where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, transcript: { contains: query, mode: 'insensitive' } },
+      where: { churchGroup: { telegramChatId: chatId }, transcriptionStatus: TranscriptionStatus.COMPLETED, OR: [{ transcript: { contains: query, mode: 'insensitive' } }, { title: { contains: query, mode: 'insensitive' } }, { fileName: { contains: query, mode: 'insensitive' } }] },
       orderBy: { createdAt: 'desc' }, take: Math.min(Math.max(limit, 1), 10),
       select: { publicId: true, title: true, fileName: true, createdAt: true, transcript: true },
     });
