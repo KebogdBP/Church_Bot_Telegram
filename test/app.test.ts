@@ -134,6 +134,24 @@ describe('Telegram webhook', () => {
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ chatId: '100' }));
   });
 
+  it('opens the user-friendly main menu from /start', async () => {
+    const { app, sendMessage } = createTestApp();
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/start') });
+
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Церковный помощник'),
+      keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: 'menu:ask' })])]),
+    }));
+  });
+
+  it('handles public menu callbacks without administrator rights', async () => {
+    const { app, answerCallback, sendMessage } = createTestApp('99');
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('menu:ask') });
+
+    expect(answerCallback).toHaveBeenCalledWith('callback-1');
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Задать вопрос') }));
+  });
+
   it('allows status only for configured admins', async () => {
     const { app, sendMessage } = createTestApp('42');
     await app.inject({
