@@ -315,6 +315,18 @@ describe('Telegram webhook', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
+  it('answers one group question after the user presses the question button', async () => {
+    const bibleAssistant = { ask: vi.fn().mockResolvedValue({ text: 'Ответ в группе', escalated: false }), askWithSermons: vi.fn() } as unknown as import('../src/assistant/bible-assistant-service.js').BibleAssistantService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, bibleAssistant);
+    const headers = { 'x-telegram-bot-api-secret-token': 'test-secret' };
+
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: callbackUpdate('menu:ask', 77) });
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers, payload: messageUpdate('Как научиться прощать?', 77, 'group') });
+
+    expect(bibleAssistant.ask).toHaveBeenCalledWith('100', '77', 'Как научиться прощать?');
+    expect(sendMessage).toHaveBeenLastCalledWith({ chatId: '100', text: 'Ответ в группе' });
+  });
+
   it('creates and approves an announcement only for an administrator', async () => {
     const announcements = { create: vi.fn().mockResolvedValue({ id: 'a1', content: 'Общее собрание', status: 'draft' }), find: vi.fn(), list: vi.fn(), edit: vi.fn(), reject: vi.fn(), approve: vi.fn().mockResolvedValue(true) } as unknown as import('../src/announcements/announcement-service.js').AnnouncementService;
     const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, announcements);
