@@ -55,6 +55,7 @@ import { PrismaAuditRepository } from './audit/prisma-audit-repository.js';
 import { RetentionService } from './retention/retention-service.js';
 import { GroqBibleAnswerProvider } from './assistant/groq-bible-answer-provider.js';
 import { GroqSermonContentProvider } from './ai/groq-sermon-content-provider.js';
+import { OpenRouterSermonContentProvider } from './ai/openrouter-sermon-content-provider.js';
 import { FallbackBibleAnswerProvider, FallbackSermonContentProvider } from './ai/fallback-providers.js';
 import type { BibleAnswerProvider } from './assistant/bible-answer-provider.js';
 import type { SermonContentProvider } from './ai/sermon-content-provider.js';
@@ -197,12 +198,11 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       })
     : null;
   const contentProviders: SermonContentProvider[] = [
+    ...(config.ai.openRouterApiKey ? [new OpenRouterSermonContentProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterStructuredModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
     ...(config.ai.geminiApiKey ? [new GeminiSermonContentProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
     ...(config.ai.groqApiKey ? [new GroqSermonContentProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
   ];
-  const contentProvider = contentProviders.length === 2
-    ? new FallbackSermonContentProvider(contentProviders[0]!, contentProviders[1]!, (error) => app.log.warn({ error: errorMessage(error) }, 'Primary sermon AI failed; using fallback'))
-    : contentProviders[0];
+  const contentProvider = contentProviders.reduce<SermonContentProvider | undefined>((fallback, provider) => fallback ? new FallbackSermonContentProvider(provider, fallback, (error) => app.log.warn({ error: errorMessage(error) }, 'Sermon AI provider failed; using fallback')) : provider, undefined);
   const sermonContentWorker = prisma && contentProvider
     ? new SermonContentWorker({
         repository: new PrismaContentGenerationRepository(prisma),
