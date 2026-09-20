@@ -28,6 +28,7 @@ services:
         condition: service_started
     volumes:
       - sermon_data:/app/data/sermons
+      - telegram_api_data:/var/lib/telegram-bot-api:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s

@@ -1,6 +1,7 @@
 import type { MessageSender, SendFileInput, SendMessageInput } from '../messaging/message-sender.js';
 import type { TelegramUpdate } from './types.js';
 import { Agent } from 'undici';
+import { readFile } from 'node:fs/promises';
 
 interface TelegramApiResponse<T> {
   ok: boolean;
@@ -64,6 +65,9 @@ export class TelegramApiClient implements MessageSender {
   public async downloadFile(filePath: string): Promise<Uint8Array> {
     if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to download files');
     if (filePath.split('/').includes('..')) throw new Error('Telegram returned an unsafe file path');
+    if (filePath.startsWith('/var/lib/telegram-bot-api/')) {
+      return new Uint8Array(await readFile(filePath));
+    }
 
     const response = await this.request(`${this.baseUrl}/file/bot${this.token}/${filePath}`, { signal: AbortSignal.timeout(10 * 60_000), dispatcher: this.directAgent } as RequestInit & { dispatcher: Agent });
     if (!response.ok) throw new Error(`Telegram file download returned ${response.status}`);
