@@ -75,6 +75,13 @@ enum WeeklyDigestStatus {
   FAILED
 }
 
+enum DailyDevotionalStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
 enum EventRsvpResponse {
   GOING
   MAYBE
@@ -120,6 +127,9 @@ model ChurchGroup {
   admins    GroupAdmin[]
   adminFlows AdminFlow[]
   weeklyDigests WeeklyDigest[]
+  dailyDevotionals DailyDevotional[]
+  devotionalEnabled Boolean @default(false)
+  devotionalLocalTime String @default("08:00")
   digestEnabled Boolean @default(false)
   digestWeekday Int @default(5)
   digestLocalTime String @default("18:00")
@@ -228,6 +238,24 @@ model WeeklyDigest {
   updatedAt        DateTime            @updatedAt
 
   @@unique([churchGroupId, weekStart])
+  @@index([status, availableAt])
+}
+
+model DailyDevotional {
+  id             String                @id @default(cuid())
+  churchGroupId  String
+  churchGroup    ChurchGroup           @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  localDate      String
+  content        String
+  status         DailyDevotionalStatus @default(SCHEDULED)
+  availableAt    DateTime
+  attempts       Int                   @default(0)
+  sentAt         DateTime?
+  lastError      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([churchGroupId, localDate])
   @@index([status, availableAt])
 }
 

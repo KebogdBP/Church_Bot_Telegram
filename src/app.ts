@@ -60,6 +60,8 @@ import { FallbackBibleAnswerProvider, FallbackSermonContentProvider } from './ai
 import type { BibleAnswerProvider } from './assistant/bible-answer-provider.js';
 import { OpenRouterBibleAnswerProvider } from './assistant/openrouter-bible-answer-provider.js';
 import type { SermonContentProvider } from './ai/sermon-content-provider.js';
+import { OpenRouterDevotionalProvider } from './ai/openrouter-devotional-provider.js';
+import { DailyDevotionalWorker } from './devotionals/daily-devotional-worker.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -231,6 +233,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ? new AnnouncementWorker({ repository: announcementRepository, sender, logger: app.log, intervalMs: config.ai.announcementPollIntervalMs })
     : null;
   const prayerRequestWorker = prisma && config.telegram.botToken ? new PrayerRequestWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.prayerRequestPollIntervalMs }) : null;
+  const devotionalWorker = prisma && config.telegram.botToken && config.ai.openRouterApiKey
+    ? new DailyDevotionalWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.weeklyDigestPollIntervalMs, provider: new OpenRouterDevotionalProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterStructuredModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) }) })
+    : null;
 
   if (prisma) {
     app.addHook('onReady', async () => {
@@ -252,6 +257,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       weeklyDigestWorker?.start();
       announcementWorker?.start();
       prayerRequestWorker?.start();
+      devotionalWorker?.start();
     });
     app.addHook('onClose', async () => {
       reminderWorker?.stop();
@@ -264,6 +270,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       weeklyDigestWorker?.stop();
       announcementWorker?.stop();
       prayerRequestWorker?.stop();
+      devotionalWorker?.stop();
       await prisma.$disconnect();
     });
   }
