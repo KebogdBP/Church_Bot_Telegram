@@ -58,6 +58,7 @@ import { GroqSermonContentProvider } from './ai/groq-sermon-content-provider.js'
 import { OpenRouterSermonContentProvider } from './ai/openrouter-sermon-content-provider.js';
 import { FallbackBibleAnswerProvider, FallbackSermonContentProvider } from './ai/fallback-providers.js';
 import type { BibleAnswerProvider } from './assistant/bible-answer-provider.js';
+import { OpenRouterBibleAnswerProvider } from './assistant/openrouter-bible-answer-provider.js';
 import type { SermonContentProvider } from './ai/sermon-content-provider.js';
 
 export interface BuildAppOptions {
@@ -109,12 +110,13 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const auditService = options.auditService ?? (prisma ? new AuditService(new PrismaAuditRepository(prisma, config.app.timezone)) : undefined);
   const retentionService = options.retentionService ?? (prisma ? new RetentionService(prisma) : undefined);
   const bibleProviders: BibleAnswerProvider[] = [
+    ...(config.ai.openRouterApiKey ? [new OpenRouterBibleAnswerProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterTextModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
     ...(config.ai.geminiApiKey ? [new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
     ...(config.ai.groqApiKey ? [new GroqBibleAnswerProvider({ apiKey: config.ai.groqApiKey, model: config.ai.groqTextModel, baseUrl: config.ai.groqApiBaseUrl })] : []),
   ];
-  const bibleProvider = bibleProviders.length === 2
-    ? new FallbackBibleAnswerProvider(bibleProviders[0]!, bibleProviders[1]!, (error) => app.log.warn({ error: errorMessage(error) }, 'Primary Bible AI failed; using fallback'))
-    : bibleProviders[0];
+  const bibleProvider = bibleProviders.reduce<BibleAnswerProvider | undefined>((fallback, provider) => fallback
+    ? new FallbackBibleAnswerProvider(provider, fallback, (error) => app.log.warn({ error: errorMessage(error) }, 'Bible AI provider failed; using fallback'))
+    : provider, undefined);
   const bibleAssistant = options.bibleAssistant ?? (prisma && bibleProvider
     ? new BibleAssistantService(
         new PrismaAssistantRepository(prisma, config.privacySecret),
