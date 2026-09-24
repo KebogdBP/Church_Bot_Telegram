@@ -18,5 +18,6 @@ export interface MessageSender {
   sendMessage(input: SendMessageInput): Promise<void>;
   sendAudio?(input: SendFileInput): Promise<void>;
   sendDocument?(input: SendFileInput): Promise<void>;
+  sendPhoto?(input: SendFileInput): Promise<void>;
   answerCallback?(callbackId: string, text?: string): Promise<void>;
 }

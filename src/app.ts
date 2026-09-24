@@ -62,6 +62,7 @@ import { OpenRouterBibleAnswerProvider } from './assistant/openrouter-bible-answ
 import type { SermonContentProvider } from './ai/sermon-content-provider.js';
 import { OpenRouterDevotionalProvider } from './ai/openrouter-devotional-provider.js';
 import { DailyDevotionalWorker } from './devotionals/daily-devotional-worker.js';
+import { OpenRouterImageProvider } from './ai/openrouter-image-provider.js';
 import { DevotionalAdminService } from './devotionals/devotional-admin-service.js';
 
 export interface BuildAppOptions {
@@ -219,7 +220,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       })
     : null;
   const sermonPostWorker = sermonPostRepository && config.telegram.botToken
-    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs })
+    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs, ...(config.ai.openRouterApiKey ? { imageProvider: new OpenRouterImageProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterImageModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) }) } : {}) })
     : null;
   const sermonNotificationWorker = prisma && config.telegram.botToken
     ? new SermonNotificationWorker({

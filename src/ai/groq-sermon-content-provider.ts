@@ -16,9 +16,9 @@ function analysisContext(transcript: string): string {
 export class GroqSermonContentProvider implements SermonContentProvider {
   public constructor(private readonly options: GroqJsonClientOptions) {}
   public async generate(transcript: string) {
-    const output = await generateGroqJson(this.options, 'Ты редактор церковной группы. Работай только с данным транскриптом. Не добавляй фактов и цитат. Пиши по-русски. JSON: summary, outline [{title, points}], keyThoughts, reflectionQuestions, followUpPosts [{thought, practice, imagePrompt}] (ровно 6). Полный исходный транскрипт хранится отдельно; здесь нужен устойчивый к лимиту ИИ анализ.', analysisContext(transcript));
+    const output = await generateGroqJson(this.options, 'Ты опытный редактор церковной группы. Работай только с транскриптом и не добавляй фактов или цитат. Пиши естественно по-русски. JSON: summary, outline [{title, points}], keyThoughts, reflectionQuestions, followUpPosts [{thought, practice, imagePrompt}] ровно 6. thought — самостоятельный законченный абзац 2–4 предложения с тезисом, объяснением и связью с проповедью, не короткий заголовок. practice — конкретное действие или глубокий вопрос на сегодня. imagePrompt — художественная сцена без текста, букв и логотипов.', analysisContext(transcript));
     const parsed = schema.parse(output);
     const posts = parsed.followUpPosts ?? Array.from({ length: 6 }, (_, index) => ({ thought: parsed.keyThoughts[index % parsed.keyThoughts.length]!, practice: parsed.reflectionQuestions[index % parsed.reflectionQuestions.length]!, imagePrompt: 'Спокойная тематическая иллюстрация о надежде и вере, без текста' }));
-    return { ...parsed, followUpPosts: posts.map((post) => `💡 ${post.thought}\n\nПрактика: ${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
+    return { ...parsed, followUpPosts: posts.map((post) => `<b>Мысль из проповеди</b>\n\n${post.thought}\n\n<b>Практика на сегодня</b>\n${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
   }
 }

@@ -8,7 +8,7 @@ const schema = z.object({
   outline: z.array(z.object({ title: z.string().min(1), points: stringArray })).default([]),
   keyThoughts: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(3).max(7)),
   reflectionQuestions: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(2).max(5)),
-  followUpPosts: z.array(z.object({ thought: z.string().min(1), practice: z.string().min(1), imagePrompt: z.string().min(1) })).length(6).optional(),
+  followUpPosts: z.array(z.object({ thought: z.string().min(120).max(750), practice: z.string().min(80).max(500), imagePrompt: z.string().min(30).max(500) })).length(6).optional(),
 });
 
 const MAX_ANALYSIS_CHARS = 18_000;
@@ -23,11 +23,11 @@ export class OpenRouterSermonContentProvider implements SermonContentProvider {
   public async generate(transcript: string) {
     const context = transcript.length <= MAX_ANALYSIS_CHARS ? transcript : `${transcript.slice(0, 9_000)}\n\n[середина сокращена]\n\n${transcript.slice(-9_000)}`;
     const raw = await this.client.chat(this.options.model, [
-      { role: 'system', content: 'Ты редактор церковной группы. Работай только с данным транскриптом. Пиши по-русски. Не придумывай цитаты, библейские ссылки и факты. Верни только JSON с полями summary, outline, keyThoughts, reflectionQuestions, followUpPosts. В followUpPosts ровно 6 объектов thought, practice, imagePrompt.' },
+      { role: 'system', content: 'Ты опытный редактор церковной группы. Работай только с данным транскриптом, пиши естественно по-русски и не придумывай цитаты, ссылки или факты. Верни только JSON: summary, outline, keyThoughts, reflectionQuestions, followUpPosts. В followUpPosts ровно 6 объектов. thought — законченный самостоятельный абзац 2–4 предложения (120–750 знаков): ясный тезис, его смысл и связь с конкретной мыслью проповеди; не заголовок и не обрывок. practice — конкретное выполнимое действие или глубокий вопрос на сегодня, 80–500 знаков, без общих фраз. imagePrompt — выразительная фотореалистичная или художественная сцена по теме поста, без букв, надписей, логотипов и изображений текста, 30–500 знаков.' },
       { role: 'user', content: context },
     ], responseFormat);
     const parsed = schema.parse(JSON.parse(raw.replace(/^```json\s*|\s*```$/g, '').trim()));
     const posts = parsed.followUpPosts ?? Array.from({ length: 6 }, (_, index) => ({ thought: parsed.keyThoughts[index % parsed.keyThoughts.length]!, practice: parsed.reflectionQuestions[index % parsed.reflectionQuestions.length]!, imagePrompt: 'Спокойная тематическая иллюстрация о вере, без текста' }));
-    return { ...parsed, followUpPosts: posts.map((post) => `💡 ${post.thought}\n\nПрактика: ${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
+    return { ...parsed, followUpPosts: posts.map((post) => `<b>Мысль из проповеди</b>\n\n${post.thought}\n\n<b>Практика на сегодня</b>\n${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
   }
 }

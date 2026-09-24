@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SermonPostRepository } from '../src/sermons/sermon-post.js';
 import { SermonPostService } from '../src/sermons/sermon-post-service.js';
-import { SermonPostWorker } from '../src/sermons/sermon-post-worker.js';
+import { parseGeneratedPost, SermonPostWorker } from '../src/sermons/sermon-post-worker.js';
 import { followUpSchedule } from '../src/sermons/prisma-sermon-post-repository.js';
 
 function repository(): SermonPostRepository {
@@ -61,5 +61,20 @@ describe('sermon post review and delivery', () => {
 
     expect(sender.sendMessage).toHaveBeenCalledWith({ chatId: '-100', text: 'Вера &lt; надежды &amp; любви' });
     expect(repo.markSent).toHaveBeenCalledWith('p1', now);
+  });
+
+  it('separates the hidden image prompt from the public caption', () => {
+    expect(parseGeneratedPost('Мысль\n\nПрактика\n\nИзображение: тёплый рассвет без текста')).toEqual({ caption: 'Мысль\n\nПрактика', imagePrompt: 'тёплый рассвет без текста' });
+  });
+
+  it('generates and sends a photo above the complete thought', async () => {
+    const repo = repository();
+    vi.mocked(repo.claimDue).mockResolvedValue([{ id: 'p2', chatId: '-100', content: '<b>Мысль из проповеди</b>\n\nЗаконченная мысль.\n\n<b>Практика на сегодня</b>\nСделать шаг.\n\nИзображение: рассвет без текста', attempt: 1 }]);
+    const sendPhoto = vi.fn().mockResolvedValue(undefined);
+    const imageProvider = { generate: vi.fn().mockResolvedValue({ bytes: new Uint8Array([1, 2]), mimeType: 'image/jpeg' }) };
+    const worker = new SermonPostWorker({ repository: repo, sender: { sendMessage: vi.fn(), sendPhoto }, imageProvider: imageProvider as never, now: () => new Date('2026-09-13T17:00:00Z'), intervalMs: 30_000, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } });
+    await worker.tick();
+    expect(imageProvider.generate).toHaveBeenCalledWith('рассвет без текста');
+    expect(sendPhoto).toHaveBeenCalledWith(expect.objectContaining({ chatId: '-100', caption: expect.not.stringContaining('Изображение:') }));
   });
 });

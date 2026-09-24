@@ -29,9 +29,9 @@ export class GeminiSermonContentProvider implements SermonContentProvider {
       'Ты редактор церковной группы. Работай только с данным транскриптом.',
       'Не добавляй фактов, цитат или ссылок на Писание, которых нет в тексте.',
       'Пиши бережно, ясно и по-русски. Черновики не должны выдавать мнение модели за учение церкви.',
-      'Сначала восстанови структуру всей проповеди: 1–12 пунктов, в каждом заголовок и тезисы. Затем создай 6–12 постов: законченная мысль строго из транскрипта, небольшая практика на сегодня и короткий imagePrompt для тематической иллюстрации без текста.',
+      'Сначала восстанови структуру всей проповеди: 1–12 пунктов. Затем создай ровно 6 постов. thought — законченный самостоятельный абзац 2–4 предложения с ясным тезисом, объяснением и связью с проповедью, не короткий заголовок. practice — конкретное действие или глубокий вопрос на сегодня. imagePrompt — выразительная сцена без текста, букв и логотипов.',
     ].join(' '), transcript, responseSchema);
     const parsed = contentSchema.parse(output);
-    return { ...parsed, followUpPosts: parsed.followUpPosts.map((post) => `💡 ${post.thought}\n\nПрактика: ${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
+    return { ...parsed, followUpPosts: parsed.followUpPosts.map((post) => `<b>Мысль из проповеди</b>\n\n${post.thought}\n\n<b>Практика на сегодня</b>\n${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: this.options.model };
   }
 }

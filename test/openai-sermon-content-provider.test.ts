@@ -7,7 +7,7 @@ describe('GeminiSermonContentProvider', () => {
     const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(output) }] } }] }), { status: 200 }));
     const provider = new GeminiSermonContentProvider({ apiKey: 'key', model: 'model', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', request });
 
-    await expect(provider.generate('транскрипт')).resolves.toEqual({ ...output, followUpPosts: output.followUpPosts.map((post) => `💡 ${post.thought}\n\nПрактика: ${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: 'model' });
+    await expect(provider.generate('транскрипт')).resolves.toEqual({ ...output, followUpPosts: output.followUpPosts.map((post) => `<b>Мысль из проповеди</b>\n\n${post.thought}\n\n<b>Практика на сегодня</b>\n${post.practice}\n\nИзображение: ${post.imagePrompt}`), model: 'model' });
     const options = request.mock.calls[0]?.[1];
     const body = JSON.parse(String(options?.body));
     expect(body.generationConfig.responseMimeType).toBe('application/json');

@@ -53,6 +53,10 @@ export class TelegramApiClient implements MessageSender {
     return this.sendMultipart('sendDocument', 'document', input);
   }
 
+  public sendPhoto(input: SendFileInput): Promise<void> {
+    return this.sendMultipart('sendPhoto', 'photo', input, true);
+  }
+
   public async getFile(fileId: string): Promise<{ filePath: string; fileSize?: number }> {
     const body = await this.call<{ file_path?: string; file_size?: number }>('getFile', { file_id: fileId });
     if (!body.file_path) throw new Error('Telegram getFile response did not contain file_path');
@@ -101,11 +105,12 @@ export class TelegramApiClient implements MessageSender {
     return body.result;
   }
 
-  private async sendMultipart(method: string, field: 'audio' | 'document', input: SendFileInput): Promise<void> {
+  private async sendMultipart(method: string, field: 'audio' | 'document' | 'photo', input: SendFileInput, parseHtml = false): Promise<void> {
     if (!this.token) throw new Error('TELEGRAM_BOT_TOKEN is required to send files');
     const form = new FormData();
     form.set('chat_id', input.chatId);
     if (input.caption) form.set('caption', input.caption);
+    if (parseHtml) form.set('parse_mode', 'HTML');
     form.set(field, new Blob([input.bytes as unknown as BlobPart]), input.fileName);
     const response = await this.request(`${this.baseUrl}/bot${this.token}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(10 * 60_000), dispatcher: this.directAgent } as RequestInit & { dispatcher: Agent });
     const body = await readTelegramResponse(response);
