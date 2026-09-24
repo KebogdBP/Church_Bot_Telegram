@@ -111,6 +111,7 @@ export class CommandRouter {
   private readonly pendingArchiveSearch = new Set<string>();
   private readonly pendingSermonQuestions = new Map<string, string>();
   private readonly pendingManualText = new Map<string, { title?: string; body: string }>();
+  private readonly pendingAdminInput = new Map<string, 'announcement' | 'context'>();
 
   public constructor(private readonly options: CommandRouterOptions) {}
 
@@ -168,6 +169,19 @@ export class CommandRouter {
     }
 
     const questionKey = `${message.chatId}:${message.userId}`;
+    const adminInput = this.pendingAdminInput.get(questionKey);
+    if (!message.text.startsWith('/') && adminInput && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
+      this.pendingAdminInput.delete(questionKey);
+      if (adminInput === 'announcement' && this.options.announcementService) {
+        const draft = await this.options.announcementService.create(message.chatId, message.userId, message.text.trim().slice(0, 4_000));
+        await this.audit(message.chatId, message.userId, 'announcement.created', 'announcement', draft.id);
+        await this.sendAnnouncementPreview(message.chatId, draft); return;
+      }
+      if (adminInput === 'context' && this.options.bibleAssistant) {
+        await this.options.bibleAssistant.setContext(message.chatId, message.text.trim().slice(0, 2_000));
+        await this.reply(message.chatId, 'Описание общины сохранено. AI будет учитывать его в ответах.', [[{ text: '◀ Настройки', callbackData: 'admin:settings' }]]); return;
+      }
+    }
     const manualDraft = this.pendingManualText.get(questionKey);
     if (!message.text.startsWith('/') && manualDraft && this.options.devotionalService && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
       if (!manualDraft.title) {
@@ -476,6 +490,7 @@ export class CommandRouter {
   public async handleCallback(callback: IncomingCallback): Promise<void> {
     try {
       if (callback.data === 'menu:home') { await this.options.sender.answerCallback?.(callback.id); await this.sendMainMenu(callback.chatId); return; }
+      if (callback.data === 'menu:admin') { await this.options.sender.answerCallback?.(callback.id); if (await this.options.adminService.isAdmin(callback.chatId, callback.userId)) await this.sendAdminHome(callback.chatId); else await this.reply(callback.chatId, 'Эта панель доступна служителям и администраторам.', [[{ text: '◀ Главное меню', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:ask') { await this.options.sender.answerCallback?.(callback.id); this.pendingQuestions.add(`${callback.chatId}:${callback.userId}`); await this.reply(callback.chatId, '<b>📖 Задать вопрос</b>\n\nНапишите вопрос следующим сообщением. Команды не нужны.\n\nНапример: «Что Библия говорит о прощении?»', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:sermon') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>🎙 Работа с проповедью</b>\n\nОтправьте аудио или ссылку на проповедь прямо в этот чат. Я полностью транскрибирую её, сохраню в архиве и подготовлю основные мысли.', [[{ text: '🗂 Архив проповедей', callbackData: 'menu:archive' }], [{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:archive') {
@@ -545,6 +560,7 @@ export class CommandRouter {
       if (callback.data === 'flow:cancel') {
         await this.options.guidedEvents?.cancel(callback.chatId, callback.userId);
         this.pendingManualText.delete(`${callback.chatId}:${callback.userId}`);
+        this.pendingAdminInput.delete(`${callback.chatId}:${callback.userId}`);
         await this.reply(callback.chatId, 'Действие отменено.'); return;
       }
       if (callback.data === 'flow:confirm') {
@@ -555,6 +571,15 @@ export class CommandRouter {
         const events = await this.options.eventService.list(callback.chatId);
         await this.reply(callback.chatId, events.length ? ['<b>Ближайшие события</b>', ...events.map(formatEvent)].join('\n\n') : 'В расписании пока нет событий.', [...this.rsvpKeyboard(events), [{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
       }
+      if (callback.data === 'admin:content') { await this.reply(callback.chatId, '<b>🎙 Проповеди и материалы</b>\n\nДобавляйте аудио, ссылку или готовый текст. После обработки материал появится в архиве и черновиках.', [[{ text: '🎧 Добавить аудио или ссылку', callbackData: 'admin:add_media' }], [{ text: '📝 Добавить готовый текст', callbackData: 'admin:manual_text' }], [{ text: '🗂 Архив', callbackData: 'menu:archive' }, { text: '✅ Черновики', callbackData: 'admin:sermons' }], [{ text: '◀ Панель', callbackData: 'admin:home' }]]); return; }
+      if (callback.data === 'admin:add_media') { await this.reply(callback.chatId, 'Отправьте следующим сообщением аудиофайл, голосовое сообщение или одну публичную ссылку. Бот сам начнёт обработку.', [[{ text: '◀ Проповеди', callbackData: 'admin:content' }]]); return; }
+      if (callback.data === 'admin:publishing') { await this.reply(callback.chatId, '<b>📣 Публикации</b>\n\nЗдесь находятся объявления, мысли из проповедей и еженедельный дайджест.', [[{ text: '➕ Новое объявление', callbackData: 'admin:announcement_new' }], [{ text: '📋 Черновики объявлений', callbackData: 'admin:announcements' }], [{ text: '📰 Дайджест недели', callbackData: 'admin:digest' }, { text: '⏰ Расписание дайджеста', callbackData: 'admin:digest_settings' }], [{ text: '◀ Панель', callbackData: 'admin:home' }]]); return; }
+      if (callback.data === 'admin:announcement_new') { this.pendingAdminInput.set(`${callback.chatId}:${callback.userId}`, 'announcement'); await this.reply(callback.chatId, 'Напишите текст объявления следующим сообщением. После этого появится предпросмотр с кнопками отправки и отмены.', [[{ text: 'Отмена', callbackData: 'flow:cancel' }]]); return; }
+      if (callback.data === 'admin:digest_settings') { await this.reply(callback.chatId, '<b>⏰ Расписание дайджеста</b>\n\nВыберите готовый вариант. Дайджест сначала создаётся как черновик для проверки.', [[{ text: 'Пятница 18:00', callbackData: 'admin:digest_fri_1800' }, { text: 'Суббота 18:00', callbackData: 'admin:digest_sat_1800' }], [{ text: 'Отключить', callbackData: 'admin:digest_off' }], [{ text: '◀ Публикации', callbackData: 'admin:publishing' }]]); return; }
+      if (callback.data === 'admin:digest_fri_1800' || callback.data === 'admin:digest_sat_1800' || callback.data === 'admin:digest_off') { if (this.options.weeklyDigestService) { if (callback.data === 'admin:digest_off') await this.options.weeklyDigestService.disable(callback.chatId); else await this.options.weeklyDigestService.configure(callback.chatId, callback.data === 'admin:digest_fri_1800' ? 5 : 6, '18:00'); } await this.reply(callback.chatId, callback.data === 'admin:digest_off' ? 'Еженедельный дайджест отключён.' : 'Расписание дайджеста сохранено.', [[{ text: '◀ Публикации', callbackData: 'admin:publishing' }]]); return; }
+      if (callback.data === 'admin:community') { const prayers = await this.options.prayerRequestService?.list(callback.chatId) ?? []; await this.reply(callback.chatId, prayers.length ? ['<b>🙏 Забота о людях</b>', '', ...prayers.map((item) => `${escapeHtml(item.text)}\n<code>${item.id}</code>`) ].join('\n\n') : '<b>🙏 Забота о людях</b>\n\nНовых молитвенных просьб нет.', [[{ text: '🔄 Обновить', callbackData: 'admin:community' }], [{ text: '◀ Панель', callbackData: 'admin:home' }]]); return; }
+      if (callback.data === 'admin:system') { await this.reply(callback.chatId, '<b>⚙️ Настройки</b>\n\nНастройте работу AI и автоматических публикаций.', [[{ text: '☀️ Devotional', callbackData: 'admin:devotional' }], [{ text: '🏠 Описание общины для AI', callbackData: 'admin:context' }], [{ text: '📊 Состояние бота', callbackData: 'admin:settings' }], [{ text: '◀ Панель', callbackData: 'admin:home' }]]); return; }
+      if (callback.data === 'admin:context') { this.pendingAdminInput.set(`${callback.chatId}:${callback.userId}`, 'context'); await this.reply(callback.chatId, 'Опишите общину следующим сообщением: традицию, язык, важные особенности и границы ответов AI.', [[{ text: 'Отмена', callbackData: 'flow:cancel' }]]); return; }
       if (callback.data === 'admin:sermons') {
         const drafts = await this.options.sermonPostService?.list(callback.chatId) ?? [];
         await this.reply(callback.chatId, drafts.length ? `<b>Черновики проповедей</b>\n\n${drafts.map((post) => `<code>${post.id}</code> — ${escapeHtml(post.content.slice(0, 100))}`).join('\n\n')}` : 'Черновиков для проверки пока нет.', [...drafts.slice(0, 8).map((post) => [{ text: `Проверить #${post.sequence + 1}`, callbackData: `post:review:${post.id}` }]), [{ text: 'Обновить', callbackData: 'admin:sermons' }, { text: 'Панель', callbackData: 'admin:home' }]]); return;
@@ -631,11 +656,11 @@ export class CommandRouter {
 
   private async sendAdminHome(chatId: string): Promise<void> {
     const status = await this.options.adminService.dashboard(chatId);
-    await this.reply(chatId, ['<b>Панель администратора</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Черновики: ${status.draftPosts}`, `Запланировано: ${status.scheduledPosts}`].join('\n'), [
-      [{ text: 'Добавить событие', callbackData: 'admin:event_new' }, { text: 'События', callbackData: 'admin:events' }],
-      [{ text: 'Проповеди', callbackData: 'admin:sermons' }, { text: 'Настройки', callbackData: 'admin:settings' }],
-      [{ text: 'Дайджест недели', callbackData: 'admin:digest' }],
-      [{ text: 'Объявления', callbackData: 'admin:announcements' }],
+    await this.reply(chatId, ['<b>Панель служителя</b>', 'Выберите раздел. Бот подскажет дальнейшие действия.', '', `События: ${status.events} · Проповеди: ${status.sermons}`, `Черновики: ${status.draftPosts} · Запланировано: ${status.scheduledPosts}`].join('\n'), [
+      [{ text: '🎙 Проповеди', callbackData: 'admin:content' }, { text: '📣 Публикации', callbackData: 'admin:publishing' }],
+      [{ text: '📅 События', callbackData: 'admin:events' }, { text: '🙏 Забота о людях', callbackData: 'admin:community' }],
+      [{ text: '⚙️ Настройки', callbackData: 'admin:system' }],
+      [{ text: '◀ Обычное меню', callbackData: 'menu:home' }],
     ]);
   }
 
@@ -644,7 +669,7 @@ export class CommandRouter {
       [{ text: '📖 Задать вопрос', callbackData: 'menu:ask' }, { text: '🎙 Проповедь', callbackData: 'menu:sermon' }],
       [{ text: '🗂 Архив', callbackData: 'menu:archive' }, { text: '📅 Расписание', callbackData: 'menu:schedule' }],
       [{ text: '🙏 Молитва', callbackData: 'menu:prayer' }, { text: '💡 Мысль дня', callbackData: 'menu:thought' }],
-      [{ text: '❓ Помощь', callbackData: 'menu:help' }],
+      [{ text: '❓ Помощь', callbackData: 'menu:help' }, { text: '⚙️ Для служителей', callbackData: 'menu:admin' }],
     ]);
   }
 

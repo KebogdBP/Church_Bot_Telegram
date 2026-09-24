@@ -199,8 +199,8 @@ describe('Telegram webhook', () => {
     const { app, sendMessage } = createTestApp('42');
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/admin') });
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      text: expect.stringContaining('Панель администратора'),
-      keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: 'admin:event_new' })])]),
+      text: expect.stringContaining('Панель служителя'),
+      keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: 'admin:events' })])]),
     }));
   });
 
