@@ -62,6 +62,7 @@ import { OpenRouterBibleAnswerProvider } from './assistant/openrouter-bible-answ
 import type { SermonContentProvider } from './ai/sermon-content-provider.js';
 import { OpenRouterDevotionalProvider } from './ai/openrouter-devotional-provider.js';
 import { DailyDevotionalWorker } from './devotionals/daily-devotional-worker.js';
+import { DevotionalAdminService } from './devotionals/devotional-admin-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -111,6 +112,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const prayerRequestService = options.prayerRequestService ?? (prisma ? new PrayerRequestService(prisma) : undefined);
   const auditService = options.auditService ?? (prisma ? new AuditService(new PrismaAuditRepository(prisma, config.app.timezone)) : undefined);
   const retentionService = options.retentionService ?? (prisma ? new RetentionService(prisma) : undefined);
+  const devotionalService = prisma ? new DevotionalAdminService(prisma) : undefined;
   const bibleProviders: BibleAnswerProvider[] = [
     ...(config.ai.openRouterApiKey ? [new OpenRouterBibleAnswerProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterTextModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
     ...(config.ai.geminiApiKey ? [new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
@@ -145,6 +147,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(prayerRequestService ? { prayerRequestService } : {}),
     ...(auditService ? { auditService } : {}),
     ...(retentionService ? { retentionService } : {}),
+    ...(devotionalService ? { devotionalService } : {}),
     logger: app.log,
   });
   const reminderWorker = prisma && config.telegram.botToken

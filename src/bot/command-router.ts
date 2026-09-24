@@ -23,6 +23,7 @@ import type { AuditService } from '../audit/audit-service.js';
 import { parseRetentionSetting, type RetentionService } from '../retention/retention-service.js';
 import type { FastifyBaseLogger } from 'fastify';
 import { readFile } from 'node:fs/promises';
+import type { DevotionalAdminService } from '../devotionals/devotional-admin-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -41,6 +42,7 @@ export interface CommandRouterOptions {
   prayerRequestService?: PrayerRequestService;
   auditService?: AuditService;
   retentionService?: RetentionService;
+  devotionalService?: DevotionalAdminService;
   logger?: Pick<FastifyBaseLogger, 'error'>;
 }
 
@@ -100,12 +102,15 @@ const HELP_TEXT = [
   '/settings - настройки и состояние группы',
   '/admin_add ID - добавить администратора',
   '/admin_remove ID - удалить администратора',
+  '',
+  '☀️ Devotional настраивается кнопками: /admin → Настройки → Devotional',
 ].join('\n');
 
 export class CommandRouter {
   private readonly pendingQuestions = new Set<string>();
   private readonly pendingArchiveSearch = new Set<string>();
   private readonly pendingSermonQuestions = new Map<string, string>();
+  private readonly pendingManualText = new Map<string, { title?: string; body: string }>();
 
   public constructor(private readonly options: CommandRouterOptions) {}
 
@@ -163,6 +168,17 @@ export class CommandRouter {
     }
 
     const questionKey = `${message.chatId}:${message.userId}`;
+    const manualDraft = this.pendingManualText.get(questionKey);
+    if (!message.text.startsWith('/') && manualDraft && this.options.devotionalService && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
+      if (!manualDraft.title) {
+        manualDraft.title = message.text.trim().slice(0, 120);
+        await this.reply(message.chatId, 'Название сохранено. Теперь отправляйте полный текст. Можно несколькими сообщениями, затем нажмите «Готово».', [[{ text: '✅ Готово', callbackData: 'admin:manual_done' }, { text: 'Отмена', callbackData: 'flow:cancel' }]]);
+      } else {
+        manualDraft.body += `${manualDraft.body ? '\n\n' : ''}${message.text.trim()}`;
+        await this.reply(message.chatId, `Текст добавлен (${manualDraft.body.length} знаков). Отправьте продолжение или нажмите «Готово».`, [[{ text: '✅ Готово', callbackData: 'admin:manual_done' }]]);
+      }
+      return;
+    }
     if (!message.text.startsWith('/') && this.pendingArchiveSearch.delete(questionKey)) {
       if (!this.options.sermonSearchService) { await this.reply(message.chatId, 'Архив проповедей сейчас недоступен.'); return; }
       const results = await this.options.sermonSearchService.search(message.chatId, message.text);
@@ -528,6 +544,7 @@ export class CommandRouter {
       }
       if (callback.data === 'flow:cancel') {
         await this.options.guidedEvents?.cancel(callback.chatId, callback.userId);
+        this.pendingManualText.delete(`${callback.chatId}:${callback.userId}`);
         await this.reply(callback.chatId, 'Действие отменено.'); return;
       }
       if (callback.data === 'flow:confirm') {
@@ -545,7 +562,27 @@ export class CommandRouter {
       if (callback.data === 'admin:settings') {
         const status = await this.options.adminService.dashboard(callback.chatId);
         const admins = await this.options.adminService.list(callback.chatId);
-        await this.reply(callback.chatId, ['<b>Состояние группы</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Контекст AI: ${status.contextConfigured ? 'настроен' : 'не настроен'}`, `Администраторы: ${admins.map((id) => `<code>${id}</code>`).join(', ')}`].join('\n'), [[{ text: 'Панель', callbackData: 'admin:home' }]]); return;
+        const devotional = await this.options.devotionalService?.status(callback.chatId);
+        await this.reply(callback.chatId, ['<b>Состояние группы</b>', `События: ${status.events}`, `Проповеди: ${status.sermons}`, `Контекст AI: ${status.contextConfigured ? 'настроен' : 'не настроен'}`, `Администраторы: ${admins.map((id) => `<code>${id}</code>`).join(', ')}`, `Devotional: ${devotional?.enabled ? `включён, ${devotional.localTime}` : 'выключен'}`].join('\n'), [[{ text: '☀️ Devotional', callbackData: 'admin:devotional' }], [{ text: 'Панель', callbackData: 'admin:home' }]]); return;
+      }
+      if (callback.data === 'admin:devotional') {
+        const devotional = await this.options.devotionalService?.status(callback.chatId);
+        await this.reply(callback.chatId, `<b>☀️ Утренний devotional</b>\n\nСтатус: ${devotional?.enabled ? 'включён' : 'выключен'}\nВремя: ${devotional?.localTime ?? '08:00'}`, [[{ text: devotional?.enabled ? 'Выключить' : 'Включить', callbackData: devotional?.enabled ? 'admin:devotional_off' : 'admin:devotional_on' }, { text: 'Установить 08:00', callbackData: 'admin:devotional_0800' }], [{ text: '📝 Добавить текст', callbackData: 'admin:manual_text' }], [{ text: '◀ Настройки', callbackData: 'admin:settings' }]]); return;
+      }
+      if (callback.data === 'admin:devotional_on' || callback.data === 'admin:devotional_off' || callback.data === 'admin:devotional_0800') {
+        if (this.options.devotionalService) await this.options.devotionalService.configure(callback.chatId, callback.data !== 'admin:devotional_off', '08:00');
+        await this.reply(callback.chatId, callback.data === 'admin:devotional_off' ? 'Devotional отключён.' : 'Devotional включён. Публикация будет каждый день в 08:00 по часовому поясу группы.', [[{ text: '◀ К devotional', callbackData: 'admin:devotional' }]]); return;
+      }
+      if (callback.data === 'admin:manual_text') {
+        this.pendingManualText.set(`${callback.chatId}:${callback.userId}`, { body: '' });
+        await this.reply(callback.chatId, 'Отправьте название проповеди.', [[{ text: 'Отмена', callbackData: 'flow:cancel' }]]); return;
+      }
+      if (callback.data === 'admin:manual_done') {
+        const key = `${callback.chatId}:${callback.userId}`;
+        const draft = this.pendingManualText.get(key); this.pendingManualText.delete(key);
+        if (!draft?.title || draft.body.length < 20 || !this.options.devotionalService) { await this.reply(callback.chatId, 'Текст слишком короткий или не задано название. Добавление отменено.'); return; }
+        const id = await this.options.devotionalService.addText(callback.chatId, callback.userId, draft.title, draft.body);
+        await this.reply(callback.chatId, `Текст сохранён в архиве. ID: <code>${id}</code>. AI подготовит публикации и devotional.`); return;
       }
       if (callback.data === 'admin:digest') {
         const digest = await this.options.weeklyDigestService?.preview(callback.chatId);
