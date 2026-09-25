@@ -47,6 +47,14 @@ describe('TelegramApiClient', () => {
       .rejects.toThrow('Telegram API returned 403: bot was blocked');
   });
 
+  it('sends a Telegram deep-link button without callback data', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+    const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
+    await client.sendMessage({ chatId: '-100', text: 'Регистрация', keyboard: [[{ text: 'Открыть', url: 'https://t.me/test_bot?start=reg_ABC123' }]] });
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
+    expect(body.reply_markup.inline_keyboard[0][0]).toEqual({ text: 'Открыть', url: 'https://t.me/test_bot?start=reg_ABC123' });
+  });
+
   it('uploads transcript documents and audio files', async () => {
     const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
     const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);

@@ -112,6 +112,23 @@ enum PrayerRequestStatus {
   ARCHIVED
 }
 
+enum RegistrationFormStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum RegistrationFieldKind {
+  TEXT
+  NUMBER
+  CHOICE
+}
+
+enum RegistrationEntryStatus {
+  CONFIRMED
+  CANCELLED
+}
+
 model ChurchGroup {
   id        String   @id @default(cuid())
   telegramChatId String   @unique
@@ -137,9 +154,98 @@ model ChurchGroup {
   prayerRequests PrayerRequest[]
   auditEntries AuditEntry[]
   retentionFileDeletions RetentionFileDeletion[]
+  registrationForms RegistrationForm[]
   audioRetentionDays Int @default(90)
   transcriptRetentionDays Int @default(365)
   prayerRetentionDays Int @default(365)
+}
+
+model RegistrationForm {
+  id              String                 @id @default(cuid())
+  publicId        String                 @unique @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 6))"))
+  churchGroupId   String
+  churchGroup     ChurchGroup            @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  totalLimit      Int
+  status          RegistrationFormStatus @default(DRAFT)
+  createdByUserId String
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  cities          RegistrationCity[]
+  fields          RegistrationField[]
+  entries         RegistrationEntry[]
+  flows           RegistrationFlow[]
+
+  @@index([churchGroupId, status, createdAt])
+}
+
+model RegistrationCity {
+  id        String              @id @default(cuid())
+  formId    String
+  form      RegistrationForm    @relation(fields: [formId], references: [id], onDelete: Cascade)
+  name      String
+  quota     Int
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  entries   RegistrationEntry[]
+
+  @@unique([formId, name])
+  @@index([formId])
+}
+
+model RegistrationField {
+  id        String                @id @default(cuid())
+  formId    String
+  form      RegistrationForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  label     String
+  kind      RegistrationFieldKind
+  options   Json                  @default("[]")
+  required  Boolean               @default(true)
+  sequence  Int
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@unique([formId, sequence])
+  @@index([formId])
+}
+
+model RegistrationEntry {
+  id                String                  @id @default(cuid())
+  formId            String
+  form              RegistrationForm        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  cityId            String
+  city              RegistrationCity        @relation(fields: [cityId], references: [id], onDelete: Restrict)
+  telegramUserId    String
+  firstNameEncrypted String
+  lastNameEncrypted  String
+  age               Int
+  answersEncrypted  String
+  status            RegistrationEntryStatus @default(CONFIRMED)
+  cancelledAt       DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([formId, telegramUserId])
+  @@index([formId, status, createdAt])
+  @@index([cityId, status])
+}
+
+model RegistrationFlow {
+  id            String            @id @default(cuid())
+  chatId        String
+  telegramUserId String
+  formId        String?
+  form          RegistrationForm? @relation(fields: [formId], references: [id], onDelete: Cascade)
+  mode          String
+  step          String
+  dataEncrypted String
+  expiresAt     DateTime
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([chatId, telegramUserId])
+  @@index([expiresAt])
 }
 
 model RetentionFileDeletion {

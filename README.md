@@ -37,6 +37,7 @@ Only administrators can use these commands. Always inspect `/retention_dry_run` 
 - Generate sermon summary, key thoughts, reflection questions, and follow-up posts.
 - Answer Bible and church-related questions with a cautious AI assistant.
 - Support admin-only commands for configuration and moderation.
+- Create limited-capacity registrations with city quotas and private participant forms.
 
 ## Documentation
 
@@ -48,6 +49,7 @@ Only administrators can use these commands. Always inspect `/retention_dry_run` 
 - [DECISIONS.md](DECISIONS.md): architecture decision log.
 - [docs/TELEGRAM_API.md](docs/TELEGRAM_API.md): verified Telegram API behavior and setup.
 - [docs/AI_SAFETY.md](docs/AI_SAFETY.md): Bible assistant boundaries, escalation, and privacy policy.
+- [docs/REGISTRATION.md](docs/REGISTRATION.md): registration setup, participant flow, quotas, export, and privacy.
 
 ## Local Development
 

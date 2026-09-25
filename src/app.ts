@@ -66,6 +66,7 @@ import { OpenRouterImageProvider } from './ai/openrouter-image-provider.js';
 import { CloudflareImageProvider } from './ai/cloudflare-image-provider.js';
 import { FallbackImageProvider, type ImageProvider } from './ai/image-provider.js';
 import { DevotionalAdminService } from './devotionals/devotional-admin-service.js';
+import { RegistrationService } from './registrations/registration-service.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -81,6 +82,7 @@ export interface BuildAppOptions {
   prayerRequestService?: PrayerRequestService;
   auditService?: AuditService;
   retentionService?: RetentionService;
+  registrationService?: RegistrationService;
   logger?: FastifyBaseLogger | false;
 }
 
@@ -116,6 +118,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   const auditService = options.auditService ?? (prisma ? new AuditService(new PrismaAuditRepository(prisma, config.app.timezone)) : undefined);
   const retentionService = options.retentionService ?? (prisma ? new RetentionService(prisma) : undefined);
   const devotionalService = prisma ? new DevotionalAdminService(prisma) : undefined;
+  const registrationService = options.registrationService ?? (prisma ? new RegistrationService(prisma, config.privacySecret, config.app.timezone, config.telegram.botUsername) : undefined);
   const bibleProviders: BibleAnswerProvider[] = [
     ...(config.ai.openRouterApiKey ? [new OpenRouterBibleAnswerProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterTextModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
     ...(config.ai.geminiApiKey ? [new GeminiBibleAnswerProvider({ apiKey: config.ai.geminiApiKey, model: config.ai.textModel, baseUrl: config.ai.geminiApiBaseUrl })] : []),
@@ -151,6 +154,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     ...(auditService ? { auditService } : {}),
     ...(retentionService ? { retentionService } : {}),
     ...(devotionalService ? { devotionalService } : {}),
+    ...(registrationService ? { registrationService } : {}),
     logger: app.log,
   });
   const reminderWorker = prisma && config.telegram.botToken

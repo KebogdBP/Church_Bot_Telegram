@@ -14,6 +14,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   TELEGRAM_API_BASE_URL: z.url().default('https://api.telegram.org'),
   TELEGRAM_BOT_TOKEN: optionalString(z.string().min(1)),
+  TELEGRAM_BOT_USERNAME: optionalString(z.string().regex(/^[A-Za-z0-9_]{5,32}$/)),
   TELEGRAM_WEBHOOK_SECRET: optionalString(z.string().regex(/^[a-zA-Z0-9_-]{1,256}$/)),
   TELEGRAM_ADMIN_USER_IDS: z.string().default(''),
   TELEGRAM_UPDATE_MODE: z.enum(['webhook', 'polling']).default('webhook'),
@@ -76,6 +77,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     telegram: {
       apiBaseUrl: parsed.TELEGRAM_API_BASE_URL,
       botToken: parsed.TELEGRAM_BOT_TOKEN,
+      botUsername: parsed.TELEGRAM_BOT_USERNAME,
       webhookSecret: parsed.TELEGRAM_WEBHOOK_SECRET,
       adminUserIds: new Set(
         parsed.TELEGRAM_ADMIN_USER_IDS.split(',')

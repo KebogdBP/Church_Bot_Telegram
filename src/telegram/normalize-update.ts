@@ -3,7 +3,7 @@ import type { IncomingCallback, IncomingMessage, IncomingSermonAudio, TelegramUp
 export function normalizeCallback(update: TelegramUpdate): IncomingCallback | null {
   const callback = update.callback_query;
   if (!callback?.message || !callback.data) return null;
-  return { id: callback.id, chatId: String(callback.message.chat.id), userId: String(callback.from.id), messageId: String(callback.message.message_id), data: callback.data };
+  return { id: callback.id, chatId: String(callback.message.chat.id), userId: String(callback.from.id), messageId: String(callback.message.message_id), data: callback.data, chatType: callback.message.chat.type };
 }
 
 export function normalizeMessage(update: TelegramUpdate): IncomingMessage | null {

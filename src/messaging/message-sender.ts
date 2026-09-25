@@ -12,7 +12,11 @@ export interface SendFileInput {
   caption?: string;
 }
 
-export interface InlineButton { text: string; callbackData: string }
+export interface InlineButton {
+  text: string;
+  callbackData?: string;
+  url?: string;
+}
 
 export interface MessageSender {
   sendMessage(input: SendMessageInput): Promise<void>;

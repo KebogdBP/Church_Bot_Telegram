@@ -24,6 +24,7 @@ import { parseRetentionSetting, type RetentionService } from '../retention/reten
 import type { FastifyBaseLogger } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import type { DevotionalAdminService } from '../devotionals/devotional-admin-service.js';
+import type { RegistrationService } from '../registrations/registration-service.js';
 
 export interface CommandRouterOptions {
   sender: MessageSender;
@@ -43,6 +44,7 @@ export interface CommandRouterOptions {
   auditService?: AuditService;
   retentionService?: RetentionService;
   devotionalService?: DevotionalAdminService;
+  registrationService?: RegistrationService;
   logger?: Pick<FastifyBaseLogger, 'error'>;
 }
 
@@ -118,8 +120,15 @@ export class CommandRouter {
   public async handle(message: IncomingMessage): Promise<void> {
     const command = message.text.split(/\s+/, 1)[0]?.toLowerCase().split('@', 1)[0];
 
+    const registrationStart = /^\/start(?:@\w+)?\s+reg_([A-Z0-9]{6})$/i.exec(message.text);
+    if (registrationStart && this.options.registrationService) {
+      const reply = await this.options.registrationService.startParticipant(registrationStart[1]!.toUpperCase(), message.chatId, message.userId, message.chatType === 'private');
+      await this.reply(message.chatId, reply.text, reply.keyboard);
+      return;
+    }
+
     if (command === '/start' || command === '/help') {
-      if (command === '/start') await this.sendMainMenu(message.chatId);
+      if (command === '/start') { await this.options.registrationService?.cancelFlow(message.chatId, message.userId); await this.sendMainMenu(message.chatId); }
       else await this.reply(message.chatId, HELP_TEXT, [[{ text: '🏠 Главное меню', callbackData: 'menu:home' }]]);
       return;
     }
@@ -147,9 +156,15 @@ export class CommandRouter {
     }
 
     if (command === '/cancel') {
-      const cancelled = await this.options.guidedEvents?.cancel(message.chatId, message.userId);
+      const registrationCancelled = await this.options.registrationService?.cancelFlow(message.chatId, message.userId);
+      const cancelled = registrationCancelled || await this.options.guidedEvents?.cancel(message.chatId, message.userId);
       await this.reply(message.chatId, cancelled ? 'Действие отменено.' : 'Нет активного действия.');
       return;
+    }
+
+    if (!message.text.startsWith('/') && this.options.registrationService) {
+      const registrationReply = await this.options.registrationService.consumeText(message.chatId, message.userId, message.text);
+      if (registrationReply) { await this.reply(message.chatId, registrationReply.text, registrationReply.keyboard); return; }
     }
 
     if (!message.text.startsWith('/') && this.options.guidedEvents && await this.options.adminService.isAdmin(message.chatId, message.userId)) {
@@ -489,10 +504,21 @@ export class CommandRouter {
 
   public async handleCallback(callback: IncomingCallback): Promise<void> {
     try {
-      if (callback.data === 'menu:home') { await this.options.sender.answerCallback?.(callback.id); await this.sendMainMenu(callback.chatId); return; }
+      if (callback.data === 'menu:home') { await this.options.sender.answerCallback?.(callback.id); await this.options.registrationService?.cancelFlow(callback.chatId, callback.userId); await this.sendMainMenu(callback.chatId); return; }
       if (callback.data === 'menu:admin') { await this.options.sender.answerCallback?.(callback.id); if (await this.options.adminService.isAdmin(callback.chatId, callback.userId)) await this.sendAdminHome(callback.chatId); else await this.reply(callback.chatId, 'Эта панель доступна служителям и администраторам.', [[{ text: '◀ Главное меню', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:ask') { await this.options.sender.answerCallback?.(callback.id); this.pendingQuestions.add(`${callback.chatId}:${callback.userId}`); await this.reply(callback.chatId, '<b>📖 Задать вопрос</b>\n\nНапишите вопрос следующим сообщением. Команды не нужны.\n\nНапример: «Что Библия говорит о прощении?»', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
       if (callback.data === 'menu:sermon') { await this.options.sender.answerCallback?.(callback.id); await this.reply(callback.chatId, '<b>🎙 Работа с проповедью</b>\n\nОтправьте аудио или ссылку на проповедь прямо в этот чат. Я полностью транскрибирую её, сохраню в архиве и подготовлю основные мысли.', [[{ text: '🗂 Архив проповедей', callbackData: 'menu:archive' }], [{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
+      if (callback.data === 'menu:registrations' && this.options.registrationService) {
+        await this.options.sender.answerCallback?.(callback.id);
+        const reply = await this.options.registrationService.menu(callback.chatId, callback.userId, callback.chatType === 'private');
+        await this.reply(callback.chatId, reply.text, reply.keyboard); return;
+      }
+      if (callback.data.startsWith('reg:') && this.options.registrationService) {
+        await this.options.sender.answerCallback?.(callback.id);
+        const reply = await this.options.registrationService.handleParticipantCallback(callback.chatId, callback.userId, callback.data, callback.chatType === 'private');
+        if (reply) await this.reply(callback.chatId, reply.text, reply.keyboard);
+        return;
+      }
       if (callback.data === 'menu:archive') {
         await this.options.sender.answerCallback?.(callback.id);
         if (!this.options.sermonSearchService) { await this.reply(callback.chatId, 'Архив проповедей сейчас недоступен.', [[{ text: '◀ Назад', callbackData: 'menu:home' }]]); return; }
@@ -551,6 +577,19 @@ export class CommandRouter {
         return;
       }
       await this.options.sender.answerCallback?.(callback.id);
+      const registrationExport = /^regadmin:export:([A-Z0-9]{6})$/.exec(callback.data);
+      if (registrationExport && this.options.registrationService) {
+        const file = await this.options.registrationService.exportCsv(callback.chatId, registrationExport[1]!);
+        if (!file) await this.reply(callback.chatId, 'Регистрация не найдена.');
+        else if (!this.options.sender.sendDocument) await this.reply(callback.chatId, 'Отправка файлов сейчас недоступна.');
+        else await this.options.sender.sendDocument({ chatId: callback.userId, ...file });
+        return;
+      }
+      if ((callback.data === 'admin:registrations' || callback.data.startsWith('regadmin:')) && this.options.registrationService) {
+        const reply = await this.options.registrationService.handleAdminCallback(callback.chatId, callback.userId, callback.data);
+        if (reply) await this.reply(reply.targetChatId ?? callback.chatId, reply.text, reply.keyboard);
+        return;
+      }
       if (callback.data === 'admin:home') { await this.sendAdminHome(callback.chatId); return; }
       if (callback.data === 'admin:event_new') {
         const reply = await this.options.guidedEvents?.start(callback.chatId, callback.userId);
@@ -659,6 +698,7 @@ export class CommandRouter {
     await this.reply(chatId, ['<b>Панель служителя</b>', 'Выберите раздел. Бот подскажет дальнейшие действия.', '', `События: ${status.events} · Проповеди: ${status.sermons}`, `Черновики: ${status.draftPosts} · Запланировано: ${status.scheduledPosts}`].join('\n'), [
       [{ text: '🎙 Проповеди', callbackData: 'admin:content' }, { text: '📣 Публикации', callbackData: 'admin:publishing' }],
       [{ text: '📅 События', callbackData: 'admin:events' }, { text: '🙏 Забота о людях', callbackData: 'admin:community' }],
+      [{ text: '📝 Регистрации', callbackData: 'admin:registrations' }],
       [{ text: '⚙️ Настройки', callbackData: 'admin:system' }],
       [{ text: '◀ Обычное меню', callbackData: 'menu:home' }],
     ]);
@@ -668,6 +708,7 @@ export class CommandRouter {
     await this.reply(chatId, '<b>🙏 Церковный помощник</b>\n\nЯ помогу найти мысль из проповеди, ответить на библейский вопрос, принять аудиозапись и напомнить о ближайших событиях.', [
       [{ text: '📖 Задать вопрос', callbackData: 'menu:ask' }, { text: '🎙 Проповедь', callbackData: 'menu:sermon' }],
       [{ text: '🗂 Архив', callbackData: 'menu:archive' }, { text: '📅 Расписание', callbackData: 'menu:schedule' }],
+      [{ text: '📝 Регистрация', callbackData: 'menu:registrations' }],
       [{ text: '🙏 Молитва', callbackData: 'menu:prayer' }, { text: '💡 Мысль дня', callbackData: 'menu:thought' }],
       [{ text: '❓ Помощь', callbackData: 'menu:help' }, { text: '⚙️ Для служителей', callbackData: 'menu:admin' }],
     ]);

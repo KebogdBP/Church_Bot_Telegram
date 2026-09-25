@@ -98,4 +98,5 @@ export interface IncomingCallback {
   userId: string;
   messageId: string;
   data: string;
+  chatType: 'private' | 'group' | 'supergroup' | 'channel';
 }

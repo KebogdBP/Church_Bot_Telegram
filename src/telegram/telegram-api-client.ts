@@ -31,7 +31,13 @@ export class TelegramApiClient implements MessageSender {
         text: input.text,
         parse_mode: 'HTML',
         disable_notification: !(input.notify ?? true),
-        ...(input.keyboard ? { reply_markup: { inline_keyboard: input.keyboard.map((row) => row.map((button) => ({ text: button.text, callback_data: button.callbackData }))) } } : {}),
+        ...(input.keyboard ? {
+          reply_markup: {
+            inline_keyboard: input.keyboard.map((row) => row.map((button) => button.url
+              ? { text: button.text, url: button.url }
+              : { text: button.text, callback_data: button.callbackData })),
+          },
+        } : {}),
       }),
       signal: AbortSignal.timeout(35_000), dispatcher: this.directAgent,
     } as RequestInit & { dispatcher: Agent });

@@ -3,7 +3,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import type { MessageSender } from '../src/messaging/message-sender.js';
 
-function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService, auditService?: import('../src/audit/audit-service.js').AuditService, retentionService?: import('../src/retention/retention-service.js').RetentionService) {
+function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons/sermon-post-service.js').SermonPostService, weeklyDigestService?: import('../src/digests/weekly-digest-service.js').WeeklyDigestService, eventRsvpService?: import('../src/events/event-rsvp-service.js').EventRsvpService, sermonSearchService?: import('../src/sermons/sermon-search-service.js').SermonSearchService, bibleAssistant?: import('../src/assistant/bible-assistant-service.js').BibleAssistantService, announcementService?: import('../src/announcements/announcement-service.js').AnnouncementService, prayerRequestService?: import('../src/prayers/prayer-request-service.js').PrayerRequestService, auditService?: import('../src/audit/audit-service.js').AuditService, retentionService?: import('../src/retention/retention-service.js').RetentionService, registrationService?: import('../src/registrations/registration-service.js').RegistrationService) {
   const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
   const answerCallback = vi.fn<NonNullable<MessageSender['answerCallback']>>().mockResolvedValue(undefined);
   const app = buildApp({
@@ -23,6 +23,7 @@ function createTestApp(adminIds = '', sermonPostService?: import('../src/sermons
     ...(prayerRequestService ? { prayerRequestService } : {}),
     ...(auditService ? { auditService } : {}),
     ...(retentionService ? { retentionService } : {}),
+    ...(registrationService ? { registrationService } : {}),
   });
 
   return { app, sendMessage, answerCallback };
@@ -142,6 +143,29 @@ describe('Telegram webhook', () => {
       text: expect.stringContaining('Церковный помощник'),
       keyboard: expect.arrayContaining([expect.arrayContaining([expect.objectContaining({ callbackData: 'menu:ask' })])]),
     }));
+  });
+
+  it('starts a registration from a Telegram deep link', async () => {
+    const registration = { startParticipant: vi.fn().mockResolvedValue({ text: 'Напишите ваше имя.' }) } as unknown as import('../src/registrations/registration-service.js').RegistrationService;
+    const { app, sendMessage } = createTestApp('', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, registration);
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: messageUpdate('/start reg_ABC123', 42, 'private') });
+    expect(registration.startParticipant).toHaveBeenCalledWith('ABC123', '100', '42', true);
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Напишите ваше имя.' });
+  });
+
+  it('routes registration menu buttons without administrator rights', async () => {
+    const registration = { menu: vi.fn().mockResolvedValue({ text: 'Открытые регистрации', keyboard: [] }) } as unknown as import('../src/registrations/registration-service.js').RegistrationService;
+    const { app, sendMessage } = createTestApp('99', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, registration);
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('menu:registrations') });
+    expect(registration.menu).toHaveBeenCalledWith('100', '42', false);
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '100', text: 'Открытые регистрации', keyboard: [] });
+  });
+
+  it('sends registration participant reports to the administrator privately', async () => {
+    const registration = { handleAdminCallback: vi.fn().mockResolvedValue({ text: 'Список участников', targetChatId: '42' }) } as unknown as import('../src/registrations/registration-service.js').RegistrationService;
+    const { app, sendMessage } = createTestApp('42', undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, registration);
+    await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('regadmin:people:ABC123') });
+    expect(sendMessage).toHaveBeenCalledWith({ chatId: '42', text: 'Список участников' });
   });
 
   it('handles public menu callbacks without administrator rights', async () => {

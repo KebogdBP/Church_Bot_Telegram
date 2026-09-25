@@ -61,6 +61,7 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 - [ ] Add a calendar view and weekly schedule summary.
 - [ ] Add RSVP reports for leaders without exposing personal attendance.
+- [x] Add configurable private registrations with total capacity, city quotas, custom fields, cancellation, and CSV reporting.
 - [ ] Add moderated announcement templates, proofreading, and optional images.
 
 ## Phase 8: Administration and operations
