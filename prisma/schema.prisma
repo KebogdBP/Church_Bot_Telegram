@@ -161,13 +161,16 @@ model ChurchGroup {
 }
 
 model RegistrationForm {
-  id              String                 @id @default(cuid())
-  publicId        String                 @unique @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 6))"))
-  churchGroupId   String
-  churchGroup     ChurchGroup            @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
-  title           String
-  description     String?
-  totalLimit      Int
+  id                  String                 @id @default(cuid())
+  publicId            String                 @unique @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 6))"))
+  churchGroupId       String
+  churchGroup         ChurchGroup            @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  totalLimit          Int
+  ageMin              Int?
+  ageMax              Int?
+  ageRejectionMessage String @default("Спасибо за интерес к мероприятию. К сожалению, эта регистрация открыта для другой возрастной группы. Если возраст был указан ошибочно, отправьте правильное число ещё раз.")
   status          RegistrationFormStatus @default(DRAFT)
   createdByUserId String
   createdAt       DateTime               @default(now())
@@ -195,13 +198,16 @@ model RegistrationCity {
 }
 
 model RegistrationField {
-  id        String                @id @default(cuid())
-  formId    String
-  form      RegistrationForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
-  label     String
-  kind      RegistrationFieldKind
-  options   Json                  @default("[]")
-  required  Boolean               @default(true)
+  id               String                @id @default(cuid())
+  formId           String
+  form             RegistrationForm      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  label            String
+  kind             RegistrationFieldKind
+  options          Json                  @default("[]")
+  required         Boolean               @default(true)
+  minValue         Float?
+  maxValue         Float?
+  rejectionMessage String?
   sequence  Int
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt

@@ -10,6 +10,8 @@ import { escapeHtml } from '../messaging/html.js';
 import { FieldEncryption } from '../security/field-encryption.js';
 
 const FLOW_TTL_MS = 2 * 60 * 60 * 1_000;
+const DEFAULT_AGE_REJECTION = 'Спасибо за интерес к мероприятию. К сожалению, эта регистрация открыта для другой возрастной группы. Если возраст был указан ошибочно, отправьте правильное число ещё раз.';
+const DEFAULT_NUMBER_REJECTION = 'Спасибо за ответ. К сожалению, указанное значение не подходит под условия этой регистрации. Если вы допустили ошибку, отправьте правильное число ещё раз.';
 
 export interface RegistrationReply {
   text: string;
@@ -25,12 +27,19 @@ export function registrationCapacityIssue(input: { total: number; totalLimit: nu
   return null;
 }
 
+export function numericRangeIssue(value: number, min: number | null | undefined, max: number | null | undefined): boolean {
+  return (min !== null && min !== undefined && value < min)
+    || (max !== null && max !== undefined && value > max);
+}
+
 interface FlowData {
   title?: string;
   formPublicId?: string;
   cityName?: string;
   fieldLabel?: string;
   fieldKind?: 'TEXT' | 'NUMBER' | 'CHOICE';
+  minValue?: number;
+  maxValue?: number;
   firstName?: string;
   lastName?: string;
   age?: number;
@@ -135,6 +144,9 @@ export class RegistrationService {
     }
     const fieldKind = /^regadmin:fieldkind:(text|number|choice)$/.exec(data);
     if (fieldKind) return this.chooseFieldKind(chatId, userId, fieldKind[1]!);
+    const numberLimit = /^regadmin:numlimit:(yes|no)$/.exec(data);
+    if (numberLimit) return this.chooseNumberLimit(chatId, userId, numberLimit[1] === 'yes');
+    if (data === 'regadmin:nummsg:default') return this.finishNumberField(chatId, userId, DEFAULT_NUMBER_REJECTION);
     const fieldDelete = /^regadmin:fielddel:([^:]+)$/.exec(data);
     if (fieldDelete) return this.deleteField(chatId, fieldDelete[1]!);
 
@@ -150,6 +162,27 @@ export class RegistrationService {
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'DESCRIPTION', { formPublicId: form.publicId });
       return cancelReply('Напишите короткое описание, которое увидят участники.', `regadmin:view:${form.publicId}`);
     }
+    const age = /^regadmin:age:([A-Z0-9]{6})$/.exec(data);
+    if (age) return this.ageDashboard(chatId, age[1]!);
+    const ageSet = /^regadmin:ageset:([A-Z0-9]{6})$/.exec(data);
+    if (ageSet) {
+      const form = await this.ownedForm(chatId, ageSet[1]!); if (!form) return notFoundReply();
+      await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'AGE_MIN', { formPublicId: form.publicId });
+      return cancelReply('Введите минимальный возраст от 1 до 120.', `regadmin:age:${form.publicId}`);
+    }
+    const ageOff = /^regadmin:ageoff:([A-Z0-9]{6})$/.exec(data);
+    if (ageOff) {
+      const form = await this.ownedForm(chatId, ageOff[1]!); if (!form) return notFoundReply();
+      await this.prisma.registrationForm.update({ where: { id: form.id }, data: { ageMin: null, ageMax: null } });
+      return this.ageDashboard(chatId, form.publicId);
+    }
+    const ageMessage = /^regadmin:agemsg:([A-Z0-9]{6})$/.exec(data);
+    if (ageMessage) {
+      const form = await this.ownedForm(chatId, ageMessage[1]!); if (!form) return notFoundReply();
+      await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'AGE_MESSAGE_EDIT', { formPublicId: form.publicId });
+      return cancelReply('Напишите вежливое сообщение для участника, чей возраст не входит в рамки.', `regadmin:age:${form.publicId}`);
+    }
+    if (data === 'regadmin:agemsg:default') return this.finishAgeSettings(chatId, userId, DEFAULT_AGE_REJECTION);
     const toggle = /^regadmin:toggle:([A-Z0-9]{6})$/.exec(data);
     if (toggle) return this.toggleForm(chatId, toggle[1]!);
     const publish = /^regadmin:publish:([A-Z0-9]{6})$/.exec(data);
@@ -278,6 +311,15 @@ export class RegistrationService {
       await this.prisma.registrationFlow.delete({ where: { id: flowId } });
       return this.fieldsDashboard(chatId, form.publicId);
     }
+    if (step === 'FIELD_MIN') {
+      const minValue = parseNumber(value); if (minValue === null) return { text: 'Введите корректное число.' };
+      return this.updateFlow(flowId, 'FIELD_MAX', { ...data, minValue }, `Введите верхнюю границу. Она должна быть не меньше ${minValue}.`);
+    }
+    if (step === 'FIELD_MAX') {
+      const maxValue = parseNumber(value); if (maxValue === null || data.minValue === undefined || maxValue < data.minValue) return { text: `Введите число не меньше ${data.minValue ?? 'нижней границы'}.` };
+      return this.updateFlow(flowId, 'FIELD_MESSAGE', { ...data, maxValue }, 'Какое сообщение показать, если число не входит в диапазон?', [[{ text: 'Использовать вежливый текст', callbackData: 'regadmin:nummsg:default' }], [{ text: 'Отмена', callbackData: 'regadmin:cancel' }]]);
+    }
+    if (step === 'FIELD_MESSAGE') return this.finishNumberField(chatId, userId, value.slice(0, 500));
     if (step === 'LIMIT_EDIT') {
       const limit = parseLimit(value); if (!limit) return { text: 'Введите целое число от 1 до 10 000.' };
       const occupied = await this.prisma.registrationEntry.count({ where: { formId, status: RegistrationEntryStatus.CONFIRMED } });
@@ -290,6 +332,20 @@ export class RegistrationService {
       await this.prisma.registrationForm.update({ where: { id: formId }, data: { description: value.slice(0, 1_000) } });
       await this.prisma.registrationFlow.delete({ where: { id: flowId } });
       return this.formDashboard(chatId, form.publicId);
+    }
+    if (step === 'AGE_MIN') {
+      const age = parseAge(value); if (age === null) return { text: 'Введите целое число от 1 до 120.' };
+      return this.updateFlow(flowId, 'AGE_MAX', { ...data, minValue: age }, `Введите максимальный возраст. Он должен быть не меньше ${age}.`);
+    }
+    if (step === 'AGE_MAX') {
+      const age = parseAge(value); if (age === null || data.minValue === undefined || age < data.minValue) return { text: `Введите целое число от ${data.minValue ?? 1} до 120.` };
+      return this.updateFlow(flowId, 'AGE_MESSAGE', { ...data, maxValue: age }, 'Теперь напишите вежливое сообщение для тех, чей возраст не подходит.', [[{ text: 'Использовать готовый текст', callbackData: 'regadmin:agemsg:default' }], [{ text: 'Отмена', callbackData: 'regadmin:cancel' }]]);
+    }
+    if (step === 'AGE_MESSAGE') return this.finishAgeSettings(chatId, userId, value.slice(0, 500));
+    if (step === 'AGE_MESSAGE_EDIT') {
+      await this.prisma.registrationForm.update({ where: { id: formId }, data: { ageRejectionMessage: value.slice(0, 500) } });
+      await this.prisma.registrationFlow.delete({ where: { id: flowId } });
+      return this.ageDashboard(chatId, form.publicId);
     }
     return expiredReply();
   }
@@ -308,6 +364,7 @@ export class RegistrationService {
       const age = Number(value); if (!Number.isInteger(age) || age < 1 || age > 120) return { text: 'Введите возраст целым числом от 1 до 120.' };
       const form = await this.prisma.registrationForm.findUnique({ where: { id: formId }, include: { cities: { orderBy: { name: 'asc' }, include: { _count: { select: { entries: { where: { status: RegistrationEntryStatus.CONFIRMED } } } } } } } });
       if (!form || form.status !== RegistrationFormStatus.OPEN) return { text: 'Регистрация уже закрыта.' };
+      if (numericRangeIssue(age, form.ageMin, form.ageMax)) return { text: escapeHtml(form.ageRejectionMessage) };
       const nextData = { ...data, age };
       const availableCities = form.cities.filter((city) => city._count.entries < city.quota);
       if (!availableCities.length) return { text: 'К сожалению, квоты всех городов уже заполнены.' };
@@ -317,7 +374,11 @@ export class RegistrationService {
       const fieldId = step.split(':')[1]!;
       const field = await this.prisma.registrationField.findFirst({ where: { id: fieldId, formId } });
       if (!field) return expiredReply();
-      if (field.kind === RegistrationFieldKind.NUMBER && !Number.isFinite(Number(value))) return { text: 'Введите число.' };
+      if (field.kind === RegistrationFieldKind.NUMBER) {
+        const number = parseNumber(value);
+        if (number === null) return { text: 'Введите корректное число.' };
+        if (numericRangeIssue(number, field.minValue, field.maxValue)) return { text: escapeHtml(field.rejectionMessage ?? DEFAULT_NUMBER_REJECTION) };
+      }
       if (value.length > 500) return { text: 'Ответ должен быть короче 500 символов.' };
       const form = await this.prisma.registrationForm.findUnique({ where: { id: formId }, include: { fields: { orderBy: { sequence: 'asc' } } } });
       if (!form) return notFoundReply();
@@ -347,6 +408,7 @@ export class RegistrationService {
         [{ text: '👥 Участники', callbackData: `regadmin:people:${publicId}` }, { text: '🔢 Общий лимит', callbackData: `regadmin:setlimit:${publicId}` }],
         [{ text: '📥 Скачать список участников', callbackData: `regadmin:export:${publicId}` }],
         [{ text: '✏️ Описание', callbackData: `regadmin:description:${publicId}` }],
+        [{ text: '🎂 Возрастные рамки', callbackData: `regadmin:age:${publicId}` }],
         [{ text: form.status === RegistrationFormStatus.OPEN ? '⏸ Закрыть регистрацию' : '▶ Открыть регистрацию', callbackData: `regadmin:toggle:${publicId}` }],
         ...(form.status === RegistrationFormStatus.OPEN ? [[{ text: '📣 Опубликовать в чате', callbackData: `regadmin:publish:${publicId}` }]] : []),
         [{ text: '◀ Все регистрации', callbackData: 'admin:registrations' }],
@@ -371,7 +433,7 @@ export class RegistrationService {
     const form = await this.prisma.registrationForm.findFirst({ where: { publicId, churchGroup: { telegramChatId: chatId } }, include: { fields: { orderBy: { sequence: 'asc' } } } });
     if (!form) return notFoundReply();
     return {
-      text: ['<b>Поля анкеты</b>', 'Имя, фамилия, возраст и город уже включены.', ...(form.fields.length ? ['', ...form.fields.map((field, index) => `${index + 1}. ${escapeHtml(field.label)} · ${fieldKindLabel(field.kind)}`)] : ['', '<i>Дополнительных полей пока нет.</i>'])].join('\n'),
+      text: ['<b>Поля анкеты</b>', 'Имя, фамилия, возраст и город уже включены.', ...(form.fields.length ? ['', ...form.fields.map((field, index) => `${index + 1}. ${escapeHtml(field.label)} · ${fieldKindLabel(field.kind)}${field.kind === RegistrationFieldKind.NUMBER && (field.minValue !== null || field.maxValue !== null) ? ` · ${field.minValue ?? '−∞'}…${field.maxValue ?? '+∞'}` : ''}`)] : ['', '<i>Дополнительных полей пока нет.</i>'])].join('\n'),
       keyboard: [[{ text: '➕ Добавить вопрос', callbackData: `regadmin:fieldadd:${publicId}` }], ...form.fields.map((field) => [{ text: `Удалить: ${field.label.slice(0, 24)}`, callbackData: `regadmin:fielddel:${field.id}` }]), [{ text: '◀ К регистрации', callbackData: `regadmin:view:${publicId}` }]],
     };
   }
@@ -381,15 +443,57 @@ export class RegistrationService {
     if (!flow || flow.mode !== 'ADMIN' || flow.step !== 'FIELD_KIND' || !flow.formId) return expiredReply();
     const data = this.readData(flow.dataEncrypted);
     if (kind === 'choice') return this.updateFlow(flow.id, 'FIELD_OPTIONS', { ...data, fieldKind: 'CHOICE' }, 'Перечислите варианты через запятую.\nНапример: <i>Да, Нет, Пока не знаю</i>');
+    if (kind === 'number') return this.updateFlow(flow.id, 'FIELD_LIMIT_DECISION', { ...data, fieldKind: 'NUMBER' }, 'Нужно ограничить допустимое число нижней и верхней границей?', [[{ text: 'Да, установить границы', callbackData: 'regadmin:numlimit:yes' }], [{ text: 'Нет, принимать любое число', callbackData: 'regadmin:numlimit:no' }], [{ text: 'Отмена', callbackData: 'regadmin:cancel' }]]);
     const form = await this.prisma.registrationForm.findUnique({ where: { id: flow.formId } }); if (!form) return notFoundReply();
-    await this.createField(flow.formId, data.fieldLabel!, kind === 'number' ? RegistrationFieldKind.NUMBER : RegistrationFieldKind.TEXT, []);
+    await this.createField(flow.formId, data.fieldLabel!, RegistrationFieldKind.TEXT, []);
     await this.prisma.registrationFlow.delete({ where: { id: flow.id } });
     return this.fieldsDashboard(chatId, form.publicId);
   }
 
-  private async createField(formId: string, label: string, kind: RegistrationFieldKind, options: string[]): Promise<void> {
+  private async chooseNumberLimit(chatId: string, userId: string, limited: boolean): Promise<RegistrationReply> {
+    const flow = await this.activeFlow(chatId, userId);
+    if (!flow || flow.mode !== 'ADMIN' || flow.step !== 'FIELD_LIMIT_DECISION' || !flow.formId) return expiredReply();
+    const data = this.readData(flow.dataEncrypted);
+    if (limited) return this.updateFlow(flow.id, 'FIELD_MIN', data, 'Введите нижнюю границу допустимого значения.');
+    const form = await this.prisma.registrationForm.findUnique({ where: { id: flow.formId } }); if (!form) return notFoundReply();
+    await this.createField(flow.formId, data.fieldLabel!, RegistrationFieldKind.NUMBER, []);
+    await this.prisma.registrationFlow.delete({ where: { id: flow.id } });
+    return this.fieldsDashboard(chatId, form.publicId);
+  }
+
+  private async finishNumberField(chatId: string, userId: string, rejectionMessage: string): Promise<RegistrationReply> {
+    const flow = await this.activeFlow(chatId, userId);
+    if (!flow || flow.mode !== 'ADMIN' || flow.step !== 'FIELD_MESSAGE' || !flow.formId) return expiredReply();
+    const data = this.readData(flow.dataEncrypted);
+    if (data.minValue === undefined || data.maxValue === undefined || !data.fieldLabel) return expiredReply();
+    const form = await this.prisma.registrationForm.findUnique({ where: { id: flow.formId } }); if (!form) return notFoundReply();
+    await this.createField(flow.formId, data.fieldLabel, RegistrationFieldKind.NUMBER, [], { minValue: data.minValue, maxValue: data.maxValue, rejectionMessage });
+    await this.prisma.registrationFlow.delete({ where: { id: flow.id } });
+    return this.fieldsDashboard(chatId, form.publicId);
+  }
+
+  private async createField(formId: string, label: string, kind: RegistrationFieldKind, options: string[], limits?: { minValue: number; maxValue: number; rejectionMessage: string }): Promise<void> {
     const aggregate = await this.prisma.registrationField.aggregate({ where: { formId }, _max: { sequence: true } });
-    await this.prisma.registrationField.create({ data: { formId, label, kind, options, sequence: (aggregate._max.sequence ?? -1) + 1 } });
+    await this.prisma.registrationField.create({ data: { formId, label, kind, options, sequence: (aggregate._max.sequence ?? -1) + 1, ...(limits ?? {}) } });
+  }
+
+  private async ageDashboard(chatId: string, publicId: string): Promise<RegistrationReply> {
+    const form = await this.ownedForm(chatId, publicId); if (!form) return notFoundReply();
+    const range = form.ageMin === null && form.ageMax === null ? 'не установлены' : `${form.ageMin ?? 1}–${form.ageMax ?? 120} лет`;
+    return {
+      text: [`<b>🎂 Возрастные рамки</b>`, `Допустимый возраст: <b>${range}</b>`, '', '<b>Сообщение при несовпадении</b>', escapeHtml(form.ageRejectionMessage)].join('\n'),
+      keyboard: [[{ text: form.ageMin === null && form.ageMax === null ? 'Установить рамки' : 'Изменить рамки', callbackData: `regadmin:ageset:${publicId}` }], [{ text: '✏️ Изменить сообщение', callbackData: `regadmin:agemsg:${publicId}` }], ...(form.ageMin !== null || form.ageMax !== null ? [[{ text: 'Убрать ограничения', callbackData: `regadmin:ageoff:${publicId}` }]] : []), [{ text: '◀ К регистрации', callbackData: `regadmin:view:${publicId}` }]],
+    };
+  }
+
+  private async finishAgeSettings(chatId: string, userId: string, rejectionMessage: string): Promise<RegistrationReply> {
+    const flow = await this.activeFlow(chatId, userId);
+    if (!flow || flow.mode !== 'ADMIN' || flow.step !== 'AGE_MESSAGE' || !flow.formId) return expiredReply();
+    const data = this.readData(flow.dataEncrypted);
+    if (data.minValue === undefined || data.maxValue === undefined) return expiredReply();
+    const form = await this.prisma.registrationForm.update({ where: { id: flow.formId }, data: { ageMin: data.minValue, ageMax: data.maxValue, ageRejectionMessage: rejectionMessage } });
+    await this.prisma.registrationFlow.delete({ where: { id: flow.id } });
+    return this.ageDashboard(chatId, form.publicId);
   }
 
   private async toggleForm(chatId: string, publicId: string): Promise<RegistrationReply> {
@@ -471,8 +575,18 @@ export class RegistrationService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${flow.formId!}))`;
-        const form = await tx.registrationForm.findUnique({ where: { id: flow.formId! } });
+        const form = await tx.registrationForm.findUnique({ where: { id: flow.formId! }, include: { fields: true } });
         if (!form || form.publicId !== publicId || form.status !== RegistrationFormStatus.OPEN) throw new RegistrationCapacityError('closed');
+        if (numericRangeIssue(data.age!, form.ageMin, form.ageMax)) {
+          throw new RegistrationCapacityError('constraint', form.ageRejectionMessage);
+        }
+        for (const field of form.fields) {
+          if (field.kind !== RegistrationFieldKind.NUMBER || (field.minValue === null && field.maxValue === null)) continue;
+          const answer = parseNumber(data.answers?.[field.id] ?? '');
+          if (answer === null || numericRangeIssue(answer, field.minValue, field.maxValue)) {
+            throw new RegistrationCapacityError('constraint', field.rejectionMessage ?? DEFAULT_NUMBER_REJECTION);
+          }
+        }
         const total = await tx.registrationEntry.count({ where: { formId: form.id, status: RegistrationEntryStatus.CONFIRMED } });
         const city = await tx.registrationCity.findFirst({ where: { id: cityId, formId: form.id } });
         if (!city) throw new RegistrationCapacityError('city_missing');
@@ -489,7 +603,7 @@ export class RegistrationService {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       return { text: `<b>✅ Регистрация подтверждена</b>\n\nВы зарегистрированы на «${escapeHtml(result.title)}».\nОсталось мест: ${result.remaining}.`, keyboard: [[{ text: '🏠 Главное меню', callbackData: 'menu:home' }], [{ text: 'Отменить регистрацию', callbackData: `reg:cancel:${publicId}` }]] };
     } catch (error) {
-      if (error instanceof RegistrationCapacityError) return { text: error.code === 'city_full' ? 'К сожалению, квота для выбранного города уже заполнена. Начните снова и выберите другой город.' : error.code === 'full' ? 'К сожалению, все места уже заняты.' : 'Регистрация уже закрыта или изменилась.' };
+      if (error instanceof RegistrationCapacityError) return { text: error.userMessage ? escapeHtml(error.userMessage) : error.code === 'city_full' ? 'К сожалению, квота для выбранного города уже заполнена. Начните снова и выберите другой город.' : error.code === 'full' ? 'К сожалению, все места уже заняты.' : 'Регистрация уже закрыта или изменилась.' };
       throw error;
     }
   }
@@ -529,8 +643,17 @@ export class RegistrationService {
   private registrationLink(publicId: string): InlineButton[][] { return [[{ text: '📝 Зарегистрироваться', url: this.deepLink(publicId) }]]; }
 }
 
-class RegistrationCapacityError extends Error { public constructor(public readonly code: string) { super(code); } }
+class RegistrationCapacityError extends Error {
+  public constructor(public readonly code: string, public readonly userMessage?: string) { super(code); }
+}
 function parseLimit(value: string): number | null { const number = Number(value); return Number.isInteger(number) && number >= 1 && number <= 10_000 ? number : null; }
+function parseAge(value: string): number | null { const number = Number(value); return Number.isInteger(number) && number >= 1 && number <= 120 ? number : null; }
+function parseNumber(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+}
 function validName(value: string): boolean { return value.length >= 2 && value.length <= 60 && !/[<>\n\r]/.test(value); }
 function stringArray(value: Prisma.JsonValue): string[] { return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []; }
 function isUniqueError(error: unknown): boolean { return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'; }

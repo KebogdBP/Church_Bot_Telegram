@@ -4,6 +4,7 @@
 
 - Added private, button-guided event registration with total capacity, city quotas, configurable form fields, encrypted participant data, cancellation, occupancy reports, and CSV export.
 - Added Telegram deep-link buttons so public registration announcements open the correct private form without commands.
+- Added configurable inclusive age limits and lower/upper bounds for custom numeric registration questions, with editable polite rejection messages and confirmation-time revalidation.
 - Redesigned daily devotionals for concise mobile reading with spaced sections, restrained visual markers, and stricter AI length limits.
 - Added topic-aware devotional images through Cloudflare Workers AI with OpenRouter fallback and text-only delivery when image generation fails.
 - Added a durable group-scoped administrator audit log and `/activity` command.
