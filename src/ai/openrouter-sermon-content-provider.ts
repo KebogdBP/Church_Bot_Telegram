@@ -8,7 +8,7 @@ const schema = z.object({
   outline: z.array(z.object({ title: z.string().min(1), points: stringArray })).default([]),
   keyThoughts: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(3).max(7)),
   reflectionQuestions: stringArray.pipe(z.array(z.string().min(1).max(1_000)).min(2).max(5)),
-  followUpPosts: z.array(z.object({ thought: z.string().min(120).max(750), practice: z.string().min(80).max(500), imagePrompt: z.string().min(30).max(500) })).length(6).optional(),
+  followUpPosts: z.array(z.object({ thought: z.string().min(100).max(750), practice: z.string().min(80).max(500), imagePrompt: z.string().min(30).max(500) })).length(6).optional(),
 });
 
 const MAX_ANALYSIS_CHARS = 18_000;

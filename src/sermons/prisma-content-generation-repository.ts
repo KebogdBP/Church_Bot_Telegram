@@ -51,6 +51,7 @@ export class PrismaContentGenerationRepository implements ContentGenerationRepos
         contentError: null,
         },
       });
+      await tx.sermonPost.deleteMany({ where: { sermonId, status: { in: ['DRAFT', 'REJECTED'] } } });
       await tx.sermonPost.createMany({
         data: content.followUpPosts.map((post, sequence) => ({
           sermonId,
