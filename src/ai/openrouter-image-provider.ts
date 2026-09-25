@@ -1,8 +1,7 @@
 import { Agent, ProxyAgent } from 'undici';
+import type { GeneratedImage, ImageProvider } from './image-provider.js';
 
-export interface GeneratedImage { bytes: Uint8Array; mimeType: string }
-
-export class OpenRouterImageProvider {
+export class OpenRouterImageProvider implements ImageProvider {
   private readonly dispatcher: Agent | ProxyAgent;
   private readonly request: typeof fetch;
   public constructor(private readonly options: { apiKey?: string; baseUrl: string; proxyUrl?: string; model: string; request?: typeof fetch }) {

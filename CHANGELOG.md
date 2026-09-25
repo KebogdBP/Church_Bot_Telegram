@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Redesigned daily devotionals for concise mobile reading with spaced sections, restrained visual markers, and stricter AI length limits.
+- Added topic-aware devotional images through Cloudflare Workers AI with OpenRouter fallback and text-only delivery when image generation fails.
 - Added a durable group-scoped administrator audit log and `/activity` command.
 - Added privacy-safe operational failure totals without exposing member or sermon content.
 - Recorded successful event, sermon moderation, digest, announcement, role, and prayer-request mutations.

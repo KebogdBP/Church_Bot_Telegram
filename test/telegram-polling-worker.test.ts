@@ -18,7 +18,7 @@ describe('TelegramPollingWorker', () => {
       intervalMs: 60_000,
     });
 
-    await worker.start();
+    worker.start();
     await vi.waitFor(() => expect(handleUpdate).toHaveBeenCalledTimes(2));
     await worker.tick();
     worker.stop();
@@ -26,5 +26,13 @@ describe('TelegramPollingWorker', () => {
     expect(client.deleteWebhook).toHaveBeenCalledOnce();
     expect(handleUpdate).toHaveBeenCalledTimes(2);
     expect(client.getUpdates).toHaveBeenLastCalledWith(12);
+  });
+
+  it('does not block application startup while webhook cleanup is pending', () => {
+    const client = { deleteWebhook: vi.fn().mockReturnValue(new Promise(() => undefined)), getUpdates: vi.fn() } satisfies TelegramPollingClient;
+    const worker = new TelegramPollingWorker({ client, handleUpdate: vi.fn(), logger: { info: vi.fn(), error: vi.fn() }, intervalMs: 60_000 });
+    expect(worker.start()).toBeUndefined();
+    expect(client.deleteWebhook).toHaveBeenCalledOnce();
+    worker.stop();
   });
 });

@@ -2,12 +2,12 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { MessageSender } from '../messaging/message-sender.js';
 import { escapeHtml } from '../messaging/html.js';
 import type { SermonPostRepository } from './sermon-post.js';
-import type { OpenRouterImageProvider } from '../ai/openrouter-image-provider.js';
+import type { ImageProvider } from '../ai/image-provider.js';
 
 export class SermonPostWorker {
   private timer: NodeJS.Timeout | null = null;
   private running = false;
-  public constructor(private readonly options: { repository: SermonPostRepository; sender: MessageSender; imageProvider?: OpenRouterImageProvider; logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>; intervalMs: number; now?: () => Date }) {}
+  public constructor(private readonly options: { repository: SermonPostRepository; sender: MessageSender; imageProvider?: ImageProvider; logger: Pick<FastifyBaseLogger, 'info' | 'warn' | 'error'>; intervalMs: number; now?: () => Date }) {}
   public start(): void { if (this.timer) return; void this.tick(); this.timer = setInterval(() => void this.tick(), this.options.intervalMs); this.timer.unref(); }
   public stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; }
   public async tick(): Promise<void> {

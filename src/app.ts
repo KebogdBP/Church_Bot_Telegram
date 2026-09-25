@@ -63,6 +63,8 @@ import type { SermonContentProvider } from './ai/sermon-content-provider.js';
 import { OpenRouterDevotionalProvider } from './ai/openrouter-devotional-provider.js';
 import { DailyDevotionalWorker } from './devotionals/daily-devotional-worker.js';
 import { OpenRouterImageProvider } from './ai/openrouter-image-provider.js';
+import { CloudflareImageProvider } from './ai/cloudflare-image-provider.js';
+import { FallbackImageProvider, type ImageProvider } from './ai/image-provider.js';
 import { DevotionalAdminService } from './devotionals/devotional-admin-service.js';
 
 export interface BuildAppOptions {
@@ -219,8 +221,13 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
         intervalMs: config.ai.contentGenerationPollIntervalMs,
       })
     : null;
+  const imageProviders: ImageProvider[] = [
+    ...(config.ai.cloudflareApiToken && config.ai.cloudflareAccountId ? [new CloudflareImageProvider({ apiToken: config.ai.cloudflareApiToken, accountId: config.ai.cloudflareAccountId, baseUrl: config.ai.cloudflareApiBaseUrl, model: config.ai.cloudflareImageModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
+    ...(config.ai.openRouterApiKey ? [new OpenRouterImageProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterImageModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) })] : []),
+  ];
+  const imageProvider = imageProviders.length ? new FallbackImageProvider(imageProviders, (error) => app.log.warn({ error: errorMessage(error) }, 'Image provider failed; using fallback')) : undefined;
   const sermonPostWorker = sermonPostRepository && config.telegram.botToken
-    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs, ...(config.ai.openRouterApiKey ? { imageProvider: new OpenRouterImageProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterImageModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) }) } : {}) })
+    ? new SermonPostWorker({ repository: sermonPostRepository, sender, logger: app.log, intervalMs: config.ai.sermonPostPollIntervalMs, ...(imageProvider ? { imageProvider } : {}) })
     : null;
   const sermonNotificationWorker = prisma && config.telegram.botToken
     ? new SermonNotificationWorker({
@@ -238,7 +245,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     : null;
   const prayerRequestWorker = prisma && config.telegram.botToken ? new PrayerRequestWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.prayerRequestPollIntervalMs }) : null;
   const devotionalWorker = prisma && config.telegram.botToken && config.ai.openRouterApiKey
-    ? new DailyDevotionalWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.weeklyDigestPollIntervalMs, provider: new OpenRouterDevotionalProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterStructuredModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) }) })
+    ? new DailyDevotionalWorker({ prisma, sender, logger: app.log, intervalMs: config.ai.weeklyDigestPollIntervalMs, provider: new OpenRouterDevotionalProvider({ apiKey: config.ai.openRouterApiKey, baseUrl: config.ai.openRouterApiBaseUrl, model: config.ai.openRouterStructuredModel, ...(config.outboundProxyUrl ? { proxyUrl: config.outboundProxyUrl } : {}) }), ...(imageProvider ? { imageProvider } : {}) })
     : null;
 
   if (prisma) {
@@ -254,7 +261,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
       } else {
         app.log.warn('Transcription worker is disabled because GROQ_API_KEY is not configured');
       }
-      await telegramPollingWorker?.start();
+      telegramPollingWorker?.start();
       sermonContentWorker?.start();
       sermonPostWorker?.start();
       sermonNotificationWorker?.start();

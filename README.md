@@ -11,7 +11,7 @@ The post-MVP expansion plan is in [docs/V0_4_ROADMAP.md](docs/V0_4_ROADMAP.md).
 
 Administrators can use `/activity` to inspect the latest 20 consequential actions and the total number of failed background jobs. Audit entries contain actor/action/entity identifiers and safe metadata only; announcement text, prayer requests, transcripts, and AI context are never copied into the audit log.
 
-AI text generation uses Gemini first and automatically falls back to Groq when Gemini is unavailable because of region, network, quota, or provider errors. Groq Whisper remains the transcription provider. Both providers use the isolated application proxy when `OUTBOUND_PROXY_URL` is configured.
+AI text generation uses OpenRouter where structured or archive-aware output is required, with Gemini and Groq fallbacks for supported flows. Groq Whisper remains the transcription provider. Cloudflare Workers AI is the primary image generator when configured; OpenRouter is its automatic fallback. Provider traffic uses the isolated application proxy where required.
 
 ### Data retention
 
@@ -111,6 +111,8 @@ Administrators moderate AI drafts before publication. `/sermons` and `/sermon_re
 Each newly analyzed sermon produces 6–12 concise follow-up drafts. Approving any draft approves its sermon series and schedules up to three posts per day at 09:00, 14:00, and 19:00 in the group timezone, starting the next day. Existing scheduled posts reserve their slots, so multiple sermons do not create simultaneous bursts.
 
 Weekly digests remain moderated. `/digest_enable 1-7 HH:MM` enables automatic weekly draft creation in the group timezone, `/digest_preview` creates or refreshes the current draft, and `/digest_approve ID` authorizes delivery. `/digest_disable` turns off automatic drafting. Approved deliveries are durable and retry temporary Telegram failures; `WEEKLY_DIGEST_POLL_INTERVAL_MS` controls worker polling.
+
+Daily devotional delivery is enabled per chat from **Admin → Settings → Devotional**. At the configured local time, the bot draws on completed sermon material from that same chat and publishes a compact mobile reading with Scripture, reflection, one practical step, prayer, and a question. New devotionals include a topic-aware image. Configure Cloudflare with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`; if image generation is unavailable, the devotional is still delivered as text.
 
 `/events` includes RSVP buttons for every visible event. Any group member can choose "пойду", "возможно", or "не смогу" and change that choice later. The bot stores one current response per Telegram user and event, validates that the event belongs to the current chat, and posts aggregate counts without exposing a member list.
 

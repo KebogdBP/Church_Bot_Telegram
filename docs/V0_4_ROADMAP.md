@@ -30,11 +30,11 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 ## Phase 3: Moderated visual publications
 
-- [ ] Add an image-generation provider interface with a configurable provider and quota limit.
-- [ ] Generate one image per approved draft from the stored image prompt.
+- [x] Add an image-generation provider interface with configurable Cloudflare and OpenRouter providers.
+- [x] Generate one image per approved draft or daily devotional from the stored image prompt.
 - [ ] Store image metadata and local/object-storage path, never provider secrets.
-- [ ] Publish a Telegram photo with caption: finished thought, practical action, and source ID.
-- [ ] Fall back to text-only delivery when image generation fails.
+- [x] Publish a Telegram photo with a structured caption; split long captions into a following message.
+- [x] Fall back to text-only delivery when image generation fails.
 
 ## Phase 4: Publication series and digests
 

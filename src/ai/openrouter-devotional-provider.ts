@@ -3,12 +3,13 @@ import { OpenRouterClient, type OpenRouterClientOptions } from './openrouter-cli
 
 export const devotionalSchema = z.object({
   scriptureReference: z.string().min(1).max(120),
-  scriptureText: z.string().min(1).max(900),
-  reflection: z.string().min(1).max(2_000),
-  sermonConnection: z.string().min(1).max(1_200),
-  practice: z.string().min(1).max(800),
-  prayer: z.string().min(1).max(1_000),
-  question: z.string().min(1).max(400),
+  scriptureText: z.string().min(1).max(280),
+  reflection: z.string().min(1).max(650),
+  sermonConnection: z.string().min(1).max(350),
+  practice: z.string().min(1).max(240),
+  prayer: z.string().min(1).max(300),
+  question: z.string().min(1).max(180),
+  imagePrompt: z.string().min(1).max(600),
 });
 
 export type Devotional = z.infer<typeof devotionalSchema>;
@@ -23,7 +24,15 @@ export class OpenRouterDevotionalProvider {
     const content = await this.client.chat(this.options.model, [
       {
         role: 'system',
-        content: 'Ты редактор христианского утреннего devotional на русском языке. Верни только JSON с полями scriptureReference, scriptureText, reflection, sermonConnection, practice, prayer, question. Выбирай уместный библейский отрывок, не выдавай выдуманные слова за дословную цитату: если не уверен в точной формулировке, используй краткий пересказ и явно не называй его цитатой. Не добавляй богословски спорных категоричных утверждений.',
+        content: [
+          'Ты редактор глубокого христианского утреннего devotional для чтения в Telegram с телефона.',
+          'Верни только JSON с полями scriptureReference, scriptureText, reflection, sermonConnection, practice, prayer, question, imagePrompt.',
+          'Текст должен быть ёмким, спокойным и содержательным: весь devotional примерно 750–1100 знаков, без воды, повторов и общих фраз.',
+          'scriptureText — одна короткая цитата или точный пересказ; reflection — 2–3 коротких абзаца; sermonConnection — одно предложение; practice — одно конкретное действие; prayer — 1–2 предложения; question — один глубокий вопрос.',
+          'Выбирай уместный библейский отрывок. Не выдавай выдуманные слова за дословную цитату: если не уверен в формулировке, прямо укажи, что это краткий пересказ.',
+          'Не добавляй богословски спорных категоричных утверждений.',
+          'imagePrompt напиши по-английски: выразительная, взрослая, фотореалистичная горизонтальная иллюстрация по главной теме дня, с естественным светом, без людей крупным планом, без букв, надписей, логотипов и водяных знаков.',
+        ].join(' '),
       },
       { role: 'user', content: `Контекст последних проповедей:\n${context}` },
     ], { type: 'json_object' });

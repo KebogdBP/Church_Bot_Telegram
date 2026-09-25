@@ -12,18 +12,28 @@ export interface TelegramPollingWorkerOptions {
 export class TelegramPollingWorker {
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private starting = false;
+  private generation = 0;
   private offset: number | undefined;
 
   public constructor(private readonly options: TelegramPollingWorkerOptions) {}
 
-  public async start(): Promise<void> {
-    if (this.timer) return;
+  public start(): void {
+    if (this.timer || this.starting) return;
+    this.starting = true;
+    const generation = ++this.generation;
+    void this.initialize(generation);
+  }
+
+  private async initialize(generation: number): Promise<void> {
     try {
       await this.options.client.deleteWebhook();
     } catch (error) {
       // A local Bot API server may close this cleanup request while still serving polling.
       this.options.logger.error({ error }, 'Telegram webhook cleanup failed; continuing with polling');
     }
+    this.starting = false;
+    if (generation !== this.generation) return;
     this.options.logger.info('Telegram polling started');
     void this.tick();
     this.timer = setInterval(() => void this.tick(), this.options.intervalMs);
@@ -31,6 +41,8 @@ export class TelegramPollingWorker {
   }
 
   public stop(): void {
+    this.generation += 1;
+    this.starting = false;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }

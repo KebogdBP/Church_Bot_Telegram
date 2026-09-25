@@ -247,6 +247,7 @@ model DailyDevotional {
   churchGroup    ChurchGroup           @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
   localDate      String
   content        String
+  imagePrompt    String?
   status         DailyDevotionalStatus @default(SCHEDULED)
   availableAt    DateTime
   attempts       Int                   @default(0)
