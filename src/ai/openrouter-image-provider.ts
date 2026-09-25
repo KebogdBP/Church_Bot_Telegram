@@ -14,7 +14,7 @@ export class OpenRouterImageProvider {
     const response = await this.request(`${this.options.baseUrl}/images`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.options.apiKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://church-bot.local', 'X-Title': 'Church Bot' },
-      body: JSON.stringify({ model: this.options.model, prompt, n: 1, resolution: '1K', output_format: 'jpeg' }),
+      body: JSON.stringify({ model: this.options.model, prompt, n: 1, resolution: '2K', output_format: 'jpeg' }),
       signal: AbortSignal.timeout(10 * 60_000), dispatcher: this.dispatcher,
     } as RequestInit & { dispatcher: Agent | ProxyAgent });
     const body = await response.json() as { data?: Array<{ b64_json?: string; media_type?: string }>; error?: { message?: string } };
