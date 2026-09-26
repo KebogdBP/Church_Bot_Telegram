@@ -322,11 +322,13 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     if (sermonAudio) {
       const result = await sermonIntake.receive(sermonAudio);
       if (sermonAudio.chatType !== 'channel' && result.status === 'accepted') {
+        const sermonId = result.sermon.publicId ?? result.sermon.id;
         await sender.sendMessage({
           chatId: sermonAudio.chatId,
           text: result.sermon.purpose === 'personal_transcription'
-            ? `Аудио принято на транскрибацию. ID: <code>${result.sermon.id}</code>. Я пришлю текст автоматически.`
-            : `Аудио проповеди принято. ID: <code>${result.sermon.id}</code>`,
+            ? `Аудио принято на транскрибацию. ID: <code>${sermonId}</code>. Я пришлю текст автоматически.`
+            : `Аудио проповеди принято. ID: <code>${sermonId}</code>`,
+          ...(result.sermon.purpose === 'church_sermon' ? { keyboard: [[{ text: 'Проверить обработку', callbackData: `sermon:status:${sermonId}` }]] } : {}),
         });
       } else if (sermonAudio.chatType !== 'channel' && result.status === 'forbidden') {
         await sender.sendMessage({

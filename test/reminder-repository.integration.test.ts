@@ -6,6 +6,7 @@ import { PrismaSermonRepository } from '../src/sermons/prisma-sermon-repository.
 import { PrismaTranscriptionRepository } from '../src/sermons/prisma-transcription-repository.js';
 import { PrismaSermonNotificationRepository } from '../src/sermons/prisma-sermon-notification-repository.js';
 import { PrismaSermonPostRepository } from '../src/sermons/prisma-sermon-post-repository.js';
+import { SermonPostService } from '../src/sermons/sermon-post-service.js';
 import { GuidedEventService } from '../src/admin/guided-event-service.js';
 import { EventService } from '../src/events/event-service.js';
 import { PrismaWeeklyDigestRepository } from '../src/digests/prisma-weekly-digest-repository.js';
@@ -189,6 +190,30 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
       imageFileId: 'photo-id',
     });
     expect(await prisma.adminFlow.count({ where: { telegramUserId: '42' } })).toBe(0);
+  });
+
+  it('regenerates sermon materials when addressed by the public id', async () => {
+    const group = await prisma.churchGroup.create({ data: { telegramChatId: `regen-${Date.now()}` } });
+    const sermon = await prisma.sermon.create({
+      data: {
+        churchGroupId: group.id,
+        sourceMessageId: 'regen-public-id',
+        status: 'STORED',
+        transcriptionStatus: 'COMPLETED',
+        transcript: 'Полный текст проповеди',
+        contentStatus: 'COMPLETED',
+        summary: 'Старое содержание',
+      },
+    });
+    await prisma.sermonPost.create({ data: { sermonId: sermon.id, churchGroupId: group.id, sequence: 0, content: 'Старый черновик' } });
+    const service = new SermonPostService(new PrismaSermonPostRepository(prisma), () => new Date('2026-09-27T08:00:00Z'));
+
+    await expect(service.regenerate(group.telegramChatId, sermon.publicId, 'admin')).resolves.toBe(true);
+    await expect(prisma.sermon.findUniqueOrThrow({ where: { id: sermon.id }, select: { contentStatus: true, summary: true, posts: true } })).resolves.toMatchObject({
+      contentStatus: 'PENDING',
+      summary: null,
+      posts: [],
+    });
   });
 });
 

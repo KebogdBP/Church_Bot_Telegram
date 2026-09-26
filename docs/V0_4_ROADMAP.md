@@ -4,14 +4,14 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 ## Phase 0: Foundation and observability
 
-- [ ] Add a single processing timeline for download, conversion, transcription, analysis, image generation, and delivery.
-- [ ] Add human-readable failure messages and administrator diagnostics.
+- [x] Add a single processing timeline for download, conversion, transcription, analysis, image generation, and delivery.
+- [x] Add human-readable failure messages and administrator diagnostics.
 - [ ] Add provider latency, token, and failure metrics without logging sermon text.
 - [ ] Add regression fixtures for short, long, malformed, and unavailable media.
 
 ## Phase 1: Sermon archive and grounded search
 
-- [ ] Optional: use Telegram Local Bot API Server to accept direct audio above the hosted 20 MB download limit.
+- [x] Optional: use Telegram Local Bot API Server to accept direct audio above the hosted 20 MB download limit.
 
 - [ ] Store sermon title, speaker, date, themes, Bible references, outline, and full transcript.
 - [x] Add `/sermon_show` with structured outline and Telegram-safe full transcript chunks.
@@ -22,7 +22,7 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 ## Phase 2: Complete sermon analysis
 
-- [ ] Persist a structured outline with numbered sections and supporting points.
+- [x] Persist a structured outline with numbered sections and supporting points.
 - [ ] Separate transcript, factual extraction, interpretation, and generated application.
 - [ ] Identify key thoughts only when grounded in the transcript.
 - [ ] Generate discussion questions and a leader version.
@@ -38,10 +38,10 @@ This is the implementation plan for the full church assistant beyond the MVP. Ea
 
 ## Phase 4: Publication series and digests
 
-- [ ] Schedule one morning, afternoon, and evening post for 3–7 days.
+- [x] Schedule one morning, afternoon, and evening post for 3–7 days.
 - [ ] Support series pause, resume, reorder, preview, and regeneration before publication.
 - [ ] Add daily and weekly digests with moderation.
-- [ ] Avoid duplicate bursts when several sermons are approved.
+- [x] Avoid duplicate bursts when several sermons are approved.
 
 ## Phase 5: Home groups and pastoral tools
 
@@ -84,4 +84,4 @@ Domain tests, provider failure tests, Telegram transport tests, PostgreSQL integ
 
 ## Current implementation point
 
-The MVP has full audio transcription, archive search, contextual Bible Q&A, structured sermon analysis, moderated scheduled drafts, prayers, announcements, retention, audit, compact sermon IDs, and an isolated outbound VPN route. Version 0.4 starts with Phase 0 and Phase 1.
+The MVP has full audio transcription, archive search, contextual Bible Q&A, structured sermon analysis, moderated scheduled drafts, prayers, announcements, retention, audit, compact sermon IDs, rich event announcements, and an isolated outbound VPN route. Phase 0 now includes a unified administrator timeline and safe diagnostics. Provider metrics and media regression fixtures remain before Phase 0 is complete.

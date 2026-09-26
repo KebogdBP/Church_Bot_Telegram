@@ -11,7 +11,7 @@ import { escapeHtml } from '../messaging/html.js';
 import type { BibleAssistantService } from '../assistant/bible-assistant-service.js';
 import type { AdminService } from '../admin/admin-service.js';
 import type { SermonIntakeService } from '../sermons/sermon-intake-service.js';
-import type { SermonStatusReader } from '../sermons/sermon-status-service.js';
+import { renderSermonStatus, type SermonStatusReader } from '../sermons/sermon-status-service.js';
 import type { GuidedEventService } from '../admin/guided-event-service.js';
 import type { WeeklyDigestService } from '../digests/weekly-digest-service.js';
 import type { EventRsvpService } from '../events/event-rsvp-service.js';
@@ -416,18 +416,7 @@ export class CommandRouter {
       if (command === '/sermon_status') {
         const sermonId = message.text.split(/\s+/, 2)[1];
         if (!sermonId || !this.options.sermonStatus) { await this.reply(message.chatId, 'Формат: /sermon_status ID'); return; }
-        const status = await this.options.sermonStatus.get(message.chatId, sermonId);
-        if (!status) { await this.reply(message.chatId, 'Проповедь с таким ID не найдена.'); return; }
-        await this.reply(message.chatId, [
-          `<b>Проповедь</b> <code>${status.id}</code>`,
-          ...(status.fileName ? [`Файл: ${escapeHtml(status.fileName)}`] : []),
-          `Загрузка: ${status.download}`,
-          `Транскрибация: ${status.transcription}`,
-          `Материалы Gemini: ${status.content}`,
-          `Черновики: ${status.posts}`,
-          ...(Object.keys(status.timings).length ? [`Время этапов: загрузка ${status.timings.downloadMinutes ?? '...'} мин, транскрибация ${status.timings.transcriptionMinutes ?? '...'} мин, анализ ${status.timings.analysisMinutes ?? '...'} мин`] : []),
-          ...(status.error ? [`Ошибка: ${escapeHtml(status.error)}`] : []),
-        ].join('\n'));
+        await this.sendSermonStatus(message.chatId, sermonId);
         return;
       }
       await this.handleSermonCommand(command, message);
@@ -595,6 +584,16 @@ export class CommandRouter {
         return;
       }
       if (callback.data === 'admin:home') { await this.sendAdminHome(callback.chatId); return; }
+      const sermonStatus = /^sermon:status:([A-Z0-9]{6})$/i.exec(callback.data);
+      if (sermonStatus) { await this.sendSermonStatus(callback.chatId, sermonStatus[1]!); return; }
+      const sermonRegenerate = /^sermon:regenerate:([A-Z0-9]{6})$/i.exec(callback.data);
+      if (sermonRegenerate) {
+        const regenerated = await this.options.sermonPostService?.regenerate(callback.chatId, sermonRegenerate[1]!, callback.userId);
+        if (regenerated) await this.audit(callback.chatId, callback.userId, 'sermon.regenerated', 'sermon', sermonRegenerate[1]!);
+        await this.reply(callback.chatId, regenerated ? 'Материалы поставлены на повторную генерацию.' : 'Повторная генерация недоступна: серия уже запланирована или опубликована.');
+        if (regenerated) await this.sendSermonStatus(callback.chatId, sermonRegenerate[1]!);
+        return;
+      }
       if (callback.data === 'admin:event_new') {
         const reply = await this.options.guidedEvents?.start(callback.chatId, callback.userId);
         await this.reply(callback.chatId, reply?.text ?? 'Мастер событий недоступен.', reply?.keyboard, reply?.forceReply);
@@ -845,6 +844,17 @@ export class CommandRouter {
 
   private async reply(chatId: string, text: string, keyboard?: import('../messaging/message-sender.js').InlineButton[][], forceReply?: boolean): Promise<void> {
     await this.options.sender.sendMessage({ chatId, text, ...(keyboard ? { keyboard } : {}), ...(forceReply ? { forceReply } : {}) });
+  }
+
+  private async sendSermonStatus(chatId: string, sermonId: string): Promise<void> {
+    const status = await this.options.sermonStatus?.get(chatId, sermonId);
+    if (!status) { await this.reply(chatId, 'Проповедь с таким ID не найдена.'); return; }
+    const keyboard: import('../messaging/message-sender.js').InlineButton[][] = [
+      [{ text: 'Обновить статус', callbackData: `sermon:status:${status.id}` }],
+      ...(status.canRegenerate ? [[{ text: 'Пересобрать материалы', callbackData: `sermon:regenerate:${status.id}` }]] : []),
+      [{ text: 'Черновики', callbackData: 'admin:sermons' }, { text: 'Панель', callbackData: 'admin:home' }],
+    ];
+    await this.reply(chatId, renderSermonStatus(status), keyboard);
   }
 
   private async finishManualText(chatId: string, userId: string, key: string): Promise<void> {

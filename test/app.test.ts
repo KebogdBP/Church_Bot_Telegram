@@ -451,10 +451,11 @@ describe('Telegram webhook', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(sendMessage).toHaveBeenCalledWith({
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
       chatId: '100',
       text: expect.stringContaining('Аудио проповеди принято'),
-    });
+      keyboard: [[expect.objectContaining({ text: 'Проверить обработку' })]],
+    }));
   });
 
   it('rejects sermon audio from a regular group member', async () => {
