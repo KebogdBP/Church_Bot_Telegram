@@ -606,6 +606,14 @@ export class CommandRouter {
         this.pendingAdminInput.delete(`${callback.chatId}:${callback.userId}`);
         await this.reply(callback.chatId, 'Действие отменено.'); return;
       }
+      if (callback.data === 'flow:image_skip') {
+        const reply = await this.options.guidedEvents?.skipImage(callback.chatId, callback.userId);
+        await this.reply(callback.chatId, reply?.text ?? 'Мастер событий недоступен.', reply?.keyboard, reply?.forceReply); return;
+      }
+      if (callback.data === 'flow:image_add') {
+        const reply = await this.options.guidedEvents?.requestImage(callback.chatId, callback.userId);
+        await this.reply(callback.chatId, reply?.text ?? 'Мастер событий недоступен.', reply?.keyboard, reply?.forceReply); return;
+      }
       if (callback.data === 'flow:confirm') {
         const reply = await this.options.guidedEvents?.confirm(callback.chatId, callback.userId);
         await this.reply(callback.chatId, reply?.text ?? 'Мастер событий недоступен.', reply?.keyboard, reply?.forceReply); return;

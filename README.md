@@ -118,6 +118,8 @@ Daily devotional delivery is enabled per chat from **Admin → Settings → Devo
 
 `/events` includes RSVP buttons for every visible event. Any group member can choose "пойду", "возможно", or "не смогу" and change that choice later. The bot stores one current response per Telegram user and event, validates that the event belongs to the current chat, and posts aggregate counts without exposing a member list.
 
+The guided event flow is available from `/admin` → **События** → **Добавить событие**. It asks for the date, time, title, a short description, location, reminder offset, and an optional Telegram photo. Reminders with a photo are sent as a single mobile-friendly image post with a formatted caption; events without a photo use the same structured text layout. Telegram stores the uploaded media, while the bot persists only its reusable `file_id` and `file_unique_id`.
+
 Members can search completed sermon transcripts with `/sermon_search QUERY`. Results are scoped to the current Telegram group and show the stored sermon title, date, ID, and a bounded verbatim excerpt around the match. This command does not ask an AI model to create or paraphrase citations.
 
 `/ask_sermons QUESTION` asks the Bible assistant with up to three bounded excerpts retrieved from completed transcripts in the current group. Archive text is treated as untrusted reference material, and the application appends only source IDs that were actually retrieved; model-invented IDs are discarded. Use `/ask` when archive context is not wanted.

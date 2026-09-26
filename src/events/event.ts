@@ -11,6 +11,9 @@ export interface ChurchEvent {
   localTime?: string;
   reminderMinutesBefore: number;
   location?: string;
+  description?: string;
+  imageFileId?: string;
+  imageFileUniqueId?: string;
   topic?: string;
   biblePassage?: string;
   createdByUserId: string;
@@ -19,7 +22,7 @@ export interface ChurchEvent {
 export type CreateChurchEvent = Omit<ChurchEvent, 'id'>;
 export type UpdateChurchEvent = Pick<
   ChurchEvent,
-  'title' | 'startsAt' | 'weeklyDay' | 'localTime' | 'reminderMinutesBefore' | 'location'
+  'title' | 'startsAt' | 'weeklyDay' | 'localTime' | 'reminderMinutesBefore' | 'location' | 'description' | 'imageFileId' | 'imageFileUniqueId'
 >;
 
 export interface EventRepository {

@@ -81,9 +81,32 @@ describe('ReminderWorker', () => {
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendMessage).toHaveBeenCalledWith({
       chatId: 'chat-1',
-      text: expect.stringContaining('завтра в 12:00'),
+      text: expect.stringMatching(/📅 Завтра[\s\S]*🕙 12:00/),
     });
     expect(repository.status).toBe('sent');
+  });
+
+  it('places an event image above the formatted reminder', async () => {
+    const repository = new TestReminderRepository();
+    const sendMessage = vi.fn<MessageSender['sendMessage']>().mockResolvedValue(undefined);
+    const sendPhotoById = vi.fn<NonNullable<MessageSender['sendPhotoById']>>().mockResolvedValue(undefined);
+    const originalImage = EVENT.imageFileId;
+    const originalDescription = EVENT.description;
+    EVENT.imageFileId = 'telegram-photo-id';
+    EVENT.description = 'Вечер общения, поклонения и совместной молитвы.';
+    try {
+      const worker = createWorker(repository, { sendMessage, sendPhotoById }, () => new Date('2026-09-13T09:00:00.000Z'));
+      await worker.tick();
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(sendPhotoById).toHaveBeenCalledWith({
+        chatId: 'chat-1',
+        fileId: 'telegram-photo-id',
+        caption: expect.stringMatching(/<b>Воскресное собрание<\/b>[\s\S]*📅 Завтра[\s\S]*Вечер общения/),
+      });
+    } finally {
+      if (originalImage === undefined) delete EVENT.imageFileId; else EVENT.imageFileId = originalImage;
+      if (originalDescription === undefined) delete EVENT.description; else EVENT.description = originalDescription;
+    }
   });
 
   it('retries a failed delivery after backoff', async () => {

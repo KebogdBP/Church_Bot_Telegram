@@ -1,4 +1,4 @@
-import type { IncomingCallback, IncomingMessage, IncomingSermonAudio, TelegramUpdate } from './types.js';
+import type { IncomingCallback, IncomingMessage, IncomingPhoto, IncomingSermonAudio, TelegramUpdate } from './types.js';
 
 export function normalizeCallback(update: TelegramUpdate): IncomingCallback | null {
   const callback = update.callback_query;
@@ -72,5 +72,23 @@ export function normalizeSermonAudio(update: TelegramUpdate): IncomingSermonAudi
     mimeType: document.mime_type,
     ...(document.file_name ? { fileName: document.file_name } : {}),
     ...(document.file_size === undefined ? {} : { fileSize: document.file_size }),
+  };
+}
+
+export function normalizePhoto(update: TelegramUpdate): IncomingPhoto | null {
+  const message = update.message ?? update.channel_post;
+  if (!message?.photo?.length) return null;
+  const photo = [...message.photo].sort((left, right) => (right.file_size ?? right.width * right.height) - (left.file_size ?? left.width * left.height))[0]!;
+  return {
+    chatId: String(message.chat.id),
+    chatType: message.chat.type,
+    messageId: String(message.message_id),
+    ...(message.from ? { userId: String(message.from.id) } : {}),
+    fileId: photo.file_id,
+    fileUniqueId: photo.file_unique_id,
+    width: photo.width,
+    height: photo.height,
+    ...(photo.file_size === undefined ? {} : { fileSize: photo.file_size }),
+    ...(message.caption ? { caption: message.caption } : {}),
   };
 }

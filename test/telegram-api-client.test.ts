@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { normalizeMessage, normalizeSermonAudio } from '../src/telegram/normalize-update.js';
+import { normalizeMessage, normalizePhoto, normalizeSermonAudio } from '../src/telegram/normalize-update.js';
 import { TelegramApiClient } from '../src/telegram/telegram-api-client.js';
 
 describe('TelegramApiClient', () => {
@@ -79,9 +79,34 @@ describe('TelegramApiClient', () => {
     expect(request).toHaveBeenNthCalledWith(1, 'https://api.telegram.org/botsecret-token/sendDocument', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
     expect(request).toHaveBeenNthCalledWith(2, 'https://api.telegram.org/botsecret-token/sendAudio', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }));
   });
+
+  it('reuses a Telegram photo id for an event announcement', async () => {
+    const request = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+    const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
+    await client.sendPhotoById({ chatId: '-100', fileId: 'photo-id', caption: '<b>Событие</b>' });
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
+    expect(body).toEqual({ chat_id: '-100', photo: 'photo-id', caption: '<b>Событие</b>', parse_mode: 'HTML' });
+  });
 });
 
 describe('normalizeMessage', () => {
+  it('selects the largest Telegram photo for an event announcement', () => {
+    const photo = normalizePhoto({
+      update_id: 99,
+      message: {
+        message_id: 7,
+        date: 1_700_000_000,
+        from: { id: 42, is_bot: false, first_name: 'Игорь' },
+        chat: { id: -100500, type: 'supergroup' },
+        photo: [
+          { file_id: 'small', file_unique_id: 'small-u', width: 90, height: 90, file_size: 1_000 },
+          { file_id: 'large', file_unique_id: 'large-u', width: 1280, height: 720, file_size: 80_000 },
+        ],
+      },
+    });
+    expect(photo).toMatchObject({ chatId: '-100500', userId: '42', fileId: 'large', fileUniqueId: 'large-u' });
+  });
+
   it('normalizes a Telegram group message', () => {
     const message = normalizeMessage({
       update_id: 100,

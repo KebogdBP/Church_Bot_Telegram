@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import type { AppConfig } from './config.js';
 import { CommandRouter } from './bot/command-router.js';
 import type { MessageSender } from './messaging/message-sender.js';
-import { normalizeCallback, normalizeMessage, normalizeSermonAudio } from './telegram/normalize-update.js';
+import { normalizeCallback, normalizeMessage, normalizePhoto, normalizeSermonAudio } from './telegram/normalize-update.js';
 import { TelegramApiClient } from './telegram/telegram-api-client.js';
 import { telegramUpdateSchema } from './telegram/types.js';
 import type { EventRepository } from './events/event.js';
@@ -318,6 +318,7 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     const message = normalizeMessage(parsed.data);
     const callback = normalizeCallback(parsed.data);
     const sermonAudio = normalizeSermonAudio(parsed.data);
+    const photo = normalizePhoto(parsed.data);
     if (sermonAudio) {
       const result = await sermonIntake.receive(sermonAudio);
       if (sermonAudio.chatType !== 'channel' && result.status === 'accepted') {
@@ -336,6 +337,9 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
     }
     if (callback) {
       await router.handleCallback(callback);
+    } else if (photo?.userId && guidedEvents) {
+      const flowReply = await guidedEvents.consumePhoto(photo.chatId, photo.userId, photo);
+      if (flowReply) await sender.sendMessage({ chatId: photo.chatId, text: flowReply.text, ...(flowReply.keyboard ? { keyboard: flowReply.keyboard } : {}), ...(flowReply.forceReply ? { forceReply: true } : {}) });
     } else if (message && !sermonAudio) {
       await router.handle(message);
     }

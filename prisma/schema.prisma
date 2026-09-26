@@ -538,6 +538,8 @@ model Event {
   churchGroup           ChurchGroup     @relation(fields: [churchGroupId], references: [id], onDelete: Cascade)
   title                 String
   description           String?
+  imageFileId           String?
+  imageFileUniqueId     String?
   location              String?
   topic                 String?
   biblePassage          String?

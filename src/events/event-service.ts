@@ -11,6 +11,9 @@ export interface CreateOneTimeEventInput {
   timezone: string;
   reminderMinutesBefore: number;
   location?: string;
+  description?: string;
+  imageFileId?: string;
+  imageFileUniqueId?: string;
 }
 
 export interface CreateWeeklyEventInput extends Omit<CreateOneTimeEventInput, 'date'> {
@@ -56,6 +59,9 @@ export class EventService {
       recurrence: 'none',
       reminderMinutesBefore: input.reminderMinutesBefore,
       ...(input.location ? { location: input.location } : {}),
+      ...(input.description ? { description: input.description } : {}),
+      ...(input.imageFileId ? { imageFileId: input.imageFileId } : {}),
+      ...(input.imageFileUniqueId ? { imageFileUniqueId: input.imageFileUniqueId } : {}),
     });
   }
 
@@ -87,6 +93,9 @@ export class EventService {
       localTime: input.time,
       reminderMinutesBefore: input.reminderMinutesBefore,
       ...(input.location ? { location: input.location } : {}),
+      ...(input.description ? { description: input.description } : {}),
+      ...(input.imageFileId ? { imageFileId: input.imageFileId } : {}),
+      ...(input.imageFileUniqueId ? { imageFileUniqueId: input.imageFileUniqueId } : {}),
     });
   }
 
@@ -112,6 +121,9 @@ export class EventService {
         localTime: input.time,
         reminderMinutesBefore: input.reminderMinutesBefore,
         ...(input.location ? { location: input.location } : {}),
+        ...(existing.description ? { description: existing.description } : {}),
+        ...(existing.imageFileId ? { imageFileId: existing.imageFileId } : {}),
+        ...(existing.imageFileUniqueId ? { imageFileUniqueId: existing.imageFileUniqueId } : {}),
       });
     }
 
@@ -121,6 +133,9 @@ export class EventService {
       startsAt: localStart,
       reminderMinutesBefore: input.reminderMinutesBefore,
       ...(input.location ? { location: input.location } : {}),
+      ...(existing.description ? { description: existing.description } : {}),
+      ...(existing.imageFileId ? { imageFileId: existing.imageFileId } : {}),
+      ...(existing.imageFileUniqueId ? { imageFileUniqueId: existing.imageFileUniqueId } : {}),
     });
   }
 
@@ -147,12 +162,15 @@ function nextWeeklyStart(weekday: number, time: string, timezone: string, date: 
   return next.toUTC().toJSDate();
 }
 
-function validateCommon(input: Pick<CreateOneTimeEventInput, 'title' | 'reminderMinutesBefore'>): void {
+function validateCommon(input: Pick<CreateOneTimeEventInput, 'title' | 'reminderMinutesBefore' | 'description'>): void {
   if (!input.title.trim() || input.title.length > 200) {
     throw new EventValidationError('Название события должно содержать от 1 до 200 символов.');
   }
   if (!Number.isInteger(input.reminderMinutesBefore) || input.reminderMinutesBefore < 1 || input.reminderMinutesBefore > 43_200) {
     throw new EventValidationError('Напоминание можно установить за период от 1 минуты до 30 дней.');
+  }
+  if (input.description && input.description.length > 600) {
+    throw new EventValidationError('Описание события должно содержать не более 600 символов.');
   }
 }
 
@@ -165,11 +183,15 @@ export function formatEvent(event: ChurchEvent): string {
 
   return [
     `<b>${escapeHtml(event.title)}</b>`,
-    `${start} (${recurrence})`,
-    event.location ? `Место: ${escapeHtml(event.location)}` : null,
-    `Напоминание: за ${reminder}`,
+    '',
+    `📅 ${start} (${recurrence})`,
+    event.location ? `📍 ${escapeHtml(event.location)}` : null,
+    '',
+    event.description ? escapeHtml(event.description) : null,
+    event.description ? '' : null,
+    `🔔 Напоминание: за ${reminder}`,
     `ID: <code>${escapeHtml(event.id)}</code>`,
-  ].filter(Boolean).join('\n');
+  ].filter((line) => line !== null).join('\n');
 }
 
 function formatReminderOffset(minutes: number): string {

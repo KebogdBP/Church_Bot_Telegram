@@ -41,6 +41,14 @@ const telegramDocumentSchema = z.object({
   file_size: z.number().int().nonnegative().optional(),
 }).passthrough();
 
+const telegramPhotoSizeSchema = z.object({
+  file_id: z.string(),
+  file_unique_id: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  file_size: z.number().int().nonnegative().optional(),
+}).passthrough();
+
 const telegramMessageSchema = z.object({
   message_id: z.number(),
   date: z.number(),
@@ -51,6 +59,7 @@ const telegramMessageSchema = z.object({
   audio: telegramAudioSchema.optional(),
   voice: telegramVoiceSchema.optional(),
   document: telegramDocumentSchema.optional(),
+  photo: z.array(telegramPhotoSizeSchema).min(1).optional(),
 }).passthrough();
 
 export const telegramUpdateSchema = z.object({
@@ -89,6 +98,19 @@ export interface IncomingSermonAudio {
   durationSeconds?: number;
   title?: string;
   performer?: string;
+  caption?: string;
+}
+
+export interface IncomingPhoto {
+  chatId: string;
+  chatType: 'private' | 'group' | 'supergroup' | 'channel';
+  messageId: string;
+  userId?: string;
+  fileId: string;
+  fileUniqueId: string;
+  width: number;
+  height: number;
+  fileSize?: number;
   caption?: string;
 }
 

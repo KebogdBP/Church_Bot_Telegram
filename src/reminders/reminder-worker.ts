@@ -55,7 +55,11 @@ export class ReminderWorker {
       for (const reminder of due) {
         try {
           const text = renderReminderMessage(reminder.event, reminder.occurrenceAt, now);
-          await this.options.sender.sendMessage({ chatId: reminder.event.chatId, text });
+          if (reminder.event.imageFileId && this.options.sender.sendPhotoById) {
+            await this.options.sender.sendPhotoById({ chatId: reminder.event.chatId, fileId: reminder.event.imageFileId, caption: text });
+          } else {
+            await this.options.sender.sendMessage({ chatId: reminder.event.chatId, text });
+          }
           await this.options.repository.markSent(reminder.deliveryId, now);
           this.options.logger.info({ deliveryId: reminder.deliveryId }, 'Reminder sent');
         } catch (error) {

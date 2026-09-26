@@ -175,12 +175,19 @@ describeWithDatabase('PrismaReminderRepository integration', () => {
     await flow.start('guided-chat', '42');
     expect((await flow.consume('guided-chat', '42', '2099-10-01'))?.text).toContain('время');
     expect((await flow.consume('guided-chat', '42', '10:00'))?.text).toContain('название');
-    expect((await flow.consume('guided-chat', '42', 'Воскресное служение'))?.text).toContain('место');
+    expect((await flow.consume('guided-chat', '42', 'Воскресное служение'))?.text).toContain('расскажите');
+    expect((await flow.consume('guided-chat', '42', 'Служение с общей молитвой и словом наставления.'))?.text).toContain('место');
     expect((await flow.consume('guided-chat', '42', 'Главный зал'))?.text).toContain('минут');
-    const confirmation = await flow.consume('guided-chat', '42', '1020');
-    expect(confirmation?.keyboard?.[0]?.[0]?.callbackData).toBe('flow:confirm');
+    const imageChoice = await flow.consume('guided-chat', '42', '1020');
+    expect(imageChoice?.text).toContain('изображение');
+    expect((await flow.requestImage('guided-chat', '42')).forceReply).toBe(true);
+    const confirmation = await flow.consumePhoto('guided-chat', '42', { fileId: 'photo-id', fileUniqueId: 'photo-unique' });
+    expect(confirmation?.text).toContain('Изображение: добавлено');
     await expect(flow.confirm('guided-chat', '42')).resolves.toMatchObject({ text: expect.stringContaining('создано') });
-    expect(await prisma.event.count({ where: { churchGroup: { telegramChatId: 'guided-chat' } } })).toBe(1);
+    expect(await prisma.event.findFirstOrThrow({ where: { churchGroup: { telegramChatId: 'guided-chat' } }, select: { description: true, imageFileId: true } })).toEqual({
+      description: 'Служение с общей молитвой и словом наставления.',
+      imageFileId: 'photo-id',
+    });
     expect(await prisma.adminFlow.count({ where: { telegramUserId: '42' } })).toBe(0);
   });
 });

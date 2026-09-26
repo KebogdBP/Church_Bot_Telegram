@@ -13,6 +13,12 @@ export interface SendFileInput {
   caption?: string;
 }
 
+export interface SendPhotoReferenceInput {
+  chatId: string;
+  fileId: string;
+  caption: string;
+}
+
 export interface InlineButton {
   text: string;
   callbackData?: string;
@@ -24,5 +30,6 @@ export interface MessageSender {
   sendAudio?(input: SendFileInput): Promise<void>;
   sendDocument?(input: SendFileInput): Promise<void>;
   sendPhoto?(input: SendFileInput): Promise<void>;
+  sendPhotoById?(input: SendPhotoReferenceInput): Promise<void>;
   answerCallback?(callbackId: string, text?: string): Promise<void>;
 }

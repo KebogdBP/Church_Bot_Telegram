@@ -5,7 +5,7 @@
 3. Use `/admin_add ID` for other leaders and `/settings` to verify roles.
 4. Open `/admin` for the button dashboard. The guided event flow can be stopped at any time with `/cancel`.
 5. Set community context with `/context_set TEXT`.
-6. Create a test event from `/admin` or with `/event_add`/`/event_weekly`, then confirm it with `/events`.
+6. Create a test event from `/admin`, add a short description and optional photo, then confirm it with `/events`. The command alternatives `/event_add` and `/event_weekly` remain available for text-only events.
 7. Upload audio under 20 MB or use `/sermon_link HTTPS_URL` for a larger file. Track it with `/sermon_status ID`, inspect generated drafts with `/sermons`, then edit, reject, regenerate, or approve them.
 8. Enable weekly drafts with `/digest_enable 5 18:00`, preview with `/digest_preview`, and approve only a reviewed digest.
 9. Open `/events` as a regular member, change an RSVP response, and verify that only aggregate counts are shown.

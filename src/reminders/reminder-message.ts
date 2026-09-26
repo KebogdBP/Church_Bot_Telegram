@@ -7,19 +7,30 @@ export function renderReminderMessage(event: ChurchEvent, occurrenceAt: Date, no
   const dayDifference = Math.round(occurrence.startOf('day').diff(current.startOf('day'), 'days').days);
 
   const when = dayDifference === 0
-    ? `Сегодня в ${occurrence.toFormat('HH:mm')}`
+    ? 'Сегодня'
     : dayDifference === 1
-      ? `Завтра в ${occurrence.toFormat('HH:mm')}`
-      : occurrence.toFormat("cccc, d LLLL 'в' HH:mm");
+      ? 'Завтра'
+      : occurrence.toFormat('cccc, d LLLL');
 
   return [
-    '<b>Напоминание</b>',
+    '<b>Предстоящее событие</b>',
     '',
-    `Друзья, ${when.toLowerCase()} состоится «${escapeHtml(event.title)}». Будем рады видеть каждого!`,
-    event.location ? `Место: ${escapeHtml(event.location)}` : null,
-    event.topic ? `Тема: ${escapeHtml(event.topic)}` : null,
-    event.biblePassage ? `Место Писания: ${escapeHtml(event.biblePassage)}` : null,
+    `<b>${escapeHtml(event.title)}</b>`,
+    '',
+    `📅 ${capitalize(when)}`,
+    `🕙 ${occurrence.toFormat('HH:mm')}`,
+    event.location ? `📍 ${escapeHtml(event.location)}` : null,
+    event.description ? '' : null,
+    event.description ? escapeHtml(event.description) : null,
+    event.topic ? `\n<b>Тема:</b> ${escapeHtml(event.topic)}` : null,
+    event.biblePassage ? `<b>Место Писания:</b> ${escapeHtml(event.biblePassage)}` : null,
+    '',
+    'Будем рады видеть вас!',
   ].filter((line) => line !== null).join('\n');
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function escapeHtml(value: string): string {

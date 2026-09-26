@@ -1,4 +1,4 @@
-import type { MessageSender, SendFileInput, SendMessageInput } from '../messaging/message-sender.js';
+import type { MessageSender, SendFileInput, SendMessageInput, SendPhotoReferenceInput } from '../messaging/message-sender.js';
 import type { TelegramUpdate } from './types.js';
 import { Agent } from 'undici';
 import { readFile } from 'node:fs/promises';
@@ -66,6 +66,15 @@ export class TelegramApiClient implements MessageSender {
 
   public sendPhoto(input: SendFileInput): Promise<void> {
     return this.sendMultipart('sendPhoto', 'photo', input, true);
+  }
+
+  public async sendPhotoById(input: SendPhotoReferenceInput): Promise<void> {
+    await this.call<unknown>('sendPhoto', {
+      chat_id: input.chatId,
+      photo: input.fileId,
+      caption: input.caption,
+      parse_mode: 'HTML',
+    });
   }
 
   public async getFile(fileId: string): Promise<{ filePath: string; fileSize?: number }> {
