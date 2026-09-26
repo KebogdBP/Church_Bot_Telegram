@@ -64,9 +64,9 @@ describe('TelegramApiClient', () => {
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
     expect(body.reply_markup).toEqual({
       force_reply: true,
-      selective: true,
       input_field_placeholder: 'Ответ церковному помощнику',
     });
+    expect(body.reply_markup).not.toHaveProperty('selective');
   });
 
   it('uploads transcript documents and audio files', async () => {

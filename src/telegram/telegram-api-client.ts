@@ -34,7 +34,6 @@ export class TelegramApiClient implements MessageSender {
         ...(input.forceReply ? {
           reply_markup: {
             force_reply: true,
-            selective: true,
             input_field_placeholder: 'Ответ церковному помощнику',
           },
         } : input.keyboard ? {
