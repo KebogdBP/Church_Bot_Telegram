@@ -5,7 +5,7 @@ import { EventService, EventValidationError } from '../events/event-service.js';
 import { escapeHtml } from '../messaging/html.js';
 
 interface FlowData { date?: string; time?: string; title?: string; location?: string; reminderMinutesBefore?: number }
-export interface FlowReply { text: string; keyboard?: InlineButton[][] }
+export interface FlowReply { text: string; keyboard?: InlineButton[][]; forceReply?: boolean }
 
 export class GuidedEventService {
   public constructor(private readonly prisma: PrismaClient, private readonly events: EventService, private readonly timezone: string, private readonly now = () => new Date()) {}
@@ -17,7 +17,7 @@ export class GuidedEventService {
       update: { kind: 'event_create', step: 'date', data: {}, expiresAt: new Date(this.now().getTime() + 60 * 60_000) },
       create: { churchGroupId: group.id, telegramUserId: userId, kind: 'event_create', step: 'date', data: {}, expiresAt: new Date(this.now().getTime() + 60 * 60_000) },
     });
-    return { text: 'Введите дату события в формате <code>ГГГГ-ММ-ДД</code>.', keyboard: [[{ text: 'Отменить', callbackData: 'flow:cancel' }]] };
+    return inputReply('Введите дату события в формате <code>ГГГГ-ММ-ДД</code>.');
   }
 
   public async cancel(chatId: string, userId: string): Promise<boolean> {
@@ -31,21 +31,21 @@ export class GuidedEventService {
     const data = flow.data as FlowData;
     if (flow.step === 'date') {
       const date = DateTime.fromFormat(text, 'yyyy-MM-dd', { zone: this.timezone });
-      if (!date.isValid || date.endOf('day').toMillis() <= this.now().getTime()) return { text: 'Нужна сегодняшняя или будущая дата в формате <code>ГГГГ-ММ-ДД</code>.' };
+      if (!date.isValid || date.endOf('day').toMillis() <= this.now().getTime()) return inputReply('Нужна сегодняшняя или будущая дата в формате <code>ГГГГ-ММ-ДД</code>.');
       return this.advance(flow.id, 'time', { ...data, date: text }, 'Введите время в формате <code>ЧЧ:ММ</code>.');
     }
     if (flow.step === 'time') {
-      if (!DateTime.fromFormat(text, 'HH:mm', { zone: this.timezone }).isValid) return { text: 'Неверное время. Используйте формат <code>ЧЧ:ММ</code>.' };
+      if (!DateTime.fromFormat(text, 'HH:mm', { zone: this.timezone }).isValid) return inputReply('Неверное время. Используйте формат <code>ЧЧ:ММ</code>.');
       return this.advance(flow.id, 'title', { ...data, time: text }, 'Введите название события.');
     }
     if (flow.step === 'title') {
-      if (!text.trim() || text.length > 200) return { text: 'Название должно содержать от 1 до 200 символов.' };
+      if (!text.trim() || text.length > 200) return inputReply('Название должно содержать от 1 до 200 символов.');
       return this.advance(flow.id, 'location', { ...data, title: text.trim() }, 'Введите место проведения или отправьте <code>-</code>.');
     }
     if (flow.step === 'location') return this.advance(flow.id, 'reminder', { ...data, ...(text === '-' ? {} : { location: text.trim() }) }, 'За сколько минут напомнить? Например: <code>1020</code> для 17 часов.');
     if (flow.step === 'reminder') {
       const minutes = Number(text);
-      if (!Number.isInteger(minutes) || minutes < 1 || minutes > 43_200) return { text: 'Введите целое число минут от 1 до 43200.' };
+      if (!Number.isInteger(minutes) || minutes < 1 || minutes > 43_200) return inputReply('Введите целое число минут от 1 до 43200.');
       const complete = { ...data, reminderMinutesBefore: minutes };
       await this.prisma.adminFlow.update({ where: { id: flow.id }, data: { step: 'confirm', data: toJson(complete) } });
       return { text: [`<b>Проверьте событие</b>`, `${complete.date} ${complete.time}`, escapeHtml(complete.title ?? ''), complete.location ? `Место: ${escapeHtml(complete.location)}` : 'Место не указано', `Напоминание: за ${minutes} мин.`].join('\n'), keyboard: [[{ text: 'Создать', callbackData: 'flow:confirm' }, { text: 'Отменить', callbackData: 'flow:cancel' }]] };
@@ -69,8 +69,12 @@ export class GuidedEventService {
 
   private async advance(id: string, step: string, data: FlowData, text: string): Promise<FlowReply> {
     await this.prisma.adminFlow.update({ where: { id }, data: { step, data: toJson(data) } });
-    return { text, keyboard: [[{ text: 'Отменить', callbackData: 'flow:cancel' }]] };
+    return inputReply(text);
   }
+}
+
+function inputReply(text: string): FlowReply {
+  return { text: `${text}\n\nДля отмены отправьте /cancel.`, forceReply: true };
 }
 
 function toJson(data: FlowData): Prisma.InputJsonValue {

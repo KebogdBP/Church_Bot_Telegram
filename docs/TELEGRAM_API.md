@@ -41,6 +41,7 @@ Official sources:
 - Telegram retries webhook requests that do not return a successful HTTP status.
 - Bots cannot initiate private conversations; a user must start the bot first.
 - Channel subscribers cannot send ordinary messages into the channel. Interactive Q&A belongs in the linked discussion group or a private bot chat.
+- Bot Privacy Mode may hide ordinary group messages from bots. Guided input prompts use Telegram ForceReply, so members should type into the reply field opened by the bot. This also routes the answer to the correct bot when several bots share one group.
 - Bots receive all channel posts where they are members. In groups, Privacy Mode limits which messages they receive unless they are administrators or privacy is disabled.
 - Hosted Bot API file downloads use `/file/bot<token>/<file_path>` and are limited to 20 MB. The returned URL remains valid for at least one hour.
 - `getFile` may not preserve the original filename or MIME type, so those values are captured from the incoming message.

@@ -17,6 +17,7 @@ export interface RegistrationReply {
   text: string;
   keyboard?: InlineButton[][];
   targetChatId?: string;
+  forceReply?: boolean;
 }
 
 export type RegistrationCapacityIssue = 'full' | 'city_full' | null;
@@ -122,14 +123,14 @@ export class RegistrationService {
     if (addCity) {
       const form = await this.ownedForm(chatId, addCity[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'CITY_NAME', { formPublicId: form.publicId });
-      return cancelReply('Введите название города. Например: <i>Тимашевск</i>', `regadmin:view:${form.publicId}`);
+      return cancelReply('Введите название города. Например: <i>Тимашевск</i>');
     }
     const cityQuota = /^regadmin:cityquota:([^:]+)$/.exec(data);
     if (cityQuota) {
       const city = await this.prisma.registrationCity.findFirst({ where: { id: cityQuota[1]!, form: { churchGroup: { telegramChatId: chatId } } }, include: { form: true } });
       if (!city) return notFoundReply();
       await this.saveFlow(chatId, userId, city.formId, 'ADMIN', `CITY_QUOTA_EDIT:${city.id}`, { formPublicId: city.form.publicId });
-      return cancelReply(`Новая квота для города «${escapeHtml(city.name)}» (сейчас ${city.quota}):`, `regadmin:cities:${city.form.publicId}`);
+      return cancelReply(`Новая квота для города «${escapeHtml(city.name)}» (сейчас ${city.quota}):`);
     }
     const cityDelete = /^regadmin:citydel:([^:]+)$/.exec(data);
     if (cityDelete) return this.deleteCity(chatId, cityDelete[1]!);
@@ -140,7 +141,7 @@ export class RegistrationService {
     if (addField) {
       const form = await this.ownedForm(chatId, addField[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'FIELD_LABEL', { formPublicId: form.publicId });
-      return cancelReply('Напишите вопрос для нового поля.\nНапример: <i>Название вашей церкви</i>', `regadmin:fields:${form.publicId}`);
+      return cancelReply('Напишите вопрос для нового поля.\nНапример: <i>Название вашей церкви</i>');
     }
     const fieldKind = /^regadmin:fieldkind:(text|number|choice)$/.exec(data);
     if (fieldKind) return this.chooseFieldKind(chatId, userId, fieldKind[1]!);
@@ -154,13 +155,13 @@ export class RegistrationService {
     if (setLimit) {
       const form = await this.ownedForm(chatId, setLimit[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'LIMIT_EDIT', { formPublicId: form.publicId });
-      return cancelReply(`Введите новый общий лимит. Сейчас: ${form.totalLimit}.`, `regadmin:view:${form.publicId}`);
+      return cancelReply(`Введите новый общий лимит. Сейчас: ${form.totalLimit}.`);
     }
     const description = /^regadmin:description:([A-Z0-9]{6})$/.exec(data);
     if (description) {
       const form = await this.ownedForm(chatId, description[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'DESCRIPTION', { formPublicId: form.publicId });
-      return cancelReply('Напишите короткое описание, которое увидят участники.', `regadmin:view:${form.publicId}`);
+      return cancelReply('Напишите короткое описание, которое увидят участники.');
     }
     const age = /^regadmin:age:([A-Z0-9]{6})$/.exec(data);
     if (age) return this.ageDashboard(chatId, age[1]!);
@@ -168,7 +169,7 @@ export class RegistrationService {
     if (ageSet) {
       const form = await this.ownedForm(chatId, ageSet[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'AGE_MIN', { formPublicId: form.publicId });
-      return cancelReply('Введите минимальный возраст от 1 до 120.', `regadmin:age:${form.publicId}`);
+      return cancelReply('Введите минимальный возраст от 1 до 120.');
     }
     const ageOff = /^regadmin:ageoff:([A-Z0-9]{6})$/.exec(data);
     if (ageOff) {
@@ -180,7 +181,7 @@ export class RegistrationService {
     if (ageMessage) {
       const form = await this.ownedForm(chatId, ageMessage[1]!); if (!form) return notFoundReply();
       await this.saveFlow(chatId, userId, form.id, 'ADMIN', 'AGE_MESSAGE_EDIT', { formPublicId: form.publicId });
-      return cancelReply('Напишите вежливое сообщение для участника, чей возраст не входит в рамки.', `regadmin:age:${form.publicId}`);
+      return cancelReply('Напишите вежливое сообщение для участника, чей возраст не входит в рамки.');
     }
     if (data === 'regadmin:agemsg:default') return this.finishAgeSettings(chatId, userId, DEFAULT_AGE_REJECTION);
     const toggle = /^regadmin:toggle:([A-Z0-9]{6})$/.exec(data);
@@ -198,7 +199,7 @@ export class RegistrationService {
     if (!form || form.status !== RegistrationFormStatus.OPEN) return { text: 'Эта регистрация закрыта или не найдена.' };
     if (form.entries.length) return { text: `Вы уже зарегистрированы на «${escapeHtml(form.title)}».`, keyboard: [[{ text: 'Отменить мою регистрацию', callbackData: `reg:cancel:${publicId}` }], [{ text: '🏠 Главное меню', callbackData: 'menu:home' }]] };
     await this.saveFlow(chatId, userId, form.id, 'PARTICIPANT', 'FIRST_NAME', { formPublicId: publicId, answers: {}, fieldIndex: 0 });
-    return cancelReply(`<b>${escapeHtml(form.title)}</b>\n\nШаг 1. Напишите ваше имя.`, 'menu:home');
+    return cancelReply(`<b>${escapeHtml(form.title)}</b>\n\nШаг 1. Напишите ваше имя.`);
   }
 
   public async handleParticipantCallback(chatId: string, userId: string, data: string, isPrivate: boolean): Promise<RegistrationReply | null> {
@@ -621,7 +622,7 @@ export class RegistrationService {
 
   private async updateFlow(id: string, step: string, data: FlowData, text: string, keyboard?: InlineButton[][]): Promise<RegistrationReply> {
     await this.prisma.registrationFlow.update({ where: { id }, data: { step, dataEncrypted: this.writeData(data), expiresAt: new Date(this.now().getTime() + FLOW_TTL_MS) } });
-    return { text, ...(keyboard ? { keyboard } : { keyboard: [[{ text: 'Отменить', callbackData: 'regadmin:cancel' }]] }) };
+    return { text, ...(keyboard ? { keyboard } : { forceReply: true }) };
   }
 
   private async activeFlow(chatId: string, userId: string) {
@@ -661,7 +662,7 @@ function statusIcon(status: RegistrationFormStatus): string { return status === 
 function statusLabel(status: RegistrationFormStatus): string { return status === RegistrationFormStatus.OPEN ? '🟢 открыта' : status === RegistrationFormStatus.CLOSED ? '⏸ закрыта' : '⚪ черновик'; }
 function fieldKindLabel(kind: RegistrationFieldKind): string { return kind === RegistrationFieldKind.CHOICE ? 'выбор' : kind === RegistrationFieldKind.NUMBER ? 'число' : 'текст'; }
 function cityKeyboard(cities: Array<{ id: string; name: string; quota: number; _count: { entries: number } }>): InlineButton[][] { return cities.map((city) => [{ text: `${city.name} · ${city._count.entries}/${city.quota}`, callbackData: `reg:city:${city.id}` }]); }
-function cancelReply(text: string, back = 'admin:registrations'): RegistrationReply { return { text, keyboard: [[{ text: 'Отменить', callbackData: back === 'menu:home' ? 'menu:home' : 'regadmin:cancel' }]] }; }
+function cancelReply(text: string): RegistrationReply { return { text: `${text}\n\nДля отмены отправьте /cancel.`, forceReply: true }; }
 function expiredReply(): RegistrationReply { return { text: 'Этот сценарий уже завершён или истёк. Начните заново.' }; }
 function notFoundReply(): RegistrationReply { return { text: 'Регистрация не найдена или недоступна.' }; }
 function csvCell(value: string): string {

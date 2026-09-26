@@ -3,6 +3,7 @@ export interface SendMessageInput {
   text: string;
   notify?: boolean;
   keyboard?: InlineButton[][];
+  forceReply?: boolean;
 }
 
 export interface SendFileInput {

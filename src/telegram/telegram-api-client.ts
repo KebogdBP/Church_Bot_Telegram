@@ -31,7 +31,13 @@ export class TelegramApiClient implements MessageSender {
         text: input.text,
         parse_mode: 'HTML',
         disable_notification: !(input.notify ?? true),
-        ...(input.keyboard ? {
+        ...(input.forceReply ? {
+          reply_markup: {
+            force_reply: true,
+            selective: true,
+            input_field_placeholder: 'Ответ церковному помощнику',
+          },
+        } : input.keyboard ? {
           reply_markup: {
             inline_keyboard: input.keyboard.map((row) => row.map((button) => button.url
               ? { text: button.text, url: button.url }

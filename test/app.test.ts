@@ -173,7 +173,7 @@ describe('Telegram webhook', () => {
     await app.inject({ method: 'POST', url: '/webhooks/telegram', headers: { 'x-telegram-bot-api-secret-token': 'test-secret' }, payload: callbackUpdate('menu:ask') });
 
     expect(answerCallback).toHaveBeenCalledWith('callback-1');
-    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Задать вопрос') }));
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringContaining('Задать вопрос'), forceReply: true }));
   });
 
   it('allows status only for configured admins', async () => {

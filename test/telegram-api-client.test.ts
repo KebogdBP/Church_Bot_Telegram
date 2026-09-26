@@ -55,6 +55,20 @@ describe('TelegramApiClient', () => {
     expect(body.reply_markup.inline_keyboard[0][0]).toEqual({ text: 'Открыть', url: 'https://t.me/test_bot?start=reg_ABC123' });
   });
 
+  it('uses ForceReply so privacy-mode bots receive the next group message', async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+    const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
+
+    await client.sendMessage({ chatId: '-100', text: 'Введите дату', forceReply: true });
+
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
+    expect(body.reply_markup).toEqual({
+      force_reply: true,
+      selective: true,
+      input_field_placeholder: 'Ответ церковному помощнику',
+    });
+  });
+
   it('uploads transcript documents and audio files', async () => {
     const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
     const client = new TelegramApiClient('secret-token', 'https://api.telegram.org', request);
