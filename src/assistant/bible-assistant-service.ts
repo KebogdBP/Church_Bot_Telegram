@@ -3,6 +3,7 @@ import type { AssistantRepository } from './assistant-repository.js';
 import type { BibleAnswerProvider } from './bible-answer-provider.js';
 import type { SermonArchiveEntry, SermonSearchResult } from '../sermons/sermon-search-service.js';
 import type { SermonAnswerContext } from './bible-answer-provider.js';
+import { needsRussianRewrite } from '../ai/language-policy.js';
 
 const URGENT = /самоубий|суицид|убить себя|не хочу жить|насили|избива|угрожа/i;
 const PROFESSIONAL = /диагноз|лекарств|лечение|юрист|законн|инвестиц|долг/i;
@@ -39,7 +40,18 @@ export class BibleAssistantService {
     try {
       const sermonContext = selectedContext ?? (withSermons && this.archive ? await this.archive.searchContext(chatId, question, 3) : []);
       const history = trimHistory(await this.repository.getHistory(chatId, userHash, HISTORY_TURNS), HISTORY_CHARACTER_BUDGET);
-      const result = await this.provider.answer(question, await this.repository.getContext(chatId), sermonContext.map((item) => ({ sermonId: item.sermonId, title: item.title, excerpt: item.excerpt })), history);
+      const churchContext = await this.repository.getContext(chatId);
+      let result = await this.provider.answer(question, churchContext, sermonContext.map((item) => ({ sermonId: item.sermonId, title: item.title, excerpt: item.excerpt })), history);
+      if (needsRussianRewrite(question, result.answer)) {
+        const translated = await this.provider.answer([
+          'Переведи приведённый ниже ответ на естественный русский язык.',
+          'Сохрани смысл, структуру и пасторски бережный тон. Ничего не добавляй и не сокращай.',
+          'Верни перевод в поле answer структурированного ответа.',
+          '',
+          result.answer,
+        ].join('\n'));
+        if (!needsRussianRewrite(question, translated.answer)) result = { ...result, answer: translated.answer };
+      }
       await this.repository.appendExchange(chatId, userHash, question, result.answer, this.timezone);
       await this.repository.log({ chatId, userHash, outcome: 'answered', category: result.category, model: result.model, timezone: this.timezone });
       const references = result.bibleReferences.length ? `\n\nБиблейские места: ${result.bibleReferences.join('; ')}` : '';

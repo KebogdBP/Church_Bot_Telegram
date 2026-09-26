@@ -45,6 +45,29 @@ describe('BibleAssistantService', () => {
     expect(repository.clearHistory).toHaveBeenCalledWith('chat', expect.stringMatching(/^[a-f0-9]{64}$/));
   });
 
+  it('automatically rewrites an English answer to Russian for a Russian question', async () => {
+    const { repository, provider, service } = setup();
+    vi.mocked(provider.answer)
+      .mockResolvedValueOnce({ answer: 'Grace is the undeserved gift of God offered through Christ.', bibleReferences: ['Еф. 2:8'], needsPastor: false, category: 'bible', sermonSourceIds: [], model: 'model' })
+      .mockResolvedValueOnce({ answer: 'Благодать — это незаслуженный дар Бога, данный нам через Христа.', bibleReferences: [], needsPastor: false, category: 'translation', sermonSourceIds: [], model: 'model' });
+
+    const result = await service.ask('chat', '42', 'Что такое благодать?');
+
+    expect(provider.answer).toHaveBeenCalledTimes(2);
+    expect(result.text).toContain('Благодать — это незаслуженный дар Бога');
+    expect(result.text).toContain('Библейские места: Еф. 2:8');
+    expect(repository.appendExchange).toHaveBeenCalledWith('chat', expect.any(String), 'Что такое благодать?', expect.stringContaining('Благодать'), 'Europe/Moscow');
+  });
+
+  it('does not translate an answer when the latest question is not Russian', async () => {
+    const { provider, service } = setup();
+    vi.mocked(provider.answer).mockResolvedValueOnce({ answer: 'Grace is a gift from God.', bibleReferences: [], needsPastor: false, category: 'bible', sermonSourceIds: [], model: 'model' });
+
+    await service.ask('chat', '42', 'What is grace?');
+
+    expect(provider.answer).toHaveBeenCalledTimes(1);
+  });
+
   it('uses only retrieved sermon IDs in a grounded answer', async () => {
     const { repository, provider } = setup();
     vi.mocked(provider.answer).mockResolvedValue({ answer: 'Ответ из архива', bibleReferences: [], needsPastor: false, category: 'sermon_archive', sermonSourceIds: ['sermon-1', 'invented'], model: 'model' });
